@@ -1,0 +1,61 @@
+@page "/admin/short-links"
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Admin.ShortLinks
+@using SayHello.ShortLink.Localization
+@using SayHello.ShortLink.ShortLinks
+@model SayHello.ShortLink.Admin.Web.Pages.Admin.ShortLinks.IndexModel
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["AllShortLinks"];
+}
+
+<div class="container py-4">
+    <h1 class="mb-4">@L["AllShortLinks"]</h1>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>@L["Code"]</th>
+                    <th>@L["Owner"]</th>
+                    <th>@L["TargetUrl"]</th>
+                    <th>@L["Status"]</th>
+                    <th class="text-end">@L["Visits"]</th>
+                    <th class="text-end">@L["Actions"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td><a href="@item.ShortUrl" target="_blank">@item.Code</a></td>
+                        <td><code>@item.OwnerUserId</code></td>
+                        <td class="text-truncate" style="max-width: 420px">@item.TargetUrl</td>
+                        <td>@L[$"Status:{item.Status}"]</td>
+                        <td class="text-end">@item.TotalVisitCount</td>
+                        <td class="text-end text-nowrap">
+                            <form method="post" asp-page-handler="SetStatus" class="d-inline">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="concurrencyStamp" value="@item.ConcurrencyStamp" />
+                                <input type="hidden"
+                                       name="status"
+                                       value="@(item.Status == ShortLinkStatus.Active ? ShortLinkStatus.Disabled : ShortLinkStatus.Active)" />
+                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                    @(item.Status == ShortLinkStatus.Active ? L["Disable"] : L["Activate"])
+                                </button>
+                            </form>
+                            <form method="post" asp-page-handler="Delete" class="d-inline delete-short-link-form">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">@L["Delete"]</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<abp-script src="/Pages/Admin/ShortLinks/Index.js" />

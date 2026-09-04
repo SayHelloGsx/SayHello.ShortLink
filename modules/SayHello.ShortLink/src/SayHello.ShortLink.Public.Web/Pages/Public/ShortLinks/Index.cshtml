@@ -1,0 +1,136 @@
+﻿@page "/short-links"
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@using SayHello.ShortLink.Public.ShortLinks
+@using SayHello.ShortLink.ShortLinks
+@model SayHello.ShortLink.Public.Web.Pages.Public.ShortLinks.IndexModel
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["MyShortLinks"];
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">@L["MyShortLinks"]</h1>
+            <p class="text-muted mb-0">@L["MyShortLinks:Description"]</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">@L["CreateShortLink"]</h2>
+            <form method="post" asp-page-handler="Create" class="row g-3">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <div class="col-lg-6">
+                    <label asp-for="NewLink.TargetUrl" class="form-label">@L["TargetUrl"]</label>
+                    <input asp-for="NewLink.TargetUrl" class="form-control" placeholder="https://example.com/path" />
+                    <span asp-validation-for="NewLink.TargetUrl" class="text-danger"></span>
+                </div>
+                <div class="col-lg-2">
+                    <label asp-for="NewLink.CustomCode" class="form-label">@L["CustomCode"]</label>
+                    <input asp-for="NewLink.CustomCode" class="form-control" />
+                    <span asp-validation-for="NewLink.CustomCode" class="text-danger"></span>
+                </div>
+                <div class="col-lg-2">
+                    <label asp-for="NewLink.Title" class="form-label">@L["Title"]</label>
+                    <input asp-for="NewLink.Title" class="form-control" />
+                </div>
+                <div class="col-lg-2">
+                    <label asp-for="NewLink.ExpiresAt" class="form-label">@L["ExpiresAtUtc"]</label>
+                    <input asp-for="NewLink.ExpiresAt" type="datetime-local" class="form-control" />
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-plus me-1"></i>@L["Create"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>@L["ShortUrl"]</th>
+                    <th>@L["TargetUrl"]</th>
+                    <th>@L["Status"]</th>
+                    <th>@L["ExpiresAt"]</th>
+                    <th class="text-end">@L["Visits"]</th>
+                    <th class="text-end">@L["Actions"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">@L["NoShortLinks"]</td>
+                    </tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">@item.Code</div>
+                            <a href="@item.ShortUrl" target="_blank" rel="noopener noreferrer">@item.ShortUrl</a>
+                        </td>
+                        <td class="text-truncate" style="max-width: 340px">
+                            @if (!string.IsNullOrWhiteSpace(item.Title))
+                            {
+                                <div class="fw-semibold">@item.Title</div>
+                            }
+                            <a href="@item.TargetUrl" target="_blank" rel="noopener noreferrer">@item.TargetUrl</a>
+                        </td>
+                        <td>
+                            <span class="badge @(item.Status == ShortLinkStatus.Active ? "bg-success" : "bg-secondary")">
+                                @L[$"Status:{item.Status}"]
+                            </span>
+                        </td>
+                        <td>@(item.ExpiresAt?.ToString("u") ?? L["Never"])</td>
+                        <td class="text-end">@item.TotalVisitCount</td>
+                        <td class="text-end text-nowrap">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary copy-short-link"
+                                    data-url="@item.ShortUrl"
+                                    data-copied-message="@L["Copied"]">
+                                @L["Copy"]
+                            </button>
+                            <a asp-page-handler="QrCode"
+                               asp-route-id="@item.Id"
+                               target="_blank"
+                               class="btn btn-sm btn-outline-secondary">@L["QrCode"]</a>
+                            <a asp-page="./Statistics"
+                               asp-route-id="@item.Id"
+                               class="btn btn-sm btn-outline-info">@L["Statistics"]</a>
+                            <a asp-page="./Edit"
+                               asp-route-id="@item.Id"
+                               class="btn btn-sm btn-outline-primary">@L["Edit"]</a>
+                            <form method="post" asp-page-handler="SetStatus" class="d-inline">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="concurrencyStamp" value="@item.ConcurrencyStamp" />
+                                <input type="hidden"
+                                       name="status"
+                                       value="@(item.Status == ShortLinkStatus.Active ? ShortLinkStatus.Disabled : ShortLinkStatus.Active)" />
+                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                    @(item.Status == ShortLinkStatus.Active ? L["Disable"] : L["Activate"])
+                                </button>
+                            </form>
+                            <form method="post"
+                                  asp-page-handler="Delete"
+                                  class="d-inline delete-short-link-form">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">@L["Delete"]</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<abp-script src="/Pages/Public/ShortLinks/Index.js" />

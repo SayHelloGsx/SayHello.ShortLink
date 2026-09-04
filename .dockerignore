@@ -1,0 +1,17 @@
+.git
+.github
+.vs
+.idea
+**/bin
+**/obj
+**/node_modules
+**/wwwroot/libs
+**/Logs
+**/appsettings.secrets.json
+**/*.pfx
+deploy/.env
+deploy/backups
+deploy/secrets
+TestResults
+coverage
+artifacts

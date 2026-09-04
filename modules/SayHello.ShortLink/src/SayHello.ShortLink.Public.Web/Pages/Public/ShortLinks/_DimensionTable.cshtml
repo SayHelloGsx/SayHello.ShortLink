@@ -1,0 +1,18 @@
+@model (string Title, System.Collections.Generic.List<SayHello.ShortLink.Public.ShortLinks.DimensionStatisticDto> Items)
+
+<div class="col-lg-4">
+    <div class="card shadow-sm h-100">
+        <div class="card-body">
+            <h2 class="h5">@Model.Title</h2>
+            <table class="table table-sm">
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td>@item.Value</td>
+                        <td class="text-end">@item.VisitCount</td>
+                    </tr>
+                }
+            </table>
+        </div>
+    </div>
+</div>

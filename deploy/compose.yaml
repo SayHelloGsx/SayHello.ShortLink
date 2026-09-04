@@ -1,0 +1,147 @@
+name: shortlink
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      backend:
+        ipv4_address: 172.28.0.3
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      backend:
+        ipv4_address: 172.28.0.4
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    profiles: ["development"]
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    networks:
+      backend:
+        ipv4_address: 172.28.0.6
+
+  dbmigrator:
+    image: ${SHORTLINK_IMAGE:-shortlink:local}
+    build:
+      context: ..
+      target: web
+    profiles: ["migration"]
+    entrypoint:
+      - dotnet
+      - /app/migrator/SayHello.ShortLink.WebHost.DbMigrator.dll
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      App__SelfUrl: https://${DOMAIN}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      StringEncryption__DefaultPassPhrase: ${STRING_ENCRYPTION_PASSPHRASE}
+      Identity__AdminEmail: ${ADMIN_EMAIL}
+      Identity__AdminPassword: ${ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  web:
+    image: ${SHORTLINK_IMAGE:-shortlink:local}
+    build:
+      context: ..
+      target: web
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      App__SelfUrl: https://${DOMAIN}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Redis__Configuration: redis:6379,password=${REDIS_PASSWORD},abortConnect=false
+      ReverseProxy__KnownProxy: 172.28.0.2
+      ShortLink__Urls__BaseUrl: https://${DOMAIN}
+      ShortLink__Security__OwnHosts__0: ${DOMAIN}
+      ShortLink__Privacy__VisitorHashKey: ${VISITOR_HASH_KEY}
+      StringEncryption__DefaultPassPhrase: ${STRING_ENCRYPTION_PASSPHRASE}
+      Settings__Abp.Mailing.DefaultFromAddress: ${SMTP_FROM_ADDRESS}
+      Settings__Abp.Mailing.DefaultFromDisplayName: ${SMTP_FROM_NAME}
+      Settings__Abp.Mailing.Smtp.Host: ${SMTP_HOST}
+      Settings__Abp.Mailing.Smtp.Port: ${SMTP_PORT}
+      Settings__Abp.Mailing.Smtp.UserName: ${SMTP_USERNAME}
+      Settings__Abp.Mailing.Smtp.Password: ${SMTP_PASSWORD}
+      Settings__Abp.Mailing.Smtp.EnableSsl: ${SMTP_ENABLE_SSL}
+      OpenIddict__ServerCertificate__Path: /app/certs/openiddict.pfx
+      OpenIddict__ServerCertificate__Password: ${OPENIDDICT_CERTIFICATE_PASSWORD}
+    volumes:
+      - ./secrets/openiddict.pfx:/app/certs/openiddict.pfx:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      backend:
+        ipv4_address: 172.28.0.5
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      backend:
+        ipv4_address: 172.28.0.2
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

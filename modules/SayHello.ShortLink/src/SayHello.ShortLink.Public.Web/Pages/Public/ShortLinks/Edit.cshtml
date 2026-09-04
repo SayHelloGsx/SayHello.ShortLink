@@ -1,0 +1,36 @@
+@page "/short-links/{id:guid}/edit"
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@model SayHello.ShortLink.Public.Web.Pages.Public.ShortLinks.EditModel
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["EditShortLink"];
+}
+
+<div class="container py-4">
+    <div class="card shadow-sm mx-auto" style="max-width: 800px">
+        <div class="card-body">
+            <h1 class="h3">@L["EditShortLink"]: @Model.Code</h1>
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <input asp-for="Input.ConcurrencyStamp" type="hidden" />
+                <div class="mb-3">
+                    <label asp-for="Input.TargetUrl" class="form-label">@L["TargetUrl"]</label>
+                    <input asp-for="Input.TargetUrl" class="form-control" />
+                    <span asp-validation-for="Input.TargetUrl" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.Title" class="form-label">@L["Title"]</label>
+                    <input asp-for="Input.Title" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.ExpiresAt" class="form-label">@L["ExpiresAtUtc"]</label>
+                    <input asp-for="Input.ExpiresAt" type="datetime-local" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">@L["Save"]</button>
+                <a asp-page="./Index" class="btn btn-outline-secondary">@L["Cancel"]</a>
+            </form>
+        </div>
+    </div>
+</div>

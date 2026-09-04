@@ -1,0 +1,106 @@
+{
+  "folders": {
+    "items": {
+      "src": {},
+      "test": {}
+    }
+  },
+  "packages": {
+    "SayHello.ShortLink.Domain.Shared": {
+      "path": "src/SayHello.ShortLink.Domain.Shared/SayHello.ShortLink.Domain.Shared.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Domain": {
+      "path": "src/SayHello.ShortLink.Domain/SayHello.ShortLink.Domain.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.EntityFrameworkCore": {
+      "path": "src/SayHello.ShortLink.EntityFrameworkCore/SayHello.ShortLink.EntityFrameworkCore.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Common.Application.Contracts": {
+      "path": "src/SayHello.ShortLink.Common.Application.Contracts/SayHello.ShortLink.Common.Application.Contracts.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Common.Application": {
+      "path": "src/SayHello.ShortLink.Common.Application/SayHello.ShortLink.Common.Application.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Public.Application.Contracts": {
+      "path": "src/SayHello.ShortLink.Public.Application.Contracts/SayHello.ShortLink.Public.Application.Contracts.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Public.Application": {
+      "path": "src/SayHello.ShortLink.Public.Application/SayHello.ShortLink.Public.Application.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Public.HttpApi": {
+      "path": "src/SayHello.ShortLink.Public.HttpApi/SayHello.ShortLink.Public.HttpApi.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Public.HttpApi.Client": {
+      "path": "src/SayHello.ShortLink.Public.HttpApi.Client/SayHello.ShortLink.Public.HttpApi.Client.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Public.Web": {
+      "path": "src/SayHello.ShortLink.Public.Web/SayHello.ShortLink.Public.Web.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Admin.Application.Contracts": {
+      "path": "src/SayHello.ShortLink.Admin.Application.Contracts/SayHello.ShortLink.Admin.Application.Contracts.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Admin.Application": {
+      "path": "src/SayHello.ShortLink.Admin.Application/SayHello.ShortLink.Admin.Application.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Admin.HttpApi": {
+      "path": "src/SayHello.ShortLink.Admin.HttpApi/SayHello.ShortLink.Admin.HttpApi.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Admin.HttpApi.Client": {
+      "path": "src/SayHello.ShortLink.Admin.HttpApi.Client/SayHello.ShortLink.Admin.HttpApi.Client.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Admin.Web": {
+      "path": "src/SayHello.ShortLink.Admin.Web/SayHello.ShortLink.Admin.Web.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Application.Contracts": {
+      "path": "src/SayHello.ShortLink.Application.Contracts/SayHello.ShortLink.Application.Contracts.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Application": {
+      "path": "src/SayHello.ShortLink.Application/SayHello.ShortLink.Application.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.HttpApi": {
+      "path": "src/SayHello.ShortLink.HttpApi/SayHello.ShortLink.HttpApi.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.HttpApi.Client": {
+      "path": "src/SayHello.ShortLink.HttpApi.Client/SayHello.ShortLink.HttpApi.Client.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Web": {
+      "path": "src/SayHello.ShortLink.Web/SayHello.ShortLink.Web.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.TestBase": {
+      "path": "test/SayHello.ShortLink.TestBase/SayHello.ShortLink.TestBase.abppkg",
+      "folder": "test"
+    },
+    "SayHello.ShortLink.Domain.Tests": {
+      "path": "test/SayHello.ShortLink.Domain.Tests/SayHello.ShortLink.Domain.Tests.abppkg",
+      "folder": "test"
+    },
+    "SayHello.ShortLink.Application.Tests": {
+      "path": "test/SayHello.ShortLink.Application.Tests/SayHello.ShortLink.Application.Tests.abppkg",
+      "folder": "test"
+    },
+    "SayHello.ShortLink.EntityFrameworkCore.Tests": {
+      "path": "test/SayHello.ShortLink.EntityFrameworkCore.Tests/SayHello.ShortLink.EntityFrameworkCore.Tests.abppkg",
+      "folder": "test"
+    }
+  }
+}

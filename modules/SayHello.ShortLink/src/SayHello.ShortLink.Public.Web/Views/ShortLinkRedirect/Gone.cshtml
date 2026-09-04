@@ -1,0 +1,15 @@
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@model string
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["Gone:Title"];
+}
+
+<div class="container py-5 text-center">
+    <h1 class="display-4 fw-bold">410</h1>
+    <h2>@L["Gone:Title"]</h2>
+    <p class="text-muted">@L["Gone:Description", Model]</p>
+    <a class="btn btn-primary" href="/">@L["BackToHome"]</a>
+</div>

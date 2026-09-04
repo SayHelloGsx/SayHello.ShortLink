@@ -1,0 +1,34 @@
+# .NET and IDE output
+**/[Bb]in/
+**/[Oo]bj/
+.vs/
+.idea/
+*.suo
+*.user
+*.DotSettings.user
+TestResults/
+coverage/
+artifacts/
+*.nupkg
+
+# Front-end dependencies and generated assets
+**/node_modules/
+**/wwwroot/libs/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+**/appsettings.secrets.json
+*.pfx
+*.snk
+deploy/backups/
+deploy/secrets/
+
+# Runtime output
+**/Logs/
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db

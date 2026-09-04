@@ -1,0 +1,20 @@
+@page
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.WebHost.Localization
+@model SayHello.ShortLink.WebHost.Web.Pages.Account.EmailConfirmationSentModel
+@inject IStringLocalizer<WebHostResource> L
+
+<div class="card mt-3 shadow-sm rounded">
+    <div class="card-body p-5 text-center">
+        <h1 class="h4">@L["EmailConfirmationSent:Title"]</h1>
+        <p>@L["EmailConfirmationSent:Description", Model.EmailAddress]</p>
+        <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl" class="btn btn-primary">
+            @L["GoToLogin"]
+        </a>
+        <a asp-page="./ResendEmailConfirmation"
+           asp-route-emailAddress="@Model.EmailAddress"
+           class="btn btn-outline-secondary">
+            @L["ResendConfirmation"]
+        </a>
+    </div>
+</div>

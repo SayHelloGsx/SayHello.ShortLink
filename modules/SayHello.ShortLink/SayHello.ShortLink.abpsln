@@ -1,0 +1,7 @@
+{
+  "modules": {
+    "SayHello.ShortLink": {
+      "path": "SayHello.ShortLink.abpmdl"
+    }
+  }
+}

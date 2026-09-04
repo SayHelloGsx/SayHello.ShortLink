@@ -1,0 +1,74 @@
+@page
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.WebHost.Localization
+@using Volo.Abp.Users
+@inject IStringLocalizer<WebHostResource> L
+@inject ICurrentUser CurrentUser
+
+@{
+    ViewData["Title"] = L["AppName"];
+}
+
+<section class="shortlink-hero rounded-4 p-4 p-lg-5 mb-5">
+    <div class="row align-items-center g-5">
+        <div class="col-lg-7">
+            <span class="badge rounded-pill text-bg-primary mb-3">ShortLink</span>
+            <h1 class="display-4 fw-bold">@L["Welcome"]</h1>
+            <p class="lead text-muted">@L["LongWelcomeMessage"]</p>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                @if (CurrentUser.IsAuthenticated)
+                {
+                    <a class="btn btn-primary btn-lg" href="/short-links">@L["OpenDashboard"]</a>
+                }
+                else
+                {
+                    <a class="btn btn-primary btn-lg" href="/Account/Register">@L["CreateAccount"]</a>
+                    <a class="btn btn-outline-primary btn-lg" href="/Account/Login">@L["Login"]</a>
+                }
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="shortlink-preview shadow-sm">
+                <div class="small text-uppercase text-muted mb-2">@L["ExampleShortLink"]</div>
+                <div class="h4 text-primary mb-3">https://go.example/aB3xY9q</div>
+                <div class="progress mb-3">
+                    <div class="progress-bar" style="width: 78%"></div>
+                </div>
+                <div class="d-flex justify-content-between text-muted">
+                    <span>@L["PrivacyFriendly"]</span>
+                    <span>@L["FastRedirects"]</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-body p-4">
+                <i class="fa fa-link text-primary fs-2 mb-3"></i>
+                <h2 class="h5">@L["Feature:Manage"]</h2>
+                <p class="text-muted mb-0">@L["Feature:Manage:Description"]</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-body p-4">
+                <i class="fa fa-chart-line text-primary fs-2 mb-3"></i>
+                <h2 class="h5">@L["Feature:Measure"]</h2>
+                <p class="text-muted mb-0">@L["Feature:Measure:Description"]</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-body p-4">
+                <i class="fa fa-shield-alt text-primary fs-2 mb-3"></i>
+                <h2 class="h5">@L["Feature:Protect"]</h2>
+                <p class="text-muted mb-0">@L["Feature:Protect:Description"]</p>
+            </div>
+        </div>
+    </div>
+</section>

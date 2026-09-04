@@ -1,0 +1,46 @@
+@page "/short-links/{id:guid}/statistics"
+@using System.Linq
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@model SayHello.ShortLink.Public.Web.Pages.Public.ShortLinks.StatisticsModel
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["Statistics"];
+    var maxVisits = Math.Max(1, Model.Statistics.Daily.Max(x => x.VisitCount));
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3">@L["Statistics"]: @Model.Statistics.Code</h1>
+            <div class="text-muted">@L["TotalVisits"]: @Model.Statistics.TotalVisitCount</div>
+        </div>
+        <a asp-page="./Index" class="btn btn-outline-secondary">@L["Back"]</a>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">@L["DailyTrend"]</h2>
+            @foreach (var point in Model.Statistics.Daily)
+            {
+                var width = point.VisitCount * 100 / maxVisits;
+                <div class="row align-items-center mb-2">
+                    <div class="col-3 col-lg-2 small">@point.Date</div>
+                    <div class="col">
+                        <div class="progress" role="img" aria-label="@point.VisitCount">
+                            <div class="progress-bar" style="width: @width%">@point.VisitCount</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-lg-2 small text-end">@L["Unique"]: @point.UniqueVisitorCount</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <partial name="_DimensionTable" model='(L["Referrers"].Value, Model.Statistics.Referrers)' />
+        <partial name="_DimensionTable" model='(L["Browsers"].Value, Model.Statistics.Browsers)' />
+        <partial name="_DimensionTable" model='(L["Devices"].Value, Model.Statistics.Devices)' />
+    </div>
+</div>

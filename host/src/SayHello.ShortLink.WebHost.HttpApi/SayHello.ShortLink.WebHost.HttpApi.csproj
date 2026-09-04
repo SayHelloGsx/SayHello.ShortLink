@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\..\common.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SayHello.ShortLink.WebHost</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SayHello.ShortLink.WebHost.Application.Contracts\SayHello.ShortLink.WebHost.Application.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\modules\SayHello.ShortLink\src\SayHello.ShortLink.HttpApi\SayHello.ShortLink.HttpApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.Account.HttpApi" Version="10.6.0" />
+    <PackageReference Include="Volo.Abp.Identity.HttpApi" Version="10.6.0" />
+    <PackageReference Include="Volo.Abp.PermissionManagement.HttpApi" Version="10.6.0" />
+    <PackageReference Include="Volo.Abp.TenantManagement.HttpApi" Version="10.6.0" />
+    <PackageReference Include="Volo.Abp.FeatureManagement.HttpApi" Version="10.6.0" />
+    <PackageReference Include="Volo.Abp.SettingManagement.HttpApi" Version="10.6.0" />
+  </ItemGroup>
+
+</Project>

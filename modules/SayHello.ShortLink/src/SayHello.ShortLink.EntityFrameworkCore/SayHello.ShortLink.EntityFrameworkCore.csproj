@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\..\common.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SayHello.ShortLink</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.EntityFrameworkCore" Version="10.6.0" />
+    <ProjectReference Include="..\SayHello.ShortLink.Domain\SayHello.ShortLink.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

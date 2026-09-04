@@ -1,0 +1,41 @@
+@page "/admin/short-links/settings"
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@model SayHello.ShortLink.Admin.Web.Pages.Admin.ShortLinks.SettingsModel
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["ShortLinkSettings"];
+}
+
+<div class="container py-4">
+    <div class="card shadow-sm mx-auto" style="max-width: 720px">
+        <div class="card-body">
+            <h1 class="h3 mb-4">@L["ShortLinkSettings"]</h1>
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <div class="mb-3">
+                    <label asp-for="Settings.MaxLinksPerUser" class="form-label">@L["MaxLinksPerUser"]</label>
+                    <input asp-for="Settings.MaxLinksPerUser" class="form-control" min="1" max="100000" />
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Settings.CreateLimitPerHour" class="form-label">@L["CreateLimitPerHour"]</label>
+                    <input asp-for="Settings.CreateLimitPerHour" class="form-control" min="1" max="10000" />
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Settings.VisitRetentionDays" class="form-label">@L["VisitRetentionDays"]</label>
+                    <input asp-for="Settings.VisitRetentionDays" class="form-control" min="1" max="3650" />
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Settings.DeletedCodeCooldownDays" class="form-label">@L["DeletedCodeCooldownDays"]</label>
+                    <input asp-for="Settings.DeletedCodeCooldownDays" class="form-control" min="1" max="3650" />
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Settings.GeneratedCodeLength" class="form-label">@L["GeneratedCodeLength"]</label>
+                    <input asp-for="Settings.GeneratedCodeLength" class="form-control" min="3" max="64" />
+                </div>
+                <button type="submit" class="btn btn-primary">@L["Save"]</button>
+            </form>
+        </div>
+    </div>
+</div>

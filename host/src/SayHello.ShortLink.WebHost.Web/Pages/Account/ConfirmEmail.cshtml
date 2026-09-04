@@ -1,0 +1,24 @@
+@page
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.WebHost.Localization
+@model SayHello.ShortLink.WebHost.Web.Pages.Account.ConfirmEmailModel
+@inject IStringLocalizer<WebHostResource> L
+
+<div class="card mt-3 shadow-sm rounded">
+    <div class="card-body p-5 text-center">
+        @if (Model.IsConfirmed)
+        {
+            <h1 class="h4 text-success">@L["ConfirmEmail:SuccessTitle"]</h1>
+            <p>@L["ConfirmEmail:SuccessDescription"]</p>
+            <a asp-page="./Login" class="btn btn-primary">@L["GoToLogin"]</a>
+        }
+        else
+        {
+            <h1 class="h4 text-danger">@L["ConfirmEmail:FailureTitle"]</h1>
+            <p>@L["ConfirmEmail:FailureDescription"]</p>
+            <a asp-page="./ResendEmailConfirmation" class="btn btn-outline-primary">
+                @L["ResendConfirmation"]
+            </a>
+        }
+    </div>
+</div>
