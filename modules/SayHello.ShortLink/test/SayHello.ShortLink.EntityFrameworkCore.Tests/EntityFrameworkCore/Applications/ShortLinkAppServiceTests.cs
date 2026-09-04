@@ -1,9 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using SayHello.ShortLink.BlockedDomains;
+using SayHello.ShortLink.Common.BlockedDomains;
 using SayHello.ShortLink.EntityFrameworkCore;
 using SayHello.ShortLink.Public.ShortLinks;
 using Shouldly;
+using Volo.Abp.Guids;
 using Volo.Abp.Users;
 using Xunit;
 
@@ -15,6 +18,9 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
     private readonly IShortLinkRedirectAppService _redirectAppService;
     private readonly IShortLinkRepository _repository;
     private readonly ICurrentUser _currentUser;
+    private readonly IBlockedDomainRepository _blockedDomainRepository;
+    private readonly IBlockedDomainCache _blockedDomainCache;
+    private readonly IGuidGenerator _guidGenerator;
 
     public ShortLinkAppServiceTests()
     {
@@ -22,6 +28,9 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
         _redirectAppService = GetRequiredService<IShortLinkRedirectAppService>();
         _repository = GetRequiredService<IShortLinkRepository>();
         _currentUser = GetRequiredService<ICurrentUser>();
+        _blockedDomainRepository = GetRequiredService<IBlockedDomainRepository>();
+        _blockedDomainCache = GetRequiredService<IBlockedDomainCache>();
+        _guidGenerator = GetRequiredService<IGuidGenerator>();
     }
 
     [Fact]
@@ -76,5 +85,41 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
         (await _repository.CodeExistsAsync(created.Code)).ShouldBeTrue();
         (await _redirectAppService.ResolveAsync(created.Code)).Status
             .ShouldBe(ShortLinkResolutionStatus.Gone);
+    }
+
+    [Fact]
+    public async Task Resolve_Should_Block_Target_Without_Recording_A_Visit()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var targetHost = $"{suffix}.example";
+        var created = await _appService.CreateAsync(
+            new CreateShortLinkDto
+            {
+                TargetUrl = $"https://{targetHost}/path",
+                CustomCode = $"B{suffix[..6]}"
+            });
+
+        await WithUnitOfWorkAsync(() =>
+            _blockedDomainRepository.InsertAsync(
+                new BlockedDomain(
+                    _guidGenerator.Create(),
+                    null,
+                    targetHost,
+                    "Unsafe destination"),
+                autoSave: true));
+        await _blockedDomainCache.InvalidateAsync(targetHost, null);
+
+        var result = await _redirectAppService.ResolveAsync(
+            created.Code,
+            new RecordShortLinkVisitDto
+            {
+                IpAddress = "203.0.113.10",
+                UserAgent = "Mozilla/5.0 Chrome/120.0"
+            });
+
+        result.Status.ShouldBe(ShortLinkResolutionStatus.Blocked);
+        result.BlockedDomain.ShouldBe(targetHost);
+        result.BlockedReason.ShouldBe("Unsafe destination");
+        (await _appService.GetAsync(created.Id)).TotalVisitCount.ShouldBe(0);
     }
 }

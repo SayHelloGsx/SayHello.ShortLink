@@ -9,4 +9,8 @@ public class ShortLinkResolutionDto
     public Guid? ShortLinkId { get; set; }
 
     public string? TargetUrl { get; set; }
+
+    public string? BlockedDomain { get; set; }
+
+    public string? BlockedReason { get; set; }
 }

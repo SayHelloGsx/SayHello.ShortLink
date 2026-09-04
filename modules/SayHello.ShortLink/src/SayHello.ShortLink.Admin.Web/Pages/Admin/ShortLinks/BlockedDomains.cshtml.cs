@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SayHello.ShortLink.Admin.BlockedDomains;
 using SayHello.ShortLink.Permissions;
+using Volo.Abp.Content;
 
 namespace SayHello.ShortLink.Admin.Web.Pages.Admin.ShortLinks;
 
@@ -17,6 +19,11 @@ public class BlockedDomainsModel : ShortLinkAdminPageModel
 
     [BindProperty]
     public CreateBlockedDomainDto NewDomain { get; set; } = new();
+
+    [BindProperty]
+    public IFormFile? CsvFile { get; set; }
+
+    public BlockedDomainImportResultDto? ImportResult { get; private set; }
 
     public BlockedDomainsModel(IBlockedDomainAppService appService)
     {
@@ -61,6 +68,25 @@ public class BlockedDomainsModel : ShortLinkAdminPageModel
     {
         await _appService.DeleteAsync(id);
         return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostImportAsync()
+    {
+        if (CsvFile is null)
+        {
+            ModelState.AddModelError(nameof(CsvFile), L["BlockedDomainImport:FileRequired"]);
+            await LoadAsync();
+            return Page();
+        }
+
+        using var content = new RemoteStreamContent(
+            CsvFile.OpenReadStream(),
+            CsvFile.FileName,
+            CsvFile.ContentType,
+            CsvFile.Length);
+        ImportResult = await _appService.ImportAsync(content);
+        await LoadAsync();
+        return Page();
     }
 
     private async Task LoadAsync()

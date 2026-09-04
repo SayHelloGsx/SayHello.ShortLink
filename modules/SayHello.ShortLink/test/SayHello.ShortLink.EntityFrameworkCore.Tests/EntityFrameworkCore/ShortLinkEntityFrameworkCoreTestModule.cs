@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SayHello.ShortLink.Common.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Data;
+using Volo.Abp.DistributedLocking;
 using Volo.Abp.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore.Sqlite;
 using Volo.Abp.Modularity;
@@ -29,6 +30,7 @@ public class ShortLinkEntityFrameworkCoreTestModule : AbpModule
     {
         context.Services.AddAlwaysDisableUnitOfWorkTransaction();
         context.Services.AddSingleton<IHostAddressResolver, TestHostAddressResolver>();
+        context.Services.AddSingleton<IAbpDistributedLock, InProcessAbpDistributedLock>();
 
         Configure<SettingManagementOptions>(options =>
         {

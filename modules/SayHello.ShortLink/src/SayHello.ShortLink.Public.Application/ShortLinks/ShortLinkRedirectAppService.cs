@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
+using SayHello.ShortLink.Common.BlockedDomains;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
@@ -22,17 +23,20 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
     private readonly IDistributedCache<ShortLinkResolutionCacheItem, string> _cache;
     private readonly IVisitorHashService _visitorHashService;
     private readonly IVisitMetadataParser _metadataParser;
+    private readonly IBlockedDomainCache _blockedDomainCache;
 
     public ShortLinkRedirectAppService(
         IShortLinkRepository shortLinkRepository,
         IDistributedCache<ShortLinkResolutionCacheItem, string> cache,
         IVisitorHashService visitorHashService,
-        IVisitMetadataParser metadataParser)
+        IVisitMetadataParser metadataParser,
+        IBlockedDomainCache blockedDomainCache)
     {
         _shortLinkRepository = shortLinkRepository;
         _cache = cache;
         _visitorHashService = visitorHashService;
         _metadataParser = metadataParser;
+        _blockedDomainCache = blockedDomainCache;
     }
 
     [UnitOfWork(isTransactional: true)]
@@ -78,6 +82,22 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
             {
                 Status = ShortLinkResolutionStatus.Gone,
                 ShortLinkId = cacheItem.Id
+            };
+        }
+
+        var targetUri = new Uri(cacheItem.TargetUrl!, UriKind.Absolute);
+        var blockedDomain = await _blockedDomainCache.GetAsync(
+            targetUri.IdnHost,
+            cacheItem.TenantId,
+            cancellationToken);
+        if (blockedDomain.IsBlocked)
+        {
+            return new ShortLinkResolutionDto
+            {
+                Status = ShortLinkResolutionStatus.Blocked,
+                ShortLinkId = cacheItem.Id,
+                BlockedDomain = blockedDomain.MatchedDomain,
+                BlockedReason = blockedDomain.Reason
             };
         }
 

@@ -1,12 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using SayHello.ShortLink.BlockedDomains;
+using SayHello.ShortLink.Common.BlockedDomains;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
+using Volo.Abp.Content;
 using Volo.Abp.Data;
 
 namespace SayHello.ShortLink.Admin.BlockedDomains;
@@ -15,10 +19,17 @@ namespace SayHello.ShortLink.Admin.BlockedDomains;
 public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDomainAppService
 {
     private readonly IBlockedDomainRepository _repository;
+    private readonly IBlockedDomainCache _blockedDomainCache;
+    private readonly BlockedDomainCsvImporter _csvImporter;
 
-    public BlockedDomainAppService(IBlockedDomainRepository repository)
+    public BlockedDomainAppService(
+        IBlockedDomainRepository repository,
+        IBlockedDomainCache blockedDomainCache,
+        BlockedDomainCsvImporter csvImporter)
     {
         _repository = repository;
+        _blockedDomainCache = blockedDomainCache;
+        _csvImporter = csvImporter;
     }
 
     public async Task<ListResultDto<BlockedDomainDto>> GetListAsync()
@@ -52,6 +63,7 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
             entity,
             autoSave: true,
             cancellationToken: CancellationTokenProvider.Token);
+        await InvalidateCacheAsync(entity.Domain);
         return ToDto(entity);
     }
 
@@ -66,15 +78,35 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
             entity,
             autoSave: true,
             cancellationToken: CancellationTokenProvider.Token);
+        await InvalidateCacheAsync(entity.Domain);
         return ToDto(entity);
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        await _repository.DeleteAsync(
+        var entity = await _repository.GetAsync(
             id,
+            cancellationToken: CancellationTokenProvider.Token);
+        await _repository.DeleteAsync(
+            entity,
             autoSave: true,
             cancellationToken: CancellationTokenProvider.Token);
+        await InvalidateCacheAsync(entity.Domain);
+    }
+
+    public async Task<BlockedDomainImportResultDto> ImportAsync(IRemoteStreamContent file)
+    {
+        var execution = await _csvImporter.ImportAsync(
+            file,
+            CurrentTenant.Id,
+            CancellationTokenProvider.Token);
+
+        if (execution.ImportedDomains.Count > 0)
+        {
+            await InvalidateCacheAsync(execution.ImportedDomains);
+        }
+
+        return execution.Result;
     }
 
     private static void EnsureConcurrencyStamp(BlockedDomain entity, string concurrencyStamp)
@@ -99,5 +131,26 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
             LastModificationTime = entity.LastModificationTime,
             LastModifierId = entity.LastModifierId
         };
+    }
+
+    private async Task InvalidateCacheAsync(string domain)
+    {
+        IReadOnlyCollection<string> domains = [domain];
+        await InvalidateCacheAsync(domains);
+    }
+
+    private async Task InvalidateCacheAsync(IReadOnlyCollection<string> domains)
+    {
+        var tenantId = CurrentTenant.Id;
+        await _blockedDomainCache.InvalidateManyAsync(
+            domains,
+            tenantId,
+            CancellationTokenProvider.Token);
+
+        CurrentUnitOfWork?.OnCompleted(() =>
+            _blockedDomainCache.InvalidateManyAsync(
+                domains,
+                tenantId,
+                CancellationToken.None));
     }
 }

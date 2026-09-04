@@ -14,6 +14,8 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
 - Root-path redirects with 302, 404, and 410 behavior.
 - Privacy-friendly visit analytics without persisted raw IP addresses or user agents.
 - QR codes, per-user quotas, distributed creation rate limits, and domain blocking.
+- Redirect-time blocked-domain enforcement with cached parent-domain matching and HTTP 451 pages.
+- Admin CSV import for up to 10,000 blocked domains per 1 MB file.
 - English and Simplified Chinese module UI.
 - Docker Compose deployment with Caddy HTTPS, PostgreSQL, Redis, and a one-shot migrator.
 

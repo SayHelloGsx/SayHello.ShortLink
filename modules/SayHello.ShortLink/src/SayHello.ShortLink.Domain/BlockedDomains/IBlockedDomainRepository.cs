@@ -12,6 +12,16 @@ public interface IBlockedDomainRepository : IRepository<BlockedDomain, Guid>
         Guid? tenantId,
         CancellationToken cancellationToken = default);
 
+    Task<BlockedDomain?> FindMatchingActiveAsync(
+        string normalizedHost,
+        Guid? tenantId,
+        CancellationToken cancellationToken = default);
+
+    Task<List<string>> GetExistingDomainsAsync(
+        IReadOnlyCollection<string> normalizedDomains,
+        Guid? tenantId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> IsBlockedAsync(
         string normalizedHost,
         Guid? tenantId,

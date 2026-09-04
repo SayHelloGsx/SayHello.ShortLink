@@ -31,6 +31,75 @@
         </div>
     </div>
 
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">@L["BlockedDomainImport:Title"]</h2>
+            <p class="text-muted">@L["BlockedDomainImport:Description"]</p>
+            <pre class="bg-light rounded p-2"><code>Domain,Reason
+example.com,Malware
+sub.example.org,"Spam, phishing"</code></pre>
+            <form method="post"
+                  asp-page-handler="Import"
+                  enctype="multipart/form-data"
+                  class="row g-3 align-items-end">
+                <div class="col-md-9">
+                    <label asp-for="CsvFile" class="form-label">@L["BlockedDomainImport:File"]</label>
+                    <input asp-for="CsvFile"
+                           type="file"
+                           accept=".csv,text/csv"
+                           class="form-control" />
+                    <span asp-validation-for="CsvFile" class="text-danger"></span>
+                    <div class="form-text">@L["BlockedDomainImport:Limits"]</div>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-outline-primary w-100">
+                        <i class="fa fa-upload me-1"></i>@L["BlockedDomainImport:Upload"]
+                    </button>
+                </div>
+            </form>
+
+            @if (Model.ImportResult is not null)
+            {
+                <div class="alert alert-info mt-4 mb-3">
+                    @L[
+                        "BlockedDomainImport:Summary",
+                        Model.ImportResult.TotalRows,
+                        Model.ImportResult.ImportedCount,
+                        Model.ImportResult.ExistingCount,
+                        Model.ImportResult.DuplicateCount,
+                        Model.ImportResult.InvalidCount]
+                </div>
+
+                @if (Model.ImportResult.Issues.Count > 0)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle">
+                            <thead>
+                            <tr>
+                                <th>@L["BlockedDomainImport:Row"]</th>
+                                <th>@L["Domain"]</th>
+                                <th>@L["BlockedDomainImport:IssueType"]</th>
+                                <th>@L["BlockedDomainImport:Message"]</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var issue in Model.ImportResult.Issues)
+                            {
+                                <tr>
+                                    <td>@issue.RowNumber</td>
+                                    <td>@issue.Domain</td>
+                                    <td>@L[$"BlockedDomainImport:IssueType:{issue.Type}"]</td>
+                                    <td>@issue.Message</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <table class="table table-hover align-middle mb-0">
             <thead>

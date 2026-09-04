@@ -16,4 +16,11 @@ public static class ShortLinkErrorCodes
     public const string CreationRateExceeded = "ShortLink:010012";
     public const string BlockedDomainAlreadyExists = "ShortLink:010013";
     public const string InvalidSettingValue = "ShortLink:010014";
+    public const string BlockedDomainCacheLockTimeout = "ShortLink:010015";
+    public const string BlockedDomainImportEmpty = "ShortLink:010016";
+    public const string BlockedDomainImportTooLarge = "ShortLink:010017";
+    public const string BlockedDomainImportTooManyRows = "ShortLink:010018";
+    public const string BlockedDomainImportInvalidExtension = "ShortLink:010019";
+    public const string BlockedDomainImportMissingDomainHeader = "ShortLink:010020";
+    public const string BlockedDomainImportInvalidCsv = "ShortLink:010021";
 }

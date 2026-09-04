@@ -6,6 +6,7 @@ using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Application;
 using Volo.Abp.BackgroundWorkers;
+using Volo.Abp.DistributedLocking;
 using Volo.Abp.Mapperly;
 using Volo.Abp.Modularity;
 
@@ -16,7 +17,8 @@ namespace SayHello.ShortLink;
     typeof(ShortLinkDomainModule),
     typeof(AbpDddApplicationModule),
     typeof(AbpMapperlyModule),
-    typeof(AbpBackgroundWorkersModule)
+    typeof(AbpBackgroundWorkersModule),
+    typeof(AbpDistributedLockingModule)
 )]
 public class ShortLinkCommonApplicationModule : AbpModule
 {

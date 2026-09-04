@@ -15,6 +15,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Medallion.Threading;
+using Medallion.Threading.Redis;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Public.ShortLinks;
 using SayHello.ShortLink.WebHost.Web.HealthChecks;
@@ -39,6 +41,7 @@ using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.AspNetCore.Serilog;
 using Volo.Abp.Autofac;
 using Volo.Abp.Caching;
+using Volo.Abp.DistributedLocking;
 using Volo.Abp.Mapperly;
 using Volo.Abp.FeatureManagement;
 using Volo.Abp.Identity.Web;
@@ -265,6 +268,8 @@ public class WebHostWebModule : AbpModule
 
         var connectionMultiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
         services.AddSingleton<IConnectionMultiplexer>(connectionMultiplexer);
+        services.AddSingleton<IDistributedLockProvider>(
+            new RedisDistributedSynchronizationProvider(connectionMultiplexer.GetDatabase()));
         services.AddStackExchangeRedisCache(options =>
         {
             options.Configuration = redisConfiguration;
@@ -277,6 +282,10 @@ public class WebHostWebModule : AbpModule
                 "SayHello.ShortLink:DataProtectionKeys");
 
         Configure<AbpDistributedCacheOptions>(options =>
+        {
+            options.KeyPrefix = "SayHello.ShortLink:";
+        });
+        Configure<AbpDistributedLockOptions>(options =>
         {
             options.KeyPrefix = "SayHello.ShortLink:";
         });

@@ -4,6 +4,7 @@ using Volo.Abp.Authorization;
 using Volo.Abp.Autofac;
 using Volo.Abp.BackgroundJobs;
 using Volo.Abp.Data;
+using Volo.Abp.DistributedLocking;
 using Volo.Abp.Modularity;
 using Volo.Abp.Threading;
 
@@ -25,6 +26,7 @@ public class WebHostTestBaseModule : AbpModule
         });
 
         context.Services.AddAlwaysAllowAuthorization();
+        context.Services.AddSingleton<IAbpDistributedLock, InProcessAbpDistributedLock>();
     }
 
     public override void OnApplicationInitialization(ApplicationInitializationContext context)

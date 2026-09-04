@@ -45,6 +45,12 @@ public class ShortLinkRedirectController : Controller
             return View("Gone", code);
         }
 
+        if (result.Status == ShortLinkResolutionStatus.Blocked)
+        {
+            Response.StatusCode = StatusCodes.Status451UnavailableForLegalReasons;
+            return View("Blocked", result);
+        }
+
         Response.StatusCode = StatusCodes.Status404NotFound;
         return View("NotFound", code);
     }

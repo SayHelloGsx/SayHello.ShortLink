@@ -1,0 +1,23 @@
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@using SayHello.ShortLink.Public.ShortLinks
+@model ShortLinkResolutionDto
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["Blocked:Title"];
+}
+
+<div class="container py-5 text-center">
+    <h1 class="display-4 fw-bold">451</h1>
+    <h2>@L["Blocked:Title"]</h2>
+    <p class="text-muted">@L["Blocked:Description", Model.BlockedDomain!]</p>
+    @if (!string.IsNullOrWhiteSpace(Model.BlockedReason))
+    {
+        <div class="alert alert-warning mx-auto" style="max-width: 640px">
+            <strong>@L["Blocked:Reason"]</strong>
+            <span>@Model.BlockedReason</span>
+        </div>
+    }
+    <a class="btn btn-primary" href="/">@L["BackToHome"]</a>
+</div>

@@ -36,12 +36,46 @@ public class EfCoreBlockedDomainRepository :
         Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
-        var domains = await (await GetDbSetAsync())
-            .Where(x => x.IsActive && x.TenantId == tenantId)
+        return await FindMatchingActiveAsync(
+            normalizedHost,
+            tenantId,
+            cancellationToken) is not null;
+    }
+
+    public async Task<BlockedDomain?> FindMatchingActiveAsync(
+        string normalizedHost,
+        Guid? tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var candidates = DomainNameNormalizer.GetParentCandidates(normalizedHost);
+
+        return await (await GetDbSetAsync())
+            .AsNoTracking()
+            .Where(x =>
+                x.IsActive &&
+                x.TenantId == tenantId &&
+                candidates.Contains(x.Domain))
+            .OrderByDescending(x => x.Domain.Length)
+            .FirstOrDefaultAsync(GetCancellationToken(cancellationToken));
+    }
+
+    public async Task<List<string>> GetExistingDomainsAsync(
+        IReadOnlyCollection<string> normalizedDomains,
+        Guid? tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (normalizedDomains.Count == 0)
+        {
+            return [];
+        }
+
+        return await (await GetDbSetAsync())
+            .AsNoTracking()
+            .Where(x =>
+                x.TenantId == tenantId &&
+                normalizedDomains.Contains(x.Domain))
             .Select(x => x.Domain)
             .ToListAsync(GetCancellationToken(cancellationToken));
-
-        return domains.Any(domain => DomainNameNormalizer.IsSameOrSubdomainOf(normalizedHost, domain));
     }
 
     public async Task<bool> ExistsAsync(

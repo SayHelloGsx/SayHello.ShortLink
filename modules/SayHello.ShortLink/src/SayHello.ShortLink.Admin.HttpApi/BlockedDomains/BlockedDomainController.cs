@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
+using Volo.Abp.Content;
 
 namespace SayHello.ShortLink.Admin.BlockedDomains;
 
@@ -42,5 +43,12 @@ public class BlockedDomainController :
     public Task DeleteAsync(Guid id)
     {
         return _appService.DeleteAsync(id);
+    }
+
+    [HttpPost("import")]
+    [Consumes("multipart/form-data")]
+    public Task<BlockedDomainImportResultDto> ImportAsync(IRemoteStreamContent file)
+    {
+        return _appService.ImportAsync(file);
     }
 }
