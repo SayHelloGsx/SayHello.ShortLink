@@ -63,6 +63,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Normalize image name
+        id: image
+        shell: bash
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository }}
+        run: printf 'name=%s\n' "${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -77,7 +84,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=sha
             type=ref,event=tag
@@ -98,7 +105,7 @@ jobs:
       - name: Scan published image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          image-ref: ${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
