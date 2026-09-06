@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\common.props" />
+  <PropertyGroup>
+    <RootNamespace>SayHello.Subscription.Admin</RootNamespace>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.9" />
+    <EmbeddedResource Include="Localization\SubscriptionAdmin\*.json" />
+    <Content Remove="Localization\SubscriptionAdmin\*.json" />
+    <ProjectReference Include="..\SayHello.Subscription.Common.Application.Contracts\SayHello.Subscription.Common.Application.Contracts.csproj" />
+  </ItemGroup>
+</Project>

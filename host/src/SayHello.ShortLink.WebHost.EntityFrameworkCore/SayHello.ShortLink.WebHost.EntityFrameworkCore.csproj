@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\modules\SayHello.ShortLink\src\SayHello.ShortLink.EntityFrameworkCore\SayHello.ShortLink.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\..\modules\SayHello.Subscription\src\SayHello.Subscription.EntityFrameworkCore\SayHello.Subscription.EntityFrameworkCore.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,6 +10,7 @@ using SayHello.ShortLink.WebHost.Localization;
 using SayHello.ShortLink.WebHost.Web;
 using SayHello.ShortLink.WebHost.Web.Menus;
 using Volo.Abp.AspNetCore.TestBase;
+using Volo.Abp.Auditing;
 using Volo.Abp.Localization;
 using Volo.Abp.Modularity;
 using Volo.Abp.OpenIddict;
@@ -42,6 +43,8 @@ public class WebHostWebTestModule : AbpModule
 
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
+        // SQLite's single writer cannot save audit logs in a separate transaction before request commit.
+        Configure<AbpAuditingOptions>(options => options.IsEnabled = false);
         ConfigureLocalizationServices(context.Services);
         ConfigureNavigationServices(context.Services);
     }

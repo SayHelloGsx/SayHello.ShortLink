@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\common.props" />
+  <PropertyGroup>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.Ddd.Domain.Shared" Version="10.6.0" />
+    <PackageReference Include="Volo.Abp.Validation" Version="10.6.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.9" />
+    <EmbeddedResource Include="Localization\Subscription\*.json" />
+    <Content Remove="Localization\Subscription\*.json" />
+  </ItemGroup>
+</Project>

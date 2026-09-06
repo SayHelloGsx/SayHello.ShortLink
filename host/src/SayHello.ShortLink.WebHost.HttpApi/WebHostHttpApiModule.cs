@@ -14,6 +14,7 @@ namespace SayHello.ShortLink.WebHost;
 [DependsOn(
     typeof(WebHostApplicationContractsModule),
     typeof(global::SayHello.ShortLink.ShortLinkHttpApiModule),
+    typeof(global::SayHello.Subscription.SubscriptionHttpApiModule),
     typeof(AbpAccountHttpApiModule),
     typeof(AbpIdentityHttpApiModule),
     typeof(AbpPermissionManagementHttpApiModule),

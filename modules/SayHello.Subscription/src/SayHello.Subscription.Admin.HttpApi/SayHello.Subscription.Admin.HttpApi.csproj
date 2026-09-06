@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\common.props" />
+  <PropertyGroup><RootNamespace>SayHello.Subscription.Admin</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="10.6.0" />
+    <ProjectReference Include="..\SayHello.Subscription.Admin.Application.Contracts\SayHello.Subscription.Admin.Application.Contracts.csproj" />
+  </ItemGroup>
+</Project>

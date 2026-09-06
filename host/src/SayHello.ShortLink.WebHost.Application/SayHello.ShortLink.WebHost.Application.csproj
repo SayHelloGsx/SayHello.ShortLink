@@ -12,6 +12,7 @@
     <ProjectReference Include="..\SayHello.ShortLink.WebHost.Domain\SayHello.ShortLink.WebHost.Domain.csproj" />
     <ProjectReference Include="..\SayHello.ShortLink.WebHost.Application.Contracts\SayHello.ShortLink.WebHost.Application.Contracts.csproj" />
     <ProjectReference Include="..\..\..\modules\SayHello.ShortLink\src\SayHello.ShortLink.Application\SayHello.ShortLink.Application.csproj" />
+    <ProjectReference Include="..\..\..\modules\SayHello.Subscription\src\SayHello.Subscription.Application\SayHello.Subscription.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

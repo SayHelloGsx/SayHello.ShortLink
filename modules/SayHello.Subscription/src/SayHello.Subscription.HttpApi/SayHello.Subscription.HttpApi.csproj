@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\common.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\SayHello.Subscription.Public.HttpApi\SayHello.Subscription.Public.HttpApi.csproj" />
+    <ProjectReference Include="..\SayHello.Subscription.Admin.HttpApi\SayHello.Subscription.Admin.HttpApi.csproj" />
+  </ItemGroup>
+</Project>

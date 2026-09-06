@@ -1,0 +1,67 @@
+@model SayHello.Subscription.Admin.Web.Pages.Admin.Subscriptions.CatalogPageModel
+@inject IStringLocalizer<SubscriptionAdminResource> L
+<main class="container py-4 subscription-admin" id="subscription-catalog"
+      data-area="@Model.AreaName" data-create="@Model.CanCreate.ToString().ToLowerInvariant()"
+      data-update="@Model.CanUpdate.ToString().ToLowerInvariant()" data-delete="@Model.CanDelete.ToString().ToLowerInvariant()"
+      data-publish="@Model.CanPublish.ToString().ToLowerInvariant()">
+    <h1>@L[Model.AreaName]</h1>
+    <p>@L["CatalogHelp"]</p>
+    <noscript><p class="alert alert-warning">@L["JavaScriptRequired"]</p></noscript>
+    <form id="catalog-filter" class="row g-2 mb-3">
+        <div class="col-md-4"><label for="filter">@L["Search"]</label><input id="filter" class="form-control" maxlength="256" /></div>
+        <div class="col-md-2"><label for="state">@L["State"]</label><select id="state" class="form-select">
+            <option value="">@L["All"]</option>
+            <option value="0">@L["State:0"]</option><option value="1">@L["State:1"]</option>
+            <option value="2">@L["State:2"]</option><option value="3">@L["State:3"]</option>
+        </select></div>
+        <div class="col-md-2"><label for="sorting">@L["Sort"]</label><select id="sorting" class="form-select">
+            <option value="0">@L["DisplayOrder"]</option><option value="1">@L["Name"]</option>
+            <option value="2">@L["NameDescending"]</option><option value="3">@L["Code"]</option>
+        </select></div>
+        <div class="col-md-2"><label for="page-size">@L["PageSize"]</label><select id="page-size" class="form-select">
+            <option>10</option><option selected>20</option><option>50</option><option>100</option>
+        </select></div>
+        <div class="col-md-2 align-self-end"><button class="btn btn-primary" type="submit">@L["Search"]</button></div>
+        @if (Model.AreaName != "Products")
+        {
+            <div class="col-md-6"><label for="catalog-product">@L["ProductId"]</label><input id="catalog-product" class="form-control" /></div>
+        }
+    </form>
+    <div id="catalog-filter-validation" class="text-danger" role="alert"></div>
+    @if (Model.CanCreate) { <button id="create-item" class="btn btn-success mb-3" type="button">@L["Create"]</button> }
+    <div id="catalog-results" aria-live="polite"></div>
+    <nav id="catalog-pager" aria-label="@L["Pagination"]" class="my-3"></nav>
+    <section id="catalog-editor" class="card p-3 mt-4" hidden>
+        <h2 id="editor-title"></h2>
+        <form id="catalog-form" method="post">
+            @Html.AntiForgeryToken()
+            <div id="product-definition" hidden>
+                <label for="registered-code">@L["RegisteredProduct"]</label>
+                <select id="registered-code" class="form-select mb-2"></select>
+            </div>
+            <div id="code-field">
+                <label for="item-code">@L["Code"]</label>
+                <input id="item-code" class="form-control mb-2" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" />
+            </div>
+            <label for="item-name">@L["Name"]</label>
+            <input id="item-name" class="form-control mb-2" maxlength="256" required />
+            <label for="item-description">@L["Description"]</label>
+            <textarea id="item-description" class="form-control mb-2" maxlength="2048"></textarea>
+            <label for="item-order">@L["DisplayOrder"]</label>
+            <input id="item-order" class="form-control mb-3" type="number" min="-2147483648" max="2147483647" step="1" required value="0" />
+            <section id="component-editor" hidden>
+                <h3 id="component-title"></h3>
+                <p id="component-help"></p>
+                <div id="component-picker"></div>
+                <div id="selected-components" class="my-3"></div>
+            </section>
+            <section id="entitlement-editor" hidden>
+                <h3>@L["Entitlements"]</h3><p>@L["EntitlementHelp"]</p>
+                <div id="entitlement-fields"></div>
+            </section>
+            <div id="editor-validation" class="text-danger my-2" role="alert"></div>
+            <button id="save-item" type="submit" class="btn btn-primary">@L["Save"]</button>
+            <button id="cancel-edit" type="button" class="btn btn-secondary">@L["Cancel"]</button>
+        </form>
+    </section>
+</main>

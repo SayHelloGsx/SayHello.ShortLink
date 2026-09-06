@@ -1,0 +1,35 @@
+@model IReadOnlyCollection<EntitlementDto>
+@if (Model.Count == 0)
+{
+    <p class="text-muted">@L["NoConfiguredEntitlements"]</p>
+}
+else
+{
+    <dl class="mb-0">
+        @foreach (var entitlement in Model)
+        {
+            <dt class="mt-2">
+                @entitlement.DisplayName
+                <small class="text-muted fw-normal">(@entitlement.FeatureKey · @L[$"Type:{entitlement.Value.Type}"])</small>
+            </dt>
+            <dd>
+                @if (entitlement is PublicEntitlementDto { Description: { } description } && !string.IsNullOrWhiteSpace(description))
+                {
+                    <div class="text-muted">@description</div>
+                }
+                @if (entitlement.Value.Type == SubscriptionEntitlementType.Boolean)
+                {
+                    <span>@(entitlement.Value.BooleanValue == true ? L["Enabled"] : L["Disabled"])</span>
+                }
+                else if (entitlement.Value.IsUnlimited)
+                {
+                    <span>@L["Unlimited"]</span>
+                }
+                else
+                {
+                    <span>@L["FiniteLimit"]: @entitlement.Value.NumericValue</span>
+                }
+            </dd>
+        }
+    </dl>
+}

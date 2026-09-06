@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\common.props" />
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.EntityFrameworkCore" Version="10.6.0" />
+    <ProjectReference Include="..\SayHello.Subscription.Domain\SayHello.Subscription.Domain.csproj" />
+  </ItemGroup>
+</Project>

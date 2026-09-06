@@ -1,0 +1,51 @@
+@model SayHello.Subscription.Subscriptions.UserSubscriptionDto
+<article class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
+            <h2 class="h4">@Model.ProductName — @Model.PlanName</h2>
+            <span class="badge align-self-start @(Model.Status == UserSubscriptionStatus.Active ? "bg-success" : "bg-secondary")">
+                @L[$"Status:{Model.Status}"]
+            </span>
+        </div>
+        <p class="text-muted">@Model.ProductCode · @Model.PlanCode</p>
+        <dl class="row">
+            <dt class="col-sm-3">@L["Source"]</dt>
+            <dd class="col-sm-9">
+                @if (Model.SourceBundleId.HasValue)
+                {
+                    <span>@L["Source:Bundle"]: @Model.BundleName (@Model.BundleCode)</span>
+                }
+                else
+                {
+                    <span>@L["Source:Plan"]: @Model.PlanName</span>
+                }
+            </dd>
+            <dt class="col-sm-3">@L["StartsAt"]</dt>
+            <dd class="col-sm-9">@Model.StartsAt.ToString("u")</dd>
+            <dt class="col-sm-3">@L["ExpiresAt"]</dt>
+            <dd class="col-sm-9">@(Model.ExpiresAt?.ToString("u") ?? L["Never"].Value)</dd>
+            @if (Model.EndedAt.HasValue)
+            {
+                <dt class="col-sm-3">@L["EndedAt"]</dt>
+                <dd class="col-sm-9">@Model.EndedAt.Value.ToString("u")</dd>
+                <dt class="col-sm-3">@L["EndReason"]</dt>
+                <dd class="col-sm-9">
+                    @L[$"EndReason:{Model.EndReason}"]
+                    @if (!string.IsNullOrWhiteSpace(Model.EndReasonDetail))
+                    {
+                        <p class="mb-0">@Model.EndReasonDetail</p>
+                    }
+                </dd>
+            }
+        </dl>
+        <h3 class="h5">@(Model.Status == UserSubscriptionStatus.Active ? L["EffectiveSnapshot"] : L["Snapshot"])</h3>
+        <p class="text-muted">@(Model.Status == UserSubscriptionStatus.Active ? L["EffectiveIntro"] : L["IneffectiveIntro"])</p>
+        <p class="text-muted">@L["SnapshotIntro"]</p>
+        <partial name="_Entitlements" model="Model.Entitlements" />
+        <div class="d-flex gap-2 mt-3">
+            <a asp-page="./Mine" asp-route-id="@Model.Id" class="btn btn-outline-primary">@L["Details"]</a>
+            <a asp-page="./Mine" asp-route-id="" asp-route-Input.ProductId="@Model.ProductId"
+               asp-route-Input.CurrentOnly="false" class="btn btn-outline-secondary">@L["ProductHistory"]</a>
+        </div>
+    </div>
+</article>

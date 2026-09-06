@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\common.props" />
+  <PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <ProjectReference Include="..\..\src\SayHello.Subscription.Domain\SayHello.Subscription.Domain.csproj" />
+    <ProjectReference Include="..\SayHello.Subscription.TestBase\SayHello.Subscription.TestBase.csproj" />
+  </ItemGroup>
+</Project>

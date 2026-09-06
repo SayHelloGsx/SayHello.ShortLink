@@ -1,0 +1,29 @@
+{
+  "folders": { "items": { "src": {}, "test": {} } },
+  "packages": {
+    "SayHello.Subscription.Domain.Shared": { "path": "src/SayHello.Subscription.Domain.Shared/SayHello.Subscription.Domain.Shared.abppkg", "folder": "src" },
+    "SayHello.Subscription.Domain": { "path": "src/SayHello.Subscription.Domain/SayHello.Subscription.Domain.abppkg", "folder": "src" },
+    "SayHello.Subscription.EntityFrameworkCore": { "path": "src/SayHello.Subscription.EntityFrameworkCore/SayHello.Subscription.EntityFrameworkCore.abppkg", "folder": "src" },
+    "SayHello.Subscription.Common.Application.Contracts": { "path": "src/SayHello.Subscription.Common.Application.Contracts/SayHello.Subscription.Common.Application.Contracts.abppkg", "folder": "src" },
+    "SayHello.Subscription.Common.Application": { "path": "src/SayHello.Subscription.Common.Application/SayHello.Subscription.Common.Application.abppkg", "folder": "src" },
+    "SayHello.Subscription.Public.Application.Contracts": { "path": "src/SayHello.Subscription.Public.Application.Contracts/SayHello.Subscription.Public.Application.Contracts.abppkg", "folder": "src" },
+    "SayHello.Subscription.Public.Application": { "path": "src/SayHello.Subscription.Public.Application/SayHello.Subscription.Public.Application.abppkg", "folder": "src" },
+    "SayHello.Subscription.Public.HttpApi": { "path": "src/SayHello.Subscription.Public.HttpApi/SayHello.Subscription.Public.HttpApi.abppkg", "folder": "src" },
+    "SayHello.Subscription.Public.HttpApi.Client": { "path": "src/SayHello.Subscription.Public.HttpApi.Client/SayHello.Subscription.Public.HttpApi.Client.abppkg", "folder": "src" },
+    "SayHello.Subscription.Public.Web": { "path": "src/SayHello.Subscription.Public.Web/SayHello.Subscription.Public.Web.abppkg", "folder": "src" },
+    "SayHello.Subscription.Admin.Application.Contracts": { "path": "src/SayHello.Subscription.Admin.Application.Contracts/SayHello.Subscription.Admin.Application.Contracts.abppkg", "folder": "src" },
+    "SayHello.Subscription.Admin.Application": { "path": "src/SayHello.Subscription.Admin.Application/SayHello.Subscription.Admin.Application.abppkg", "folder": "src" },
+    "SayHello.Subscription.Admin.HttpApi": { "path": "src/SayHello.Subscription.Admin.HttpApi/SayHello.Subscription.Admin.HttpApi.abppkg", "folder": "src" },
+    "SayHello.Subscription.Admin.HttpApi.Client": { "path": "src/SayHello.Subscription.Admin.HttpApi.Client/SayHello.Subscription.Admin.HttpApi.Client.abppkg", "folder": "src" },
+    "SayHello.Subscription.Admin.Web": { "path": "src/SayHello.Subscription.Admin.Web/SayHello.Subscription.Admin.Web.abppkg", "folder": "src" },
+    "SayHello.Subscription.Application.Contracts": { "path": "src/SayHello.Subscription.Application.Contracts/SayHello.Subscription.Application.Contracts.abppkg", "folder": "src" },
+    "SayHello.Subscription.Application": { "path": "src/SayHello.Subscription.Application/SayHello.Subscription.Application.abppkg", "folder": "src" },
+    "SayHello.Subscription.HttpApi": { "path": "src/SayHello.Subscription.HttpApi/SayHello.Subscription.HttpApi.abppkg", "folder": "src" },
+    "SayHello.Subscription.HttpApi.Client": { "path": "src/SayHello.Subscription.HttpApi.Client/SayHello.Subscription.HttpApi.Client.abppkg", "folder": "src" },
+    "SayHello.Subscription.Web": { "path": "src/SayHello.Subscription.Web/SayHello.Subscription.Web.abppkg", "folder": "src" },
+    "SayHello.Subscription.TestBase": { "path": "test/SayHello.Subscription.TestBase/SayHello.Subscription.TestBase.abppkg", "folder": "test" },
+    "SayHello.Subscription.Domain.Tests": { "path": "test/SayHello.Subscription.Domain.Tests/SayHello.Subscription.Domain.Tests.abppkg", "folder": "test" },
+    "SayHello.Subscription.Application.Tests": { "path": "test/SayHello.Subscription.Application.Tests/SayHello.Subscription.Application.Tests.abppkg", "folder": "test" },
+    "SayHello.Subscription.EntityFrameworkCore.Tests": { "path": "test/SayHello.Subscription.EntityFrameworkCore.Tests/SayHello.Subscription.EntityFrameworkCore.Tests.abppkg", "folder": "test" }
+  }
+}

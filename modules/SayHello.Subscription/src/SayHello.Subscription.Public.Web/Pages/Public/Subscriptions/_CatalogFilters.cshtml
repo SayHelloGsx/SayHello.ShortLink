@@ -1,0 +1,34 @@
+@model CatalogPageModel
+<form method="get" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label asp-for="Input.Filter" class="form-label">@L["Search"]</label>
+        <input asp-for="Input.Filter" class="form-control" maxlength="@SubscriptionConsts.MaxNameLength" />
+    </div>
+    <div class="col-md-3">
+        <label asp-for="Input.ProductId" class="form-label">@L["Product"]</label>
+        <select asp-for="Input.ProductId" class="form-select">
+            <option value="">@L["AllProducts"]</option>
+            @foreach (var product in Model.Products)
+            {
+                <option value="@product.Id">@product.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="Input.Sorting" class="form-label">@L["Sort"]</label>
+        <select asp-for="Input.Sorting" class="form-select">
+            @foreach (var sort in Enum.GetValues<SubscriptionCatalogSort>())
+            {
+                <option value="@sort">@L[$"Sort:{sort}"]</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label asp-for="Input.MaxResultCount" class="form-label">@L["PageSize"]</label>
+        <input asp-for="Input.MaxResultCount" class="form-control" type="number" min="1" max="@SubscriptionConsts.MaxPageSize" />
+    </div>
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">@L["ApplyFilters"]</button>
+        <a class="btn btn-link" href="@Context.Request.Path">@L["ClearFilters"]</a>
+    </div>
+</form>

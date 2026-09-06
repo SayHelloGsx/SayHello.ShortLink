@@ -1,0 +1,88 @@
+@page "/admin/subscriptions/users"
+@model SayHello.Subscription.Admin.Web.Pages.Admin.Subscriptions.UsersModel
+@inject IStringLocalizer<SubscriptionAdminResource> L
+@{ ViewData["Title"] = L["Users"]; }
+<main id="subscription-users" class="container py-4 subscription-admin"
+      data-revoke="@Model.CanRevoke.ToString().ToLowerInvariant()"
+      data-adjust="@Model.CanAdjustExpiration.ToString().ToLowerInvariant()">
+    <h1>@L["Users"]</h1>
+    <p>@L["UserAdministrationHelp"]</p>
+    <noscript><p class="alert alert-warning">@L["JavaScriptRequired"]</p></noscript>
+    @Html.AntiForgeryToken()
+    @if (Model.CanLookup)
+    {
+        <details class="card p-3 mb-3"><summary>@L["Lookup"]</summary><div id="user-picker" class="mt-2"></div></details>
+    }
+    <form id="subscription-filter" class="row g-2 mb-3">
+        <div class="col-md-4"><label for="user-id">@L["UserId"]</label><input id="user-id" class="form-control" />
+            <small id="selected-user"></small></div>
+        <div class="col-md-4"><label for="product-id">@L["ProductId"]</label><input id="product-id" class="form-control" /></div>
+        <div class="col-md-4"><label for="subscription-search">@L["Search"]</label><input id="subscription-search" class="form-control" maxlength="256" /></div>
+        <div class="col-md-3"><label for="subscription-status">@L["Status"]</label><select id="subscription-status" class="form-select">
+            <option value="">@L["All"]</option>
+            @for (var state = 0; state <= 4; state++) { <option value="@state">@L["Status:" + state]</option> }
+        </select></div>
+        <div class="col-md-3"><label for="current-only">@L["History"]</label><select id="current-only" class="form-select">
+            <option value="false">@L["CurrentAndHistory"]</option><option value="true">@L["CurrentSlots"]</option>
+        </select></div>
+        <div class="col-md-2"><label for="subscription-sort">@L["Sort"]</label><select id="subscription-sort" class="form-select">
+            <option value="0">@L["NewestFirst"]</option><option value="1">@L["OldestFirst"]</option><option value="2">@L["ExpiresAt"]</option>
+        </select></div>
+        <div class="col-md-2"><label for="page-size">@L["PageSize"]</label><select id="page-size" class="form-select">
+            <option>10</option><option selected>20</option><option>50</option><option>100</option>
+        </select></div>
+        <div class="col-md-2 align-self-end"><button type="submit" class="btn btn-primary">@L["Search"]</button></div>
+    </form>
+    <p class="text-muted">@L["CurrentSlotsHelp"]</p>
+    <div id="filter-validation" class="text-danger" role="alert"></div>
+    <div id="subscription-results" aria-live="polite"></div>
+    <nav id="subscription-pager" aria-label="@L["Pagination"]" class="my-3"></nav>
+    @if (Model.CanAssign)
+    {
+        <section class="card p-3 mt-4">
+            <h2>@L["Assign"]</h2><p>@L["AssignmentHelp"]</p>
+            <label for="assignment-kind">@L["AssignmentKind"]</label>
+            <select id="assignment-kind" class="form-select mb-3"><option value="plan">@L["Plan"]</option><option value="bundle">@L["Bundle"]</option></select>
+            <div id="assignment-picker"></div>
+            <p id="selected-assignment" class="mt-2"></p>
+            <button id="preview-assignment" class="btn btn-primary align-self-start" type="button">@L["Preview"]</button>
+            <div id="assignment-validation" class="text-danger mt-2" role="alert"></div>
+            <form id="assignment-form" method="post" hidden>
+                <h3 class="mt-3">@L["AssignmentPreview"]</h3>
+                <p class="alert alert-warning">@L["ReplacementWarning"]</p>
+                <p id="preview-user"></p>
+                <label for="fill-expiration">@L["FillAllExpiration"]</label>
+                <div class="input-group mb-2">
+                    <input id="fill-expiration" type="datetime-local" class="form-control" />
+                    <button id="fill-all" type="button" class="btn btn-outline-secondary">@L["FillAll"]</button>
+                    <button id="clear-all" type="button" class="btn btn-outline-secondary">@L["AllPermanent"]</button>
+                </div>
+                <p>@L["ExpirationHelp"]</p>
+                <div id="preview-items"></div>
+                <button type="submit" id="confirm-assignment" class="btn btn-danger">@L["ConfirmAssignment"]</button>
+            </form>
+        </section>
+    }
+    <section id="mutation-editor" class="card p-3 mt-4" hidden>
+        <h2 id="mutation-title"></h2><p id="mutation-target"></p>
+        <form id="mutation-form" method="post">
+            <div id="expiration-field">
+                <label for="mutation-expiration">@L["ExpiresAt"]</label>
+                <input id="mutation-expiration" class="form-control" type="datetime-local" />
+                <p>@L["ExpirationHelp"]</p>
+            </div>
+            <div id="reason-field">
+                <label for="revoke-reason">@L["Reason"]</label>
+                <textarea id="revoke-reason" class="form-control mb-2" maxlength="1024"></textarea>
+            </div>
+            <div id="mutation-validation" class="text-danger" role="alert"></div>
+            <button id="save-mutation" type="submit" class="btn btn-danger">@L["Confirm"]</button>
+            <button id="cancel-mutation" type="button" class="btn btn-secondary">@L["Cancel"]</button>
+        </form>
+    </section>
+</main>
+@section scripts {
+    <abp-script src="/Pages/Admin/Subscriptions/Shared.js" />
+    <abp-script src="/Pages/Admin/Subscriptions/Users.js" />
+}
+@section styles { <abp-style src="/Pages/Admin/Subscriptions/Admin.css" /> }

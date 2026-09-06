@@ -1,0 +1,62 @@
+@page "/subscriptions/mine/{id:guid?}"
+@model MineModel
+@{
+    ViewData["Title"] = L["Mine"];
+}
+<div class="container py-4">
+    <h1>@L["Mine"]</h1>
+    <p class="text-muted">@L["MineIntro"]</p>
+    @if (Model.Detail is { } detail)
+    {
+        <a asp-page="./Mine" asp-route-id="" class="d-inline-block mb-3">@L["BackToMine"]</a>
+        <partial name="_Subscription" model="detail" />
+    }
+    else
+    {
+        <div class="btn-group mb-4">
+            <a asp-page="./Mine" asp-route-Input.CurrentOnly="true" asp-route-Input.ProductId="@Model.Input.ProductId"
+               class="btn @(Model.Input.CurrentOnly ? "btn-primary" : "btn-outline-primary")">@L["Current"]</a>
+            <a asp-page="./Mine" asp-route-Input.CurrentOnly="false" asp-route-Input.ProductId="@Model.Input.ProductId"
+               class="btn @(!Model.Input.CurrentOnly ? "btn-primary" : "btn-outline-primary")">@L["History"]</a>
+        </div>
+        @if (Model.Input.ProductId.HasValue)
+        {
+            <p class="text-muted">@L["ProductFilterActive"]</p>
+        }
+        <form method="get" class="row g-3 mb-4">
+            <input asp-for="Input.CurrentOnly" type="hidden" />
+            <input asp-for="Input.ProductId" type="hidden" />
+            <div class="col-md-5">
+                <label asp-for="Input.Filter" class="form-label">@L["Search"]</label>
+                <input asp-for="Input.Filter" class="form-control" maxlength="@SubscriptionConsts.MaxNameLength" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Input.Status" class="form-label">@L["Status"]</label>
+                <select asp-for="Input.Status" class="form-select">
+                    <option value="">@L["AllStatuses"]</option>
+                    @foreach (var status in Enum.GetValues<UserSubscriptionStatus>())
+                    {
+                        <option value="@status">@L[$"Status:{status}"]</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Input.MaxResultCount" class="form-label">@L["PageSize"]</label>
+                <input asp-for="Input.MaxResultCount" class="form-control" type="number" min="1" max="@SubscriptionConsts.MaxPageSize" />
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">@L["ApplyFilters"]</button>
+                <a asp-page="./Mine" asp-route-Input.CurrentOnly="@Model.Input.CurrentOnly" class="btn btn-link">@L["ClearFilters"]</a>
+            </div>
+        </form>
+        @if (Model.Items.Count == 0)
+        {
+            <p class="alert alert-info">@L["NoSubscriptions"]</p>
+        }
+        @foreach (var item in Model.Items)
+        {
+            <partial name="_Subscription" model="item" />
+        }
+        <partial name="_Pager" model="Model.Pagination" />
+    }
+</div>

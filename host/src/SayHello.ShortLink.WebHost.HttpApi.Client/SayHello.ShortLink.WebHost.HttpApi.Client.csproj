@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SayHello.ShortLink.WebHost.Application.Contracts\SayHello.ShortLink.WebHost.Application.Contracts.csproj" />
     <ProjectReference Include="..\..\..\modules\SayHello.ShortLink\src\SayHello.ShortLink.HttpApi.Client\SayHello.ShortLink.HttpApi.Client.csproj" />
+    <ProjectReference Include="..\..\..\modules\SayHello.Subscription\src\SayHello.Subscription.HttpApi.Client\SayHello.Subscription.HttpApi.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

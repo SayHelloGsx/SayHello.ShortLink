@@ -1,0 +1,42 @@
+@page "/subscriptions/plans/{id:guid?}"
+@model PlansModel
+@{
+    ViewData["Title"] = Model.Detail?.Name ?? L["Plans"].Value;
+}
+<div class="container py-4">
+    @if (Model.Detail is { } detail)
+    {
+        <a asp-page="./Plans" asp-route-id="">@L["BackToPlans"]</a>
+        <h1 class="mt-3">@detail.Name</h1>
+        <p class="text-muted">@detail.ProductName · @detail.Code</p>
+        <p>@detail.Description</p>
+        <div class="card"><div class="card-body">
+            <h2 class="h5">@L["Entitlements"]</h2>
+            <partial name="_Entitlements" model="detail.Entitlements" />
+        </div></div>
+    }
+    else
+    {
+        <h1>@L["Plans"]</h1>
+        <p class="text-muted">@L["CatalogIntro"]</p>
+        <partial name="_CatalogFilters" model="Model" />
+        @if (Model.Items.Count == 0)
+        {
+            <p class="alert alert-info">@L["NoCatalogItems"]</p>
+        }
+        <div class="row g-4">
+            @foreach (var item in Model.Items)
+            {
+                <div class="col-lg-6"><article class="card h-100"><div class="card-body">
+                    <h2 class="h4">@item.Name</h2>
+                    <p class="text-muted">@item.ProductName · @item.Code</p>
+                    <p>@item.Description</p>
+                    <h3 class="h6">@L["Entitlements"]</h3>
+                    <partial name="_Entitlements" model="item.Entitlements" />
+                    <a asp-page="./Plans" asp-route-id="@item.Id" class="btn btn-outline-primary mt-3">@L["Details"]</a>
+                </div></article></div>
+            }
+        </div>
+        <partial name="_Pager" model="Model.Pagination" />
+    }
+</div>

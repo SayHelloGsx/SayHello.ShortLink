@@ -1,0 +1,18 @@
+.subscription-admin .subscription-actions {
+    min-width: 15rem;
+}
+.subscription-admin .subscription-actions .btn {
+    margin: .15rem;
+}
+.subscription-admin .subscription-wrap {
+    max-width: 28rem;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+}
+.subscription-admin .subscription-picker-results {
+    max-height: 22rem;
+    overflow: auto;
+}
+.subscription-admin [hidden] {
+    display: none !important;
+}

@@ -32,6 +32,9 @@
     "ConfirmEmail:FailureDescription": "该链接无效或已过期，请重新申请确认邮件。",
     "ResendConfirmation:GenericResult": "如果该邮箱存在未确认账户，我们已经发送了一封新的确认邮件。",
     "EmailAddress": "邮箱地址",
-    "Send": "发送"
+    "Send": "发送",
+    "Subscription:ShortLink": "短链接",
+    "Subscription:Statistics": "访问统计",
+    "Subscription:MaxLinks": "链接数量上限"
   }
 }

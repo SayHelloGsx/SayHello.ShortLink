@@ -1,0 +1,24 @@
+{
+  "culture": "en",
+  "texts": {
+    "Subscription:InvalidCode": "The product, plan, bundle or entitlement code is invalid.",
+    "Subscription:UnknownProduct": "The product is not registered.",
+    "Subscription:UnknownFeature": "The entitlement is not registered for this product.",
+    "Subscription:InvalidEntitlementValue": "The entitlement value is invalid.",
+    "Subscription:EntitlementTypeMismatch": "The entitlement value does not match its registered type.",
+    "Subscription:InvalidState": "This operation is not allowed in the current state.",
+    "Subscription:CatalogUnavailable": "The product, plan or bundle is not available.",
+    "Subscription:DuplicateCode": "This code is already in use.",
+    "Subscription:CatalogReferenced": "This catalog entry is referenced and cannot be deleted. Withdraw or archive it instead.",
+    "Subscription:InvalidBundle": "A bundle must contain plans for at least two distinct products.",
+    "Subscription:InvalidExpiration": "Expiration must be a future UTC time or empty for permanent access.",
+    "Subscription:UserNotFound": "The user does not exist or is inactive in the current tenant.",
+    "Subscription:TenantMismatch": "The requested data does not belong to the current tenant.",
+    "Subscription:ConcurrencyConflict": "The data changed. Refresh and review the assignment before retrying.",
+    "Subscription:InvalidAssignment": "The assignment targets or entitlement snapshot are invalid.",
+    "Subscription:NoEffectiveSubscription": "There is no effective subscription for this product.",
+    "Subscription:EntitlementNotGranted": "The subscription does not grant the required entitlement.",
+    "Subscription:InvalidPaging": "The paging or sorting input is invalid.",
+    "Subscription:MutationLockUnavailable": "Another subscription update is in progress. Try again."
+  }
+}

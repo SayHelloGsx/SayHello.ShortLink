@@ -2,6 +2,9 @@
 using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.ShortLinks;
 using SayHello.ShortLink.EntityFrameworkCore;
+using SayHello.Subscription.Catalog;
+using SayHello.Subscription.EntityFrameworkCore;
+using SayHello.Subscription.Subscriptions;
 using Volo.Abp.AuditLogging.EntityFrameworkCore;
 using Volo.Abp.BackgroundJobs.EntityFrameworkCore;
 using Volo.Abp.Data;
@@ -21,12 +24,14 @@ namespace SayHello.ShortLink.WebHost.EntityFrameworkCore;
 [ReplaceDbContext(typeof(IIdentityDbContext))]
 [ReplaceDbContext(typeof(ITenantManagementDbContext))]
 [ReplaceDbContext(typeof(IShortLinkDbContext))]
+[ReplaceDbContext(typeof(ISubscriptionDbContext))]
 [ConnectionStringName("Default")]
 public class WebHostDbContext :
     AbpDbContext<WebHostDbContext>,
     IIdentityDbContext,
     ITenantManagementDbContext,
-    IShortLinkDbContext
+    IShortLinkDbContext,
+    ISubscriptionDbContext
 {
     /* Add DbSet properties for your Aggregate Roots / Entities here. */
 
@@ -63,6 +68,14 @@ public class WebHostDbContext :
     public DbSet<ShortLinkDailyDimensionStatistic> ShortLinkDailyDimensionStatistics { get; set; }
     public DbSet<BlockedDomain> BlockedDomains { get; set; }
 
+    public DbSet<SubscriptionProduct> SubscriptionProducts { get; set; }
+    public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+    public DbSet<SubscriptionPlanEntitlement> SubscriptionPlanEntitlements { get; set; }
+    public DbSet<SubscriptionBundle> SubscriptionBundles { get; set; }
+    public DbSet<SubscriptionBundleItem> SubscriptionBundleItems { get; set; }
+    public DbSet<UserSubscription> UserSubscriptions { get; set; }
+    public DbSet<UserSubscriptionEntitlement> UserSubscriptionEntitlements { get; set; }
+
     #endregion
 
     public WebHostDbContext(DbContextOptions<WebHostDbContext> options)
@@ -86,6 +99,7 @@ public class WebHostDbContext :
         builder.ConfigureFeatureManagement();
         builder.ConfigureTenantManagement();
         builder.ConfigureShortLink();
+        builder.ConfigureSubscription();
 
         /* Configure your own tables/entities inside here */
 

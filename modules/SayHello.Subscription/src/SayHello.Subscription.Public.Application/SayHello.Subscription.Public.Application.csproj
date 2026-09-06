@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\common.props" />
+  <PropertyGroup><RootNamespace>SayHello.Subscription.Public</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SayHello.Subscription.Common.Application\SayHello.Subscription.Common.Application.csproj" />
+    <ProjectReference Include="..\SayHello.Subscription.Public.Application.Contracts\SayHello.Subscription.Public.Application.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -65,6 +65,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\modules\SayHello.ShortLink\src\SayHello.ShortLink.Web\SayHello.ShortLink.Web.csproj" />
+    <ProjectReference Include="..\..\..\modules\SayHello.Subscription\src\SayHello.Subscription.Web\SayHello.Subscription.Web.csproj" />
   </ItemGroup>
 
 </Project>

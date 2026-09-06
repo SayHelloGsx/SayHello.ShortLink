@@ -32,6 +32,9 @@
     "ConfirmEmail:FailureDescription": "The link is invalid or expired. Request a new confirmation email.",
     "ResendConfirmation:GenericResult": "If an unconfirmed account exists for this address, a new confirmation email has been sent.",
     "EmailAddress": "Email address",
-    "Send": "Send"
+    "Send": "Send",
+    "Subscription:ShortLink": "ShortLink",
+    "Subscription:Statistics": "Visit statistics",
+    "Subscription:MaxLinks": "Maximum number of links"
   }
 }

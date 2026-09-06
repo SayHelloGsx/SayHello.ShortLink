@@ -18,6 +18,7 @@ namespace SayHello.ShortLink.WebHost.EntityFrameworkCore;
 [DependsOn(
     typeof(WebHostDomainModule),
     typeof(global::SayHello.ShortLink.EntityFrameworkCore.ShortLinkEntityFrameworkCoreModule),
+    typeof(global::SayHello.Subscription.EntityFrameworkCore.SubscriptionEntityFrameworkCoreModule),
     typeof(AbpIdentityEntityFrameworkCoreModule),
     typeof(AbpOpenIddictEntityFrameworkCoreModule),
     typeof(AbpPermissionManagementEntityFrameworkCoreModule),

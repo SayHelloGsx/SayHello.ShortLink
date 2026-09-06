@@ -8,7 +8,6 @@ using Volo.Abp.FeatureManagement;
 using Volo.Abp.Modularity;
 using Volo.Abp.PermissionManagement;
 using Volo.Abp.SettingManagement;
-using Volo.Abp.Uow;
 
 namespace SayHello.ShortLink.WebHost.EntityFrameworkCore;
 
@@ -38,8 +37,6 @@ public class WebHostEntityFrameworkCoreTestModule : AbpModule
             options.SaveStaticSettingsToDatabase = false;
             options.IsDynamicSettingStoreEnabled = false;
         });
-        context.Services.AddAlwaysDisableUnitOfWorkTransaction();
-
         ConfigureInMemorySqlite(context.Services);
     }
 

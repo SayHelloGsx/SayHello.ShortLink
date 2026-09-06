@@ -62,11 +62,14 @@ services:
       DOTNET_ENVIRONMENT: Production
       App__SelfUrl: https://${DOMAIN}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Redis__Configuration: redis:6379,password=${REDIS_PASSWORD}
       StringEncryption__DefaultPassPhrase: ${STRING_ENCRYPTION_PASSPHRASE}
       Identity__AdminEmail: ${ADMIN_EMAIL}
       Identity__AdminPassword: ${ADMIN_PASSWORD}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - backend

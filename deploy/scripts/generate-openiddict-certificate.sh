@@ -9,6 +9,7 @@ fi
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 secrets_dir="$script_dir/../secrets"
 mkdir -p "$secrets_dir"
+chmod 700 "$secrets_dir"
 
 key_file=$(mktemp)
 certificate_file=$(mktemp)
@@ -31,5 +32,5 @@ openssl pkcs12 \
     -in "$certificate_file" \
     -passout "pass:$OPENIDDICT_CERTIFICATE_PASSWORD"
 
-chmod 600 "$secrets_dir/openiddict.pfx"
+chmod 644 "$secrets_dir/openiddict.pfx"
 echo "Created $secrets_dir/openiddict.pfx"

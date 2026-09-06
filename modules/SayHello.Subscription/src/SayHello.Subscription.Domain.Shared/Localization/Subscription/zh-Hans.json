@@ -1,0 +1,24 @@
+{
+  "culture": "zh-Hans",
+  "texts": {
+    "Subscription:InvalidCode": "产品、方案、组合包或权益代码无效。",
+    "Subscription:UnknownProduct": "该产品尚未注册。",
+    "Subscription:UnknownFeature": "该产品未注册此权益。",
+    "Subscription:InvalidEntitlementValue": "权益值无效。",
+    "Subscription:EntitlementTypeMismatch": "权益值与注册的类型不匹配。",
+    "Subscription:InvalidState": "当前状态不允许执行此操作。",
+    "Subscription:CatalogUnavailable": "产品、方案或组合包当前不可用。",
+    "Subscription:DuplicateCode": "该代码已被使用。",
+    "Subscription:CatalogReferenced": "该目录项已被引用，无法删除。请下架或归档。",
+    "Subscription:InvalidBundle": "组合包必须包含至少两个不同产品的方案。",
+    "Subscription:InvalidExpiration": "到期时间必须是未来的 UTC 时间，或留空表示永久有效。",
+    "Subscription:UserNotFound": "当前租户中不存在该用户，或用户未启用。",
+    "Subscription:TenantMismatch": "请求的数据不属于当前租户。",
+    "Subscription:ConcurrencyConflict": "数据已发生变化。请刷新并重新核对订阅分配。",
+    "Subscription:InvalidAssignment": "分配目标或权益快照无效。",
+    "Subscription:NoEffectiveSubscription": "该产品没有有效订阅。",
+    "Subscription:EntitlementNotGranted": "订阅未授予所需权益。",
+    "Subscription:InvalidPaging": "分页或排序参数无效。",
+    "Subscription:MutationLockUnavailable": "另一个订阅更新正在进行，请稍后重试。"
+  }
+}

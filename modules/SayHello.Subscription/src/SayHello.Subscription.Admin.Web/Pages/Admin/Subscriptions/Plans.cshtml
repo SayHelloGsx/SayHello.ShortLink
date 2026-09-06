@@ -1,0 +1,10 @@
+@page "/admin/subscriptions/plans"
+@model SayHello.Subscription.Admin.Web.Pages.Admin.Subscriptions.PlansModel
+@inject IStringLocalizer<SubscriptionAdminResource> L
+@{ ViewData["Title"] = L["Plans"]; }
+<partial name="_Catalog" model="Model" />
+@section scripts {
+    <abp-script src="/Pages/Admin/Subscriptions/Shared.js" />
+    <abp-script src="/Pages/Admin/Subscriptions/Catalog.js" />
+}
+@section styles { <abp-style src="/Pages/Admin/Subscriptions/Admin.css" /> }

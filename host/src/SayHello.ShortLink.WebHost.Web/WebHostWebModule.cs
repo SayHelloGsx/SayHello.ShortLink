@@ -65,6 +65,7 @@ namespace SayHello.ShortLink.WebHost.Web;
     typeof(WebHostApplicationModule),
     typeof(WebHostEntityFrameworkCoreModule),
     typeof(global::SayHello.ShortLink.Web.ShortLinkWebModule),
+    typeof(global::SayHello.Subscription.Web.SubscriptionWebModule),
     typeof(AbpAutofacModule),
     typeof(AbpIdentityWebModule),
     typeof(AbpSettingManagementWebModule),

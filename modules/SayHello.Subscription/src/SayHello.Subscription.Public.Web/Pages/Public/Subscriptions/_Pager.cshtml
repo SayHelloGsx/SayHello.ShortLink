@@ -1,0 +1,17 @@
+@model SubscriptionPager
+<nav class="d-flex flex-wrap justify-content-between align-items-center mt-4" aria-label="@L["PageSize"]">
+    <span class="text-muted">
+        @L["PageSummary", Model.TotalCount == 0 || Model.SkipCount >= Model.TotalCount ? 0 : Model.SkipCount + 1,
+            Math.Min((long)Model.SkipCount + Model.PageSize, Model.TotalCount), Model.TotalCount]
+    </span>
+    <div class="btn-group">
+        @if (Model.PreviousUrl != null)
+        {
+            <a class="btn btn-outline-secondary" href="@Model.PreviousUrl">@L["Previous"]</a>
+        }
+        @if (Model.NextUrl != null)
+        {
+            <a class="btn btn-outline-secondary" href="@Model.NextUrl">@L["Next"]</a>
+        }
+    </div>
+</nav>
