@@ -52,11 +52,11 @@ public class ModuleBoundaryTests
             if (name.Contains(".Public.")) Assert.DoesNotContain(refs, r => r.Contains(".Admin."));
             if (name.Contains(".Admin.")) Assert.DoesNotContain(refs, r => r.Contains(".Public."));
             if (name.EndsWith(".Web") || name.EndsWith(".HttpApi.Client"))
-                Assert.DoesNotContain(refs, r => Path.GetFileNameWithoutExtension(r).EndsWith(".Application"));
+                Assert.DoesNotContain(refs, r => GetProjectReferenceName(r).EndsWith(".Application", StringComparison.Ordinal));
             if (expectedCommonReferences.TryGetValue(name, out var commonReference))
             {
                 Assert.Contains(refs, reference =>
-                    Path.GetFileNameWithoutExtension(reference).Equals(commonReference, StringComparison.Ordinal));
+                    GetProjectReferenceName(reference).Equals(commonReference, StringComparison.Ordinal));
                 var moduleSource = File.ReadAllText(Path.Combine(
                     Path.GetDirectoryName(path)!,
                     GetModuleTypeName(name) + ".cs"));
@@ -103,7 +103,7 @@ public class ModuleBoundaryTests
             var directory = Path.Combine(SourceRoot, projectName);
             var project = XDocument.Load(Path.Combine(directory, projectName + ".csproj"));
             var actualReferences = project.Descendants("ProjectReference")
-                .Select(reference => Path.GetFileNameWithoutExtension(reference.Attribute("Include")!.Value))
+                .Select(reference => GetProjectReferenceName(reference.Attribute("Include")!.Value))
                 .OrderBy(reference => reference, StringComparer.Ordinal);
             Assert.Equal(expectedReferences.OrderBy(reference => reference, StringComparer.Ordinal), actualReferences);
 
@@ -141,6 +141,21 @@ public class ModuleBoundaryTests
         Assert.Equal(27, solution.Descendants("Project").Count(p =>
             p.Attribute("Path")!.Value.Contains("modules/SayHello.Subscription/")));
         Assert.DoesNotContain("Blazor", metadata.RootElement.GetRawText(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(@"..\SayHello.Subscription.Common.HttpApi\SayHello.Subscription.Common.HttpApi.csproj", "SayHello.Subscription.Common.HttpApi")]
+    [InlineData("../SayHello.Subscription.Common.HttpApi/SayHello.Subscription.Common.HttpApi.csproj", "SayHello.Subscription.Common.HttpApi")]
+    public void Project_reference_names_are_parsed_independently_of_path_separator(string reference, string expectedName)
+    {
+        Assert.Equal(expectedName, GetProjectReferenceName(reference));
+    }
+
+    private static string GetProjectReferenceName(string reference)
+    {
+        var normalizedReference = reference.Replace('\\', '/');
+        var fileName = normalizedReference[(normalizedReference.LastIndexOf('/') + 1)..];
+        return Path.GetFileNameWithoutExtension(fileName);
     }
 
     private static bool NotBuildOutput(string path) =>
