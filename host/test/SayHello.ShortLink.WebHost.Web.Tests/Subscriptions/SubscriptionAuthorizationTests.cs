@@ -67,6 +67,7 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
     [InlineData("/api/subscription/public/entitlements/short-link")]
     [InlineData("/api/subscription/public/entitlements/short-link/boolean/statistics")]
     [InlineData("/api/subscription/public/entitlements/short-link/numeric/max-links")]
+    [InlineData("/api/subscription/public/default-entitlements")]
     [InlineData("/admin/subscriptions/products")]
     [InlineData("/admin/subscriptions/plans")]
     [InlineData("/admin/subscriptions/bundles")]
@@ -108,6 +109,25 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
         using var response = await client.GetAsync("/subscriptions/mine");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Free_Rights_Should_Render_Separately_In_Current_View_But_Not_As_History()
+    {
+        using var client = CreateClient(authenticated: true, userId: SubscriptionAuthorizationFactory.FreeOwnerId);
+        using var current = await client.GetAsync("/subscriptions/mine");
+        current.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var currentHtml = await current.Content.ReadAsStringAsync();
+        currentHtml.ShouldContain("id=\"default-entitlements-heading\"");
+        currentHtml.ShouldContain("Authorization Free");
+        currentHtml.ShouldContain($"/subscriptions/plans/{_factory.DefaultPlanId}");
+        currentHtml.ShouldNotContain($"/subscriptions/mine/{_factory.DefaultPlanId}");
+
+        using var history = await client.GetAsync("/subscriptions/mine?Input.CurrentOnly=false");
+        history.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var historyHtml = await history.Content.ReadAsStringAsync();
+        historyHtml.ShouldNotContain("id=\"default-entitlements-heading\"");
+        historyHtml.ShouldNotContain("Authorization Free");
     }
 
     [Theory]
@@ -170,6 +190,8 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
         using var effectiveJson = JsonDocument.Parse(await effective.Content.ReadAsStringAsync());
         effectiveJson.RootElement.GetProperty("hasEffectiveSubscription").GetBoolean().ShouldBeTrue();
         effectiveJson.RootElement.GetProperty("subscription").GetProperty("id").GetGuid().ShouldBe(expected);
+        effectiveJson.RootElement.GetProperty("source").GetInt32().ShouldBe((int)EntitlementSource.Subscription);
+        effectiveJson.RootElement.GetProperty("entitlementsAreLive").GetBoolean().ShouldBeFalse();
 
         using var boolean = await client.GetAsync($"{prefix}/boolean/statistics?userId={suppliedOwner}");
         boolean.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -194,6 +216,88 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Default_List_Should_Use_Current_Owner_And_Leave_Actual_History_Unchanged(bool hasSubscription)
+    {
+        var owner = hasSubscription ? SubscriptionAuthorizationFactory.OwnerId : SubscriptionAuthorizationFactory.FreeOwnerId;
+        var suppliedOwner = hasSubscription ? SubscriptionAuthorizationFactory.FreeOwnerId : SubscriptionAuthorizationFactory.OwnerId;
+        using var client = CreateClient(authenticated: true, userId: owner);
+        var route = $"/api/subscription/public/default-entitlements?productId={_factory.ProductId}" +
+                    $"&maxResultCount=1&userId={suppliedOwner}&tenantId={Guid.NewGuid()}";
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var response = await client.GetAsync(route);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            json.RootElement.GetProperty("totalCount").GetInt64().ShouldBe(hasSubscription ? 0 : 1);
+            var items = json.RootElement.GetProperty("items").EnumerateArray().ToArray();
+            if (hasSubscription)
+            {
+                items.ShouldBeEmpty();
+            }
+            else
+            {
+                var item = items.ShouldHaveSingleItem();
+                item.GetProperty("id").GetGuid().ShouldBe(_factory.DefaultPlanId);
+                item.GetProperty("productId").GetGuid().ShouldBe(_factory.ProductId);
+                item.GetProperty("source").GetInt32().ShouldBe((int)EntitlementSource.DefaultPlan);
+            }
+        }
+
+        using var history = await client.GetAsync("/api/subscription/public/mine");
+        history.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var historyJson = JsonDocument.Parse(await history.Content.ReadAsStringAsync());
+        historyJson.RootElement.GetProperty("totalCount").GetInt64().ShouldBe(hasSubscription ? 1 : 0);
+    }
+
+    [Fact]
+    public async Task Default_Summary_And_Typed_Apis_Should_Report_Live_Free_Rights_Without_An_Assignment()
+    {
+        using var client = CreateClient(authenticated: true, userId: SubscriptionAuthorizationFactory.FreeOwnerId);
+        var prefix = "/api/subscription/public/entitlements/short-link";
+        using var summary = await client.GetAsync($"{prefix}?userId={SubscriptionAuthorizationFactory.OwnerId}");
+        summary.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var summaryJson = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
+        var effective = summaryJson.RootElement;
+        effective.GetProperty("hasEffectiveSubscription").GetBoolean().ShouldBeFalse();
+        effective.GetProperty("subscription").ValueKind.ShouldBe(JsonValueKind.Null);
+        effective.GetProperty("source").GetInt32().ShouldBe((int)EntitlementSource.DefaultPlan);
+        effective.GetProperty("planId").GetGuid().ShouldBe(_factory.DefaultPlanId);
+        effective.GetProperty("entitlementsAreLive").GetBoolean().ShouldBeTrue();
+        var limit = effective.GetProperty("entitlements").EnumerateArray()
+            .Single(value => value.GetProperty("featureKey").GetString() == "max-links");
+        limit.GetProperty("value").GetProperty("numericValue").GetInt64().ShouldBe(20);
+
+        foreach (var feature in new[] { "boolean/statistics", "numeric/max-links" })
+        {
+            using var response = await client.GetAsync($"{prefix}/{feature}?userId={SubscriptionAuthorizationFactory.OwnerId}");
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            json.RootElement.GetProperty("source").GetInt32().ShouldBe((int)EntitlementSource.DefaultPlan);
+            json.RootElement.GetProperty("planId").GetGuid().ShouldBe(_factory.DefaultPlanId);
+            json.RootElement.GetProperty("subscriptionId").ValueKind.ShouldBe(JsonValueKind.Null);
+            json.RootElement.GetProperty("isGranted").GetBoolean().ShouldBeTrue();
+            if (feature.StartsWith("numeric", StringComparison.Ordinal))
+                json.RootElement.GetProperty("limit").GetInt64().ShouldBe(20);
+        }
+    }
+
+    [Fact]
+    public async Task Anonymous_Catalog_Should_Mark_The_Default_Without_Exposing_Assignments()
+    {
+        using var client = CreateClient();
+        using var response = await client.GetAsync($"/api/subscription/public/plans?productId={_factory.ProductId}");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var items = json.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        items.Single(item => item.GetProperty("id").GetGuid() == _factory.DefaultPlanId)
+            .GetProperty("isDefaultPlan").GetBoolean().ShouldBeTrue();
+        foreach (var item in items.Where(item => item.GetProperty("id").GetGuid() != _factory.DefaultPlanId))
+            item.GetProperty("isDefaultPlan").GetBoolean().ShouldBeFalse();
+    }
+
+    [Theory]
     [InlineData(false, HttpStatusCode.Unauthorized)]
     [InlineData(true, HttpStatusCode.Forbidden)]
     public async Task Valid_Admin_Mutations_Should_Require_Administrative_Permission(
@@ -213,6 +317,42 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
         product.StatusCode.ShouldBe(HttpStatusCode.OK);
         using var json = JsonDocument.Parse(await product.Content.ReadAsStringAsync());
         json.RootElement.GetProperty("name").GetString().ShouldBe("Authorization product");
+    }
+
+    [Theory]
+    [InlineData(false, false, HttpStatusCode.Unauthorized)]
+    [InlineData(false, true, HttpStatusCode.Unauthorized)]
+    [InlineData(true, false, HttpStatusCode.Forbidden)]
+    [InlineData(true, true, HttpStatusCode.Forbidden)]
+    public async Task Default_Selection_And_Clearing_Should_Require_Product_Update_Permission(
+        bool authenticated, bool clear, HttpStatusCode expected)
+    {
+        using var client = CreateClient(authenticated);
+        var input = new SetDefaultPlanInputDto
+        {
+            PlanId = clear ? null : _factory.DefaultPlanId,
+            ConcurrencyStamp = _factory.ProductConcurrencyStamp
+        };
+        Validator.ValidateObject(input, new ValidationContext(input), validateAllProperties: true);
+        using var response = await client.PutAsJsonAsync(
+            $"/api/subscription/admin/products/{_factory.ProductId}/default-plan", input);
+        response.StatusCode.ShouldBe(expected);
+        using var product = await client.GetAsync($"/api/subscription/public/products/{_factory.ProductId}");
+        product.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await product.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("defaultPlanId").GetGuid().ShouldBe(_factory.DefaultPlanId);
+    }
+
+    [Theory]
+    [InlineData(false, HttpStatusCode.Unauthorized)]
+    [InlineData(true, HttpStatusCode.Forbidden)]
+    public async Task Default_Picker_Should_Require_Product_Administration(
+        bool authenticated, HttpStatusCode expected)
+    {
+        using var client = CreateClient(authenticated);
+        using var response = await client.GetAsync(
+            $"/api/subscription/admin/products/{_factory.ProductId}/default-plan-options");
+        response.StatusCode.ShouldBe(expected);
     }
 
     [Fact]
@@ -248,7 +388,9 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
 {
     public static readonly Guid OwnerId = Guid.Parse("674c1f08-f0be-49dd-9b62-bcd8da234d4b");
     public static readonly Guid OtherOwnerId = Guid.Parse("31290197-a340-49b0-8db8-f69db516f878");
+    public static readonly Guid FreeOwnerId = Guid.Parse("cba3e642-7e8e-4805-91fb-dd27a5a07cd2");
     public Guid ProductId { get; private set; }
+    public Guid DefaultPlanId { get; private set; }
     public string ProductConcurrencyStamp { get; private set; } = string.Empty;
     public Guid OwnerSubscriptionId { get; private set; }
     public Guid OtherSubscriptionId { get; private set; }
@@ -260,7 +402,10 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
             .Begin(requiresNew: true, isTransactional: true);
         var users = scope.ServiceProvider.GetRequiredService<IdentityUserManager>();
         // Dynamic claims validates identities against the real user store; a fabricated ID becomes anonymous.
-        foreach (var (id, name) in new[] { (OwnerId, "subscription-owner"), (OtherOwnerId, "subscription-other") })
+        foreach (var (id, name) in new[]
+                 {
+                     (OwnerId, "subscription-owner"), (OtherOwnerId, "subscription-other"), (FreeOwnerId, "subscription-free")
+                 })
         {
             var user = new IdentityUser(id, name, name + "@example.test");
             user.SetEmailConfirmed(true);
@@ -312,6 +457,19 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
             if (unlimited) OtherSubscriptionId = subscription.Id;
             else OwnerSubscriptionId = subscription.Id;
         }
+
+        var free = new SubscriptionPlan(Guid.NewGuid(), product, "public-auth-free", "Authorization Free");
+        free.ReplaceEntitlements(definition, new Dictionary<string, EntitlementValue>
+        {
+            [ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Boolean(true),
+            [ShortLinkSubscriptionDefinitions.MaxLinks] = EntitlementValue.Numeric(20)
+        });
+        free.Publish(product, definition);
+        await plans.InsertAsync(free, autoSave: true);
+        product.SetDefaultPlan(free);
+        await products.UpdateAsync(product, autoSave: true);
+        DefaultPlanId = free.Id;
+        ProductConcurrencyStamp = product.ConcurrencyStamp;
     }
 
     Task IAsyncLifetime.DisposeAsync() => DisposeAsync().AsTask();

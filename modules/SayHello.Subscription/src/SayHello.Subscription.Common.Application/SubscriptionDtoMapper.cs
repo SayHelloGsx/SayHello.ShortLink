@@ -59,7 +59,8 @@ public static class SubscriptionDtoMapper
         Code = product.Code,
         Name = product.Name,
         Description = product.Description,
-        DisplayOrder = product.DisplayOrder
+        DisplayOrder = product.DisplayOrder,
+        DefaultPlanId = product.DefaultPlanId
     };
 
     public static SubscriptionPlanDto ToDto(SubscriptionPlan plan, SubscriptionProduct product,
@@ -144,6 +145,8 @@ public static class SubscriptionDtoMapper
     public static BooleanEntitlementResultDto ToDto(BooleanEntitlementResult result) => new()
     {
         Status = result.Status,
+        Source = result.Source,
+        PlanId = result.PlanId,
         SubscriptionId = result.SubscriptionId,
         IsGranted = result.IsGranted
     };
@@ -151,6 +154,8 @@ public static class SubscriptionDtoMapper
     public static NumericEntitlementResultDto ToDto(NumericEntitlementResult result) => new()
     {
         Status = result.Status,
+        Source = result.Source,
+        PlanId = result.PlanId,
         SubscriptionId = result.SubscriptionId,
         IsGranted = result.IsGranted,
         Limit = result.Limit,

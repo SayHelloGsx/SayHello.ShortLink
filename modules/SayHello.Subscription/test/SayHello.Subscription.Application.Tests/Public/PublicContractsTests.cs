@@ -5,6 +5,7 @@ using System.Linq;
 using SayHello.Subscription.Public.Catalog;
 using SayHello.Subscription.Public.Entitlements;
 using SayHello.Subscription.Public.Subscriptions;
+using SayHello.Subscription.Entitlements;
 using Shouldly;
 using Xunit;
 
@@ -52,6 +53,24 @@ public class PublicContractsTests
             .ShouldNotContain(p => p.Name == "UserId" || p.Name == "TenantId");
         typeof(GetPublicCatalogInput).GetProperties()
             .ShouldNotContain(p => p.Name == "State" || p.Name == "PublishedOnly" || p.Name == "TenantId");
+    }
+
+    [Fact]
+    public void Default_plan_contract_is_not_an_assignment_and_legacy_summary_defaults_remain_compatible()
+    {
+        var summary = new EffectiveSubscriptionDto();
+        summary.HasEffectiveSubscription.ShouldBeFalse();
+        summary.Subscription.ShouldBeNull();
+        summary.Source.ShouldBe(EntitlementSource.None);
+        summary.PlanId.ShouldBeNull();
+        summary.Entitlements.ShouldBeEmpty();
+        summary.EntitlementsAreLive.ShouldBeFalse();
+        new DefaultSubscriptionPlanDto().Source.ShouldBe(EntitlementSource.DefaultPlan);
+        typeof(DefaultSubscriptionPlanDto).GetProperties().ShouldNotContain(property =>
+            new[] { "SubscriptionId", "UserId", "TenantId", "AssignmentId", "StartsAt", "ExpiresAt", "Status" }
+                .Contains(property.Name));
+        typeof(DefaultSubscriptionPlanDto).GetProperty(nameof(DefaultSubscriptionPlanDto.Source))!
+            .CanWrite.ShouldBeFalse();
     }
 
     private static bool IsValid(object value) =>

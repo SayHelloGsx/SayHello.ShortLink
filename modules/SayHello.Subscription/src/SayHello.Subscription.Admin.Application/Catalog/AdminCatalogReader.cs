@@ -35,8 +35,40 @@ public class AdminCatalogReader : ITransientDependency
         new(_tenant.Id, input.Filter, input.State, publishedOnly, input.ProductId,
             input.Sorting, input.SkipCount, input.MaxResultCount);
 
-    public async Task<PagedResultDto<AdminProductDto>> ProductsAsync(AdminCatalogQueryDto input) =>
-        SubscriptionDtoMapper.ToPage(await _products.GetPageAsync(Query(input), _cancellation.Token), AdminDtoMapper.ToDto);
+    public async Task<PagedResultDto<AdminProductDto>> ProductsAsync(AdminCatalogQueryDto input)
+    {
+        var page = await _products.GetPageAsync(Query(input), _cancellation.Token);
+        return new PagedResultDto<AdminProductDto>(page.TotalCount, await MapProductsAsync(page.Items.ToArray()));
+    }
+
+    public async Task<AdminProductDto> MapAsync(SubscriptionProduct product) =>
+        (await MapProductsAsync(new[] { product })).Single();
+
+    private async Task<List<AdminProductDto>> MapProductsAsync(IReadOnlyCollection<SubscriptionProduct> products)
+    {
+        var ids = products.Where(product => product.DefaultPlanId.HasValue)
+            .Select(product => product.DefaultPlanId!.Value).Distinct().ToArray();
+        var defaults = ids.Length == 0
+            ? new Dictionary<Guid, SubscriptionPlan>()
+            : (await _plans.GetByIdsAsync(_tenant.Id, ids, _cancellation.Token)).ToDictionary(plan => plan.Id);
+        return products.Select(product => AdminDtoMapper.ToDto(product,
+            product.DefaultPlanId.HasValue && defaults.TryGetValue(product.DefaultPlanId.Value, out var plan) &&
+            plan.ProductId == product.Id ? plan.Name : null)).ToList();
+    }
+
+    public async Task<PagedResultDto<AdminPlanDto>> DefaultPlanOptionsAsync(Guid id, AdminCatalogQueryDto input)
+    {
+        var product = await ProductAsync(id);
+        if (product.State != SubscriptionCatalogState.Published)
+            return new PagedResultDto<AdminPlanDto>(0, Array.Empty<AdminPlanDto>());
+
+        var query = Query(input, publishedOnly: true) with
+        {
+            ProductId = id, State = SubscriptionCatalogState.Published
+        };
+        var page = await _plans.GetPageAsync(query, _cancellation.Token);
+        return new PagedResultDto<AdminPlanDto>(page.TotalCount, await MapPlansAsync(page.Items.ToArray()));
+    }
 
     public async Task<SubscriptionProduct> ProductAsync(Guid id) =>
         (await _products.GetByIdsAsync(_tenant.Id, new[] { id }, _cancellation.Token)).SingleOrDefault()

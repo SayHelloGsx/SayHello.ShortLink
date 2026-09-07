@@ -15,9 +15,16 @@ public class SubscriptionMutationLock : ITransientDependency
 
     public SubscriptionMutationLock(IAbpDistributedLock distributedLock) => _distributedLock = distributedLock;
 
-    public async Task AcquireAsync(IUnitOfWork unitOfWork, Guid? tenantId, Guid userId, CancellationToken cancellationToken)
+    public Task AcquireAsync(IUnitOfWork unitOfWork, Guid? tenantId, Guid userId, CancellationToken cancellationToken) =>
+        AcquireKeyAsync(unitOfWork, $"Subscription:Mutation:{tenantId?.ToString("N") ?? "host"}:{userId:N}", cancellationToken);
+
+    // Catalog commands may change several aggregate roots in one transaction.
+    // Lock the tenant catalog before database access to keep their lock ordering consistent.
+    public Task AcquireCatalogAsync(IUnitOfWork unitOfWork, Guid? tenantId, CancellationToken cancellationToken) =>
+        AcquireKeyAsync(unitOfWork, $"Subscription:Catalog:{tenantId?.ToString("N") ?? "host"}", cancellationToken);
+
+    private async Task AcquireKeyAsync(IUnitOfWork unitOfWork, string key, CancellationToken cancellationToken)
     {
-        var key = $"Subscription:Mutation:{tenantId?.ToString("N") ?? "host"}:{userId:N}";
         if (unitOfWork.Items.ContainsKey(key))
         {
             return;

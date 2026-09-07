@@ -45,6 +45,17 @@ public class CatalogStateInputDto : VersionInputDto, IValidatableObject
     }
 }
 
+public class SetDefaultPlanInputDto : VersionInputDto, IValidatableObject
+{
+    public Guid? PlanId { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (PlanId == Guid.Empty)
+            yield return AdminValidation.Error(validationContext, "Select a valid default plan or explicitly clear it.", nameof(PlanId));
+    }
+}
+
 public class CreateProductDto : CatalogDetailsDto
 {
     [Required, StringLength(SubscriptionConsts.MaxCodeLength)]
@@ -104,6 +115,8 @@ public class AdminProductDto : SubscriptionProductDto
 {
     public SubscriptionCatalogState State { get; set; }
     public string ConcurrencyStamp { get; set; } = string.Empty;
+    public string? DefaultPlanName { get; set; }
+    public bool HasDefaultPlan => DefaultPlanId.HasValue;
 }
 
 public class AdminPlanDto : SubscriptionPlanDto

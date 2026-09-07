@@ -9,10 +9,11 @@ namespace SayHello.Subscription.Admin;
 
 public static class AdminDtoMapper
 {
-    public static AdminProductDto ToDto(SubscriptionProduct product) => new()
+    public static AdminProductDto ToDto(SubscriptionProduct product, string? defaultPlanName = null) => new()
     {
         Id = product.Id, Code = product.Code, Name = product.Name, Description = product.Description,
-        DisplayOrder = product.DisplayOrder, State = product.State, ConcurrencyStamp = product.ConcurrencyStamp
+        DisplayOrder = product.DisplayOrder, State = product.State, ConcurrencyStamp = product.ConcurrencyStamp,
+        DefaultPlanId = product.DefaultPlanId, DefaultPlanName = defaultPlanName
     };
 
     public static AdminPlanDto ToDto(SubscriptionPlan plan, SubscriptionPlanDto dto) => new()

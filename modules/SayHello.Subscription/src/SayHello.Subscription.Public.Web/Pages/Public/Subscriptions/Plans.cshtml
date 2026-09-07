@@ -8,6 +8,11 @@
     {
         <a asp-page="./Plans" asp-route-id="">@L["BackToPlans"]</a>
         <h1 class="mt-3">@detail.Name</h1>
+        @if (detail.IsDefaultPlan)
+        {
+            <span class="badge bg-success">@L["DefaultFreePlan"]</span>
+            <p class="text-muted mt-2">@L["DefaultPlanIntro"]</p>
+        }
         <p class="text-muted">@detail.ProductName · @detail.Code</p>
         <p>@detail.Description</p>
         <div class="card"><div class="card-body">
@@ -29,6 +34,10 @@
             {
                 <div class="col-lg-6"><article class="card h-100"><div class="card-body">
                     <h2 class="h4">@item.Name</h2>
+                    @if (item.IsDefaultPlan)
+                    {
+                        <span class="badge bg-success mb-2">@L["DefaultFreePlan"]</span>
+                    }
                     <p class="text-muted">@item.ProductName · @item.Code</p>
                     <p>@item.Description</p>
                     <h3 class="h6">@L["Entitlements"]</h3>

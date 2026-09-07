@@ -10,8 +10,10 @@ public interface IProductAdminAppService : IApplicationService
     Task<PagedResultDto<AdminProductDto>> GetListAsync(AdminCatalogQueryDto input);
     Task<AdminProductDto> GetAsync(Guid id);
     Task<ListResultDto<RegisteredProductDto>> GetDefinitionsAsync();
+    Task<PagedResultDto<AdminPlanDto>> GetDefaultPlanOptionsAsync(Guid id, AdminCatalogQueryDto input);
     Task<AdminProductDto> CreateAsync(CreateProductDto input);
     Task<AdminProductDto> UpdateAsync(Guid id, UpdateProductDto input);
+    Task<AdminProductDto> SetDefaultPlanAsync(Guid id, SetDefaultPlanInputDto input);
     Task<AdminProductDto> SetStateAsync(Guid id, CatalogStateInputDto input);
     Task DeleteAsync(Guid id, VersionInputDto input);
 }

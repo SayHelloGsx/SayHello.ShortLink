@@ -30,6 +30,8 @@ public static class SubscriptionDbContextModelCreatingExtensions
             b.Property(x => x.Code).IsRequired().HasMaxLength(SubscriptionConsts.MaxCodeLength);
             b.Property(x => x.Name).IsRequired().HasMaxLength(SubscriptionConsts.MaxNameLength);
             b.Property(x => x.Description).HasMaxLength(SubscriptionConsts.MaxDescriptionLength);
+            b.HasOne<SubscriptionPlan>().WithMany().HasForeignKey(x => new { x.DefaultPlanId, x.Id })
+                .HasPrincipalKey(x => new { x.Id, x.ProductId }).OnDelete(DeleteBehavior.Restrict);
             b.HasIndex(x => x.Code, "UX_Subscription_Product_HostCode").IsUnique().HasFilter("\"TenantId\" IS NULL");
             b.HasIndex(x => new { x.TenantId, x.Code }, "UX_Subscription_Product_TenantCode")
                 .IsUnique().HasFilter("\"TenantId\" IS NOT NULL");

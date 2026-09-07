@@ -14,6 +14,7 @@ public class PublicSubscriptionPlanDto : SubscriptionCatalogItemDto
     public Guid ProductId { get; set; }
     public string ProductCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public bool IsDefaultPlan { get; set; }
     public List<PublicEntitlementDto> Entitlements { get; set; } = new();
 }
 

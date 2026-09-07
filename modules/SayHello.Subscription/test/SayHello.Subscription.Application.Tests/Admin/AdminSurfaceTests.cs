@@ -108,6 +108,7 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
         {
             () => products.CreateAsync(new CreateProductDto { Code = "alpha", Name = "Alpha" }),
             () => products.UpdateAsync(id, new UpdateProductDto { Name = "Alpha", ConcurrencyStamp = "stamp" }),
+            () => products.SetDefaultPlanAsync(id, new SetDefaultPlanInputDto { ConcurrencyStamp = "stamp", PlanId = id }),
             () => products.DeleteAsync(id, new VersionInputDto { ConcurrencyStamp = "stamp" }),
             () => products.SetStateAsync(id, new CatalogStateInputDto { State = SubscriptionCatalogState.Published, ConcurrencyStamp = "stamp" }),
             () => plans.CreateAsync(new CreatePlanDto { Code = "basic", Name = "Basic", ProductId = id }),
@@ -307,6 +308,7 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
 
     [Theory]
     [InlineData(typeof(ProductAdminAppService), "CreateAsync", SubscriptionAdminPermissions.Products.Create)]
+    [InlineData(typeof(ProductAdminAppService), "SetDefaultPlanAsync", SubscriptionAdminPermissions.Products.Update)]
     [InlineData(typeof(PlanAdminAppService), "UpdateAsync", SubscriptionAdminPermissions.Plans.Update)]
     [InlineData(typeof(BundleAdminAppService), "SetStateAsync", SubscriptionAdminPermissions.Bundles.Publish)]
     [InlineData(typeof(UserSubscriptionAdminAppService), "RevokeAsync", SubscriptionAdminPermissions.Users.Revoke)]

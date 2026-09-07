@@ -90,6 +90,31 @@ public class PublicCatalogAppServiceTests
         numeric.IsUnlimited.ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task Catalog_default_marker_tracks_the_product_pointer_not_the_plan_name()
+    {
+        var (definition, product, plan) = SeedPlan("one");
+        var namedFree = new SubscriptionPlan(Guid.NewGuid(), product, "free", "Free");
+        namedFree.Publish(product, definition);
+        ReturnCatalog(new[] { product }, new[] { plan, namedFree });
+        _plans.GetPageAsync(Arg.Any<SubscriptionCatalogQuery>(), Arg.Any<CancellationToken>())
+            .Returns(new SubscriptionPage<SubscriptionPlan>(2, new[] { plan, namedFree }));
+        product.SetDefaultPlan(plan);
+
+        (await _service.GetProductAsync(product.Id)).DefaultPlanId.ShouldBe(plan.Id);
+        (await _service.GetPlanAsync(plan.Id)).IsDefaultPlan.ShouldBeTrue();
+        var list = await _service.GetPlansAsync(new GetPublicCatalogInput());
+        list.Items.Single(item => item.Id == plan.Id).IsDefaultPlan.ShouldBeTrue();
+        list.Items.Single(item => item.Id == namedFree.Id).IsDefaultPlan.ShouldBeFalse();
+
+        product.SetDefaultPlan(namedFree);
+        (await _service.GetPlanAsync(plan.Id)).IsDefaultPlan.ShouldBeFalse();
+        (await _service.GetPlanAsync(namedFree.Id)).IsDefaultPlan.ShouldBeTrue();
+        product.SetDefaultPlan(null);
+        (await _service.GetProductAsync(product.Id)).DefaultPlanId.ShouldBeNull();
+        (await _service.GetPlanAsync(namedFree.Id)).IsDefaultPlan.ShouldBeFalse();
+    }
+
     [Theory]
     [InlineData(SubscriptionCatalogState.Draft)]
     [InlineData(SubscriptionCatalogState.Withdrawn)]

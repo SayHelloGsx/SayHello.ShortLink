@@ -17,6 +17,7 @@ using SayHello.Subscription.Subscriptions;
 using SayHello.Subscription.Users;
 using Volo.Abp;
 using Volo.Abp.Data;
+using Volo.Abp.DistributedLocking;
 using Volo.Abp.Identity;
 using Volo.Abp.MultiTenancy;
 using Volo.Abp.Uow;
@@ -55,7 +56,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
     }
 
     [PostgreSqlFact]
-    public async Task Initial_then_AddSubscriptions_and_reapply_preserve_baseline_schema_and_rows()
+    public async Task Initial_then_AddSubscriptions_then_defaults_and_reapply_preserve_baseline_schema_and_rows()
     {
         await using var context = _database.CreateContext();
         var migrator = context.GetService<IMigrator>();
@@ -88,13 +89,122 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         Assert.Equal(baselineSettings, await SnapshotAsync("AbpSettings"));
         Assert.Equal(baselineDomains, await SnapshotAsync("ShortLinkBlockedDomains"));
 
+        await SeedLegacySubscriptionsAsync();
+        var subscriptionTables = new[]
+        {
+            "SubscriptionProducts", "SubscriptionPlans", "SubscriptionPlanEntitlements", "SubscriptionBundles",
+            "SubscriptionBundleItems", "SubscriptionUserSubscriptions", "SubscriptionUserSubscriptionEntitlements"
+        };
+        var subscriptionRows = new Dictionary<string, object?>();
+        foreach (var table in subscriptionTables)
+            subscriptionRows[table] = await SnapshotAsync(table);
+
+        await context.Database.MigrateAsync();
+        var defaultMigration = context.Database.GetMigrations().Single(name =>
+            name.EndsWith("_AddSubscriptionDefaultPlans", StringComparison.Ordinal));
+        Assert.Equal(new[] { InitialMigration, SubscriptionMigration, defaultMigration },
+            await context.Database.GetAppliedMigrationsAsync());
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync());
+        Assert.False(context.Database.HasPendingModelChanges());
+        Assert.Equal(2L, await ScalarAsync("""SELECT count(*) FROM "SubscriptionProducts" WHERE "DefaultPlanId" IS NULL;"""));
+        Assert.Equal("YES", await ScalarAsync("""
+            SELECT is_nullable FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'SubscriptionProducts' AND column_name = 'DefaultPlanId';
+            """));
+        foreach (var table in subscriptionTables)
+            Assert.Equal(subscriptionRows[table], await SnapshotAsync(table, omitDefaultPlanId: table == "SubscriptionProducts"));
+
         var migrationHistory = await SnapshotAsync("__EFMigrationsHistory");
         await context.Database.MigrateAsync();
-        Assert.Empty(await context.Database.GetPendingMigrationsAsync());
         Assert.Equal(migrationHistory, await SnapshotAsync("__EFMigrationsHistory"));
+        foreach (var table in subscriptionTables)
+            Assert.Equal(subscriptionRows[table], await SnapshotAsync(table, omitDefaultPlanId: table == "SubscriptionProducts"));
         Assert.Equal(baselineColumns, await BaselineColumnsAsync());
         Assert.Equal(baselineSettings, await SnapshotAsync("AbpSettings"));
         Assert.Equal(baselineDomains, await SnapshotAsync("ShortLinkBlockedDomains"));
+    }
+
+    [PostgreSqlTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Fresh_schema_defaults_roundtrip_and_restrict_cross_product_references_and_deletion(bool hasTenant)
+    {
+        var data = await SeedCatalogAsync(hasTenant);
+        await AssignPlanAsync(data, 0);
+        var subscriptionRows = await SnapshotAsync("SubscriptionUserSubscriptions");
+        var snapshots = await SnapshotAsync("SubscriptionUserSubscriptionEntitlements");
+        var plan = data.Plans[2];
+        var selected = await InUnitAsync(data.TenantId, async services =>
+        {
+            var product = await services.GetRequiredService<ISubscriptionProductRepository>().GetAsync(plan.ProductId);
+            Assert.Null(product.DefaultPlanId);
+            return await services.GetRequiredService<ISubscriptionCatalogManager>()
+                .SetDefaultPlanAsync(data.TenantId, product.Id, product.ConcurrencyStamp, plan.Id);
+        });
+        await InUnitAsync(data.TenantId, async services =>
+        {
+            var product = await services.GetRequiredService<ISubscriptionProductRepository>().GetAsync(plan.ProductId);
+            Assert.Equal(plan.Id, product.DefaultPlanId);
+            return product;
+        });
+
+        var crossProduct = await Assert.ThrowsAsync<PostgresException>(() => ExecuteAsync($"""
+            UPDATE "SubscriptionProducts" SET "DefaultPlanId" = '{plan.Id}' WHERE "Id" = '{data.Plans[1].ProductId}';
+            """));
+        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, crossProduct.SqlState);
+        Assert.StartsWith("FK_SubscriptionProducts_SubscriptionPlans_", crossProduct.ConstraintName);
+        var referenced = await Assert.ThrowsAsync<PostgresException>(() =>
+            ExecuteAsync($"""DELETE FROM "SubscriptionPlans" WHERE "Id" = '{plan.Id}';"""));
+        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, referenced.SqlState);
+        Assert.Equal(crossProduct.ConstraintName, referenced.ConstraintName);
+
+        await InUnitAsync(data.TenantId, services => services.GetRequiredService<ISubscriptionCatalogManager>()
+            .SetDefaultPlanAsync(data.TenantId, selected.Id, selected.ConcurrencyStamp, null));
+        await ExecuteAsync($"""DELETE FROM "SubscriptionPlans" WHERE "Id" = '{plan.Id}';""");
+        Assert.Equal(0L, await ScalarAsync($"""SELECT count(*) FROM "SubscriptionPlans" WHERE "Id" = '{plan.Id}';"""));
+        Assert.Equal(subscriptionRows, await SnapshotAsync("SubscriptionUserSubscriptions"));
+        Assert.Equal(snapshots, await SnapshotAsync("SubscriptionUserSubscriptionEntitlements"));
+    }
+
+    [PostgreSqlTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Default_selection_should_hold_catalog_lease_until_commit_or_rollback(bool rollback)
+    {
+        var data = await SeedCatalogAsync(false);
+        var plan = data.Plans[2];
+        const string key = "Subscription:Catalog:host";
+        var distributedLock = _application!.ServiceProvider.GetRequiredService<IAbpDistributedLock>();
+        using (var scope = _application.ServiceProvider.CreateScope())
+        {
+            using var unit = scope.ServiceProvider.GetRequiredService<IUnitOfWorkManager>()
+                .Begin(requiresNew: true, isTransactional: true);
+            var product = await scope.ServiceProvider.GetRequiredService<ISubscriptionProductRepository>().GetAsync(plan.ProductId);
+            await scope.ServiceProvider.GetRequiredService<ISubscriptionCatalogManager>()
+                .SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, plan.Id);
+            await using var contender = await distributedLock.TryAcquireAsync(key, TimeSpan.Zero);
+            Assert.Null(contender);
+            if (rollback) await unit.RollbackAsync();
+            else await unit.CompleteAsync();
+        }
+
+        await using (var available = await distributedLock.TryAcquireAsync(key, TimeSpan.Zero))
+            Assert.NotNull(available);
+
+        Task<SubscriptionPlan> WithdrawAsync() => InUnitAsync(data.TenantId, services =>
+            services.GetRequiredService<ISubscriptionCatalogManager>().SetPlanStateAsync(
+                data.TenantId, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Withdrawn));
+        if (rollback)
+        {
+            Assert.Equal(SubscriptionCatalogState.Withdrawn, (await WithdrawAsync()).State);
+            Assert.Equal(0L, await ScalarAsync("""SELECT count(*) FROM "SubscriptionProducts" WHERE "DefaultPlanId" IS NOT NULL;"""));
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<BusinessException>(WithdrawAsync);
+            Assert.Equal(SubscriptionErrorCodes.DefaultPlanInUse, error.Code);
+            Assert.Equal(plan.Id, await ScalarAsync($"""SELECT "DefaultPlanId" FROM "SubscriptionProducts" WHERE "Id" = '{plan.ProductId}';"""));
+        }
     }
 
     [PostgreSqlTheory]
@@ -370,9 +480,59 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         WHERE table_schema = 'public' AND table_name NOT LIKE 'Subscription%' AND table_name <> '__EFMigrationsHistory';
         """);
 
-    private Task<object?> SnapshotAsync(string table) => ScalarAsync($"""
-        SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY to_jsonb(row)::text), '[]'::jsonb)::text
+    private Task<object?> SnapshotAsync(string table, bool omitDefaultPlanId = false) => ScalarAsync($"""
+        SELECT coalesce(jsonb_agg({(omitDefaultPlanId ? "to_jsonb(row) - 'DefaultPlanId'" : "to_jsonb(row)")}
+            ORDER BY to_jsonb(row)::text), '[]'::jsonb)::text
         FROM "{table}" AS row;
+        """);
+
+    private Task SeedLegacySubscriptionsAsync() => ExecuteAsync("""
+        INSERT INTO "SubscriptionProducts"
+            ("Id", "TenantId", "Code", "Name", "DisplayOrder", "State", "ExtraProperties", "ConcurrencyStamp", "CreationTime")
+        VALUES
+            ('20000000-0000-0000-0000-000000000001', NULL, 'short-link', 'Legacy product', 0, 1,
+                '{"sentinel":"product"}', 'legacy-product', TIMESTAMP '2026-09-01 12:00:00'),
+            ('20000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000003',
+                'short-link', 'Tenant product', 0, 0, '{}', 'tenant-product', TIMESTAMP '2026-09-01 12:00:00');
+        INSERT INTO "SubscriptionPlans"
+            ("Id", "ProductId", "ProductCode", "Code", "Name", "DisplayOrder", "State",
+                "ExtraProperties", "ConcurrencyStamp", "CreationTime")
+        VALUES ('30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001',
+            'short-link', 'pro', 'Legacy Pro', 0, 1, '{}', 'legacy-plan', TIMESTAMP '2026-09-01 12:00:00');
+        INSERT INTO "SubscriptionPlanEntitlements" ("PlanId", "FeatureKey", "ValueType", "NumericValue", "IsUnlimited")
+        VALUES ('30000000-0000-0000-0000-000000000001', 'max-links', 1, 100, FALSE);
+        INSERT INTO "SubscriptionBundles"
+            ("Id", "Code", "Name", "DisplayOrder", "State", "ExtraProperties", "ConcurrencyStamp", "CreationTime")
+        VALUES ('40000000-0000-0000-0000-000000000001', 'legacy-bundle', 'Legacy bundle', 0, 1,
+            '{}', 'legacy-bundle', TIMESTAMP '2026-09-01 12:00:00');
+        INSERT INTO "SubscriptionBundleItems" ("BundleId", "ProductId", "PlanId")
+        VALUES ('40000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001',
+            '30000000-0000-0000-0000-000000000001');
+        INSERT INTO "SubscriptionUserSubscriptions"
+            ("Id", "UserId", "ProductId", "SourcePlanId", "SourceBundleId", "AssignmentId",
+                "ProductCode", "ProductName", "PlanCode", "PlanName", "BundleCode", "BundleName",
+                "StartsAt", "ExpiresAt", "IsCurrent", "ExtraProperties", "ConcurrencyStamp", "CreationTime")
+        VALUES ('50000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001',
+            '20000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001',
+            '40000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000001',
+            'short-link', 'Assigned product', 'pro', 'Assigned Pro', 'legacy-bundle', 'Assigned bundle',
+            TIMESTAMP '2026-09-01 12:00:00', TIMESTAMP '2027-09-01 12:00:00', TRUE,
+            '{"sentinel":"assignment"}', 'legacy-subscription', TIMESTAMP '2026-09-01 12:00:00');
+        INSERT INTO "SubscriptionUserSubscriptionEntitlements"
+            ("SubscriptionId", "FeatureKey", "DisplayName", "ValueType", "NumericValue", "IsUnlimited")
+        VALUES ('50000000-0000-0000-0000-000000000001', 'max-links', 'Assigned limit', 1, 80, FALSE);
+        INSERT INTO "SubscriptionUserSubscriptions"
+            ("Id", "UserId", "ProductId", "SourcePlanId", "AssignmentId",
+                "ProductCode", "ProductName", "PlanCode", "PlanName", "StartsAt", "EndedAt", "EndReason",
+                "IsCurrent", "ExtraProperties", "ConcurrencyStamp", "CreationTime")
+        VALUES ('50000000-0000-0000-0000-000000000002', '60000000-0000-0000-0000-000000000001',
+            '20000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001',
+            '70000000-0000-0000-0000-000000000002', 'short-link', 'Historical product', 'pro', 'Historical Pro',
+            TIMESTAMP '2026-08-01 12:00:00', TIMESTAMP '2026-09-01 12:00:00', 0, FALSE,
+            '{"sentinel":"history"}', 'legacy-history', TIMESTAMP '2026-08-01 12:00:00');
+        INSERT INTO "SubscriptionUserSubscriptionEntitlements"
+            ("SubscriptionId", "FeatureKey", "DisplayName", "ValueType", "NumericValue", "IsUnlimited")
+        VALUES ('50000000-0000-0000-0000-000000000002', 'max-links', 'Historical limit', 1, 60, FALSE);
         """);
 
     private async Task<object?> ScalarAsync(string sql)

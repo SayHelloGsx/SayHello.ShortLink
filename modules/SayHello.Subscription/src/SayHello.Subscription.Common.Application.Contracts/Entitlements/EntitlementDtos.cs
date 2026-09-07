@@ -47,6 +47,8 @@ public class EntitlementDto : EntitlementInputDto
 public class BooleanEntitlementResultDto
 {
     public EntitlementGrantStatus Status { get; set; }
+    public EntitlementSource Source { get; set; }
+    public Guid? PlanId { get; set; }
     public Guid? SubscriptionId { get; set; }
     public bool IsGranted { get; set; }
 }
@@ -54,6 +56,8 @@ public class BooleanEntitlementResultDto
 public class NumericEntitlementResultDto
 {
     public EntitlementGrantStatus Status { get; set; }
+    public EntitlementSource Source { get; set; }
+    public Guid? PlanId { get; set; }
     public Guid? SubscriptionId { get; set; }
     public bool IsGranted { get; set; }
     public long? Limit { get; set; }

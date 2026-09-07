@@ -17,6 +17,8 @@ public interface ISubscriptionCatalogManager
         CancellationToken cancellationToken = default);
     Task<SubscriptionProduct> UpdateProductAsync(Guid? tenantId, Guid id, string concurrencyStamp, CatalogDetails details,
         CancellationToken cancellationToken = default);
+    Task<SubscriptionProduct> SetDefaultPlanAsync(Guid? tenantId, Guid productId, string concurrencyStamp,
+        Guid? planId, CancellationToken cancellationToken = default);
     Task<SubscriptionProduct> SetProductStateAsync(Guid? tenantId, Guid id, string concurrencyStamp,
         SubscriptionCatalogState state, CancellationToken cancellationToken = default);
     Task DeleteProductAsync(Guid? tenantId, Guid id, string concurrencyStamp, CancellationToken cancellationToken = default);

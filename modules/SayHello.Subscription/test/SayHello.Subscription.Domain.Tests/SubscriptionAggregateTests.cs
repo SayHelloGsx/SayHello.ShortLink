@@ -124,6 +124,36 @@ public class SubscriptionAggregateTests
         Assert.Null(NumericEntitlementResult.Unlimited(id).Limit);
     }
 
+    [Fact]
+    public void Default_result_source_is_not_an_implicit_subscription()
+    {
+        var planId = Guid.NewGuid();
+        var finite = NumericEntitlementResult.FiniteDefaultPlan(planId, 20);
+        Assert.Equal(EntitlementSource.DefaultPlan, finite.Source);
+        Assert.Equal(planId, finite.PlanId);
+        Assert.Null(finite.SubscriptionId);
+        Assert.True(finite.Allows(20));
+        Assert.False(finite.Allows(21));
+        Assert.False(NumericEntitlementResult.NotGrantedDefaultPlan(planId).Allows(0));
+        Assert.True(NumericEntitlementResult.FiniteDefaultPlan(planId, 0).Allows(0));
+        Assert.True(NumericEntitlementResult.UnlimitedDefaultPlan(planId).Allows(long.MaxValue));
+        Assert.False(BooleanEntitlementResult.FromDefaultPlan(planId, false).IsGranted);
+        AssertCode(SubscriptionErrorCodes.InvalidEntitlementValue, () => NumericEntitlementResult.FiniteDefaultPlan(planId, -1));
+    }
+
+    [Fact]
+    public void Default_product_cannot_be_unpublished_until_the_default_is_cleared()
+    {
+        var (product, plan) = Catalog();
+        product.SetDefaultPlan(plan);
+        Assert.Equal(plan.Id, product.DefaultPlanId);
+        AssertCode(SubscriptionErrorCodes.DefaultPlanInUse, product.Withdraw);
+        AssertCode(SubscriptionErrorCodes.DefaultPlanInUse, product.Archive);
+        product.SetDefaultPlan(null);
+        product.Withdraw();
+        AssertCode(SubscriptionErrorCodes.InvalidDefaultPlan, () => product.SetDefaultPlan(plan));
+    }
+
     private static (SubscriptionProduct, SubscriptionPlan) Catalog(string code = "alpha")
     {
         var definition = SubscriptionTestDefinitions.Product(code);

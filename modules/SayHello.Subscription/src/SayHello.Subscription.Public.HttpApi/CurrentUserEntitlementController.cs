@@ -3,8 +3,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SayHello.Subscription.Entitlements;
+using SayHello.Subscription.Public.Catalog;
 using SayHello.Subscription.Public.Entitlements;
 using Volo.Abp;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.AspNetCore.Mvc;
 
 namespace SayHello.Subscription.Public;
@@ -26,6 +28,10 @@ public class CurrentUserEntitlementController : AbpControllerBase, ICurrentUserE
     public Task<EffectiveSubscriptionDto> GetAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode) =>
         _service.GetAsync(productCode);
+
+    [HttpGet("/api/subscription/public/default-entitlements")]
+    public Task<PagedResultDto<DefaultSubscriptionPlanDto>> GetDefaultPlansAsync([FromQuery] GetPublicCatalogInput input) =>
+        _service.GetDefaultPlansAsync(input);
 
     [HttpGet("boolean/{featureKey}")]
     public Task<BooleanEntitlementResultDto> GetBooleanAsync(

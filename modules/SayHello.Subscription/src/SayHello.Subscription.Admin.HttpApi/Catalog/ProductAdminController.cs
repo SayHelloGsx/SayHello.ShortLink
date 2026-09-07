@@ -23,12 +23,19 @@ public class ProductAdminController : AbpControllerBase, IProductAdminAppService
     public Task<AdminProductDto> GetAsync(Guid id) => _service.GetAsync(id);
     [HttpGet("definitions")]
     public Task<ListResultDto<RegisteredProductDto>> GetDefinitionsAsync() => _service.GetDefinitionsAsync();
+    [HttpGet("{id:guid}/default-plan-options")]
+    public Task<PagedResultDto<AdminPlanDto>> GetDefaultPlanOptionsAsync(Guid id, [FromQuery] AdminCatalogQueryDto input) =>
+        _service.GetDefaultPlanOptionsAsync(id, input);
     [HttpPost]
     [Authorize(SubscriptionAdminPermissions.Products.Create)]
     public Task<AdminProductDto> CreateAsync([FromBody] CreateProductDto input) => _service.CreateAsync(input);
     [HttpPut("{id:guid}")]
     [Authorize(SubscriptionAdminPermissions.Products.Update)]
     public Task<AdminProductDto> UpdateAsync(Guid id, [FromBody] UpdateProductDto input) => _service.UpdateAsync(id, input);
+    [HttpPut("{id:guid}/default-plan")]
+    [Authorize(SubscriptionAdminPermissions.Products.Update)]
+    public Task<AdminProductDto> SetDefaultPlanAsync(Guid id, [FromBody] SetDefaultPlanInputDto input) =>
+        _service.SetDefaultPlanAsync(id, input);
     [HttpPut("{id:guid}/state")]
     [Authorize(SubscriptionAdminPermissions.Products.Publish)]
     public Task<AdminProductDto> SetStateAsync(Guid id, [FromBody] CatalogStateInputDto input) => _service.SetStateAsync(id, input);

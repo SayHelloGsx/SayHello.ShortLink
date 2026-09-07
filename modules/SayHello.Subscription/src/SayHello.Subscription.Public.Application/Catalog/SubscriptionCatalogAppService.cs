@@ -113,6 +113,7 @@ public class SubscriptionCatalogAppService : SubscriptionApplicationService, ISu
                 ProductId = dto.ProductId,
                 ProductCode = dto.ProductCode,
                 ProductName = dto.ProductName,
+                IsDefaultPlan = product.DefaultPlanId == plan.Id,
                 Entitlements = dto.Entitlements.Select(entitlement => new PublicEntitlementDto
                 {
                     FeatureKey = entitlement.FeatureKey,

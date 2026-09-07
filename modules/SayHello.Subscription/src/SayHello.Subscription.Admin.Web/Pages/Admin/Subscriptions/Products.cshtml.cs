@@ -16,10 +16,14 @@ public class ProductsModel : CatalogPageModel
     public async Task<JsonResult> OnGetListAsync([FromQuery] AdminCatalogQueryDto input) => new(await _service.GetListAsync(input));
     public async Task<JsonResult> OnGetItemAsync(Guid id) => new(await _service.GetAsync(id));
     public async Task<JsonResult> OnGetDefinitionsAsync() => new(await _service.GetDefinitionsAsync());
+    public async Task<JsonResult> OnGetDefaultPlanOptionsAsync(Guid id, [FromQuery] AdminCatalogQueryDto input) =>
+        new(await _service.GetDefaultPlanOptionsAsync(id, input));
     public Task<IActionResult> OnPostCreateAsync([FromBody] CreateProductDto input) =>
         WriteAsync(SubscriptionAdminPermissions.Products.Create, () => _service.CreateAsync(input));
     public Task<IActionResult> OnPostUpdateAsync(Guid id, [FromBody] UpdateProductDto input) =>
         WriteAsync(SubscriptionAdminPermissions.Products.Update, () => _service.UpdateAsync(id, input));
+    public Task<IActionResult> OnPostDefaultPlanAsync(Guid id, [FromBody] SetDefaultPlanInputDto input) =>
+        WriteAsync(SubscriptionAdminPermissions.Products.Update, () => _service.SetDefaultPlanAsync(id, input));
     public Task<IActionResult> OnPostStateAsync(Guid id, [FromBody] CatalogStateInputDto input) =>
         WriteAsync(SubscriptionAdminPermissions.Products.Publish, () => _service.SetStateAsync(id, input));
     public Task<IActionResult> OnPostDeleteAsync(Guid id, [FromBody] VersionInputDto input) =>

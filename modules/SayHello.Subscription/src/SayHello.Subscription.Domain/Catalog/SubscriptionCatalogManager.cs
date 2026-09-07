@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SayHello.Subscription.Definitions;
+using SayHello.Subscription.Subscriptions;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
 using Volo.Abp.Guids;
@@ -20,10 +21,11 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
     private readonly ICurrentTenant _tenant;
     private readonly IGuidGenerator _guids;
     private readonly SubscriptionTransactionRunner _transactions;
+    private readonly SubscriptionMutationLock _mutationLock;
 
     public SubscriptionCatalogManager(ISubscriptionProductRepository products, ISubscriptionPlanRepository plans,
         ISubscriptionBundleRepository bundles, ISubscriptionDefinitionRegistry definitions, ICurrentTenant tenant,
-        IGuidGenerator guids, SubscriptionTransactionRunner transactions)
+        IGuidGenerator guids, SubscriptionTransactionRunner transactions, SubscriptionMutationLock mutationLock)
     {
         _products = products;
         _plans = plans;
@@ -32,13 +34,14 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         _tenant = tenant;
         _guids = guids;
         _transactions = transactions;
+        _mutationLock = mutationLock;
     }
 
     public virtual Task<SubscriptionProduct> CreateProductAsync(Guid? tenantId, string registeredProductCode,
         CatalogDetails details, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
-            EnsureTenant(tenantId);
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var definition = _definitions.GetProduct(registeredProductCode);
             if (await _products.FindByCodeAsync(tenantId, definition.Code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
@@ -48,17 +51,37 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
 
     public virtual Task<SubscriptionProduct> UpdateProductAsync(Guid? tenantId, Guid id, string concurrencyStamp,
         CatalogDetails details, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var product = await GetProductAsync(tenantId, id, concurrencyStamp, cancellationToken);
             product.UpdateDetails(details.Name, details.Description, details.DisplayOrder);
             return await _products.UpdateAsync(product, true, cancellationToken);
         }, cancellationToken);
 
+    public virtual Task<SubscriptionProduct> SetDefaultPlanAsync(Guid? tenantId, Guid productId, string concurrencyStamp,
+        Guid? planId, CancellationToken cancellationToken = default) =>
+        _transactions.RunAsync(async unit =>
+        {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
+            var product = await GetProductAsync(tenantId, productId, concurrencyStamp, cancellationToken);
+            var plan = planId.HasValue
+                ? await _plans.GetAsync(SubscriptionGuard.Id(planId.Value, nameof(planId)), cancellationToken: cancellationToken)
+                : null;
+            product.SetDefaultPlan(plan);
+            if (plan != null)
+            {
+                foreach (var entitlement in plan.Entitlements)
+                    _definitions.GetFeature(product.Code, entitlement.FeatureKey).Validate(entitlement.ToValue());
+            }
+            return await _products.UpdateAsync(product, true, cancellationToken);
+        }, cancellationToken);
+
     public virtual Task<SubscriptionProduct> SetProductStateAsync(Guid? tenantId, Guid id, string concurrencyStamp,
         SubscriptionCatalogState state, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var product = await GetProductAsync(tenantId, id, concurrencyStamp, cancellationToken);
             switch (state)
             {
@@ -71,9 +94,11 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         }, cancellationToken);
 
     public virtual Task DeleteProductAsync(Guid? tenantId, Guid id, string concurrencyStamp, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var product = await GetProductAsync(tenantId, id, concurrencyStamp, cancellationToken);
+            product.EnsureNoDefaultPlan();
             if (await _products.IsReferencedAsync(tenantId, id, cancellationToken))
                 throw new BusinessException(SubscriptionErrorCodes.CatalogReferenced);
             await _products.DeleteAsync(product, true, cancellationToken);
@@ -82,9 +107,9 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
 
     public virtual Task<SubscriptionPlan> CreatePlanAsync(Guid? tenantId, Guid productId, string code, CatalogDetails details,
         IReadOnlyDictionary<string, EntitlementValue> entitlements, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
-            EnsureTenant(tenantId);
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var product = await _products.GetAsync(productId, cancellationToken: cancellationToken);
             code = SubscriptionCode.Normalize(code);
             if (await _plans.FindByCodeAsync(tenantId, productId, code, cancellationToken) != null)
@@ -97,8 +122,9 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
     public virtual Task<SubscriptionPlan> UpdatePlanAsync(Guid? tenantId, Guid id, string concurrencyStamp,
         CatalogDetails details, IReadOnlyDictionary<string, EntitlementValue> entitlements,
         CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var plan = await GetPlanAsync(tenantId, id, concurrencyStamp, cancellationToken);
             plan.ReplaceEntitlements(_definitions.GetProduct(plan.ProductCode), entitlements);
             plan.UpdateDetails(details.Name, details.Description, details.DisplayOrder);
@@ -107,9 +133,12 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
 
     public virtual Task<SubscriptionPlan> SetPlanStateAsync(Guid? tenantId, Guid id, string concurrencyStamp,
         SubscriptionCatalogState state, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var plan = await GetPlanAsync(tenantId, id, concurrencyStamp, cancellationToken);
+            if (state is SubscriptionCatalogState.Withdrawn or SubscriptionCatalogState.Archived)
+                await EnsureNotDefaultAsync(plan, cancellationToken);
             switch (state)
             {
                 case SubscriptionCatalogState.Published:
@@ -123,9 +152,11 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         }, cancellationToken);
 
     public virtual Task DeletePlanAsync(Guid? tenantId, Guid id, string concurrencyStamp, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var plan = await GetPlanAsync(tenantId, id, concurrencyStamp, cancellationToken);
+            await EnsureNotDefaultAsync(plan, cancellationToken);
             if (await _plans.IsReferencedAsync(tenantId, id, cancellationToken))
                 throw new BusinessException(SubscriptionErrorCodes.CatalogReferenced);
             await _plans.DeleteAsync(plan, true, cancellationToken);
@@ -134,9 +165,9 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
 
     public virtual Task<SubscriptionBundle> CreateBundleAsync(Guid? tenantId, string code, CatalogDetails details,
         IReadOnlyCollection<Guid> planIds, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
-            EnsureTenant(tenantId);
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             code = SubscriptionCode.Normalize(code);
             if (await _bundles.FindByCodeAsync(tenantId, code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
@@ -147,8 +178,9 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
 
     public virtual Task<SubscriptionBundle> UpdateBundleAsync(Guid? tenantId, Guid id, string concurrencyStamp,
         CatalogDetails details, IReadOnlyCollection<Guid> planIds, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var bundle = await GetBundleAsync(tenantId, id, concurrencyStamp, cancellationToken);
             bundle.ReplaceItems(await GetBundlePlansAsync(tenantId, planIds, cancellationToken));
             bundle.UpdateDetails(details.Name, details.Description, details.DisplayOrder);
@@ -157,8 +189,9 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
 
     public virtual Task<SubscriptionBundle> SetBundleStateAsync(Guid? tenantId, Guid id, string concurrencyStamp,
         SubscriptionCatalogState state, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var bundle = await GetBundleAsync(tenantId, id, concurrencyStamp, cancellationToken);
             switch (state)
             {
@@ -177,8 +210,9 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         }, cancellationToken);
 
     public virtual Task DeleteBundleAsync(Guid? tenantId, Guid id, string concurrencyStamp, CancellationToken cancellationToken = default) =>
-        _transactions.RunAsync(async _ =>
+        _transactions.RunAsync(async unit =>
         {
+            await LockCatalogAsync(unit, tenantId, cancellationToken);
             var bundle = await GetBundleAsync(tenantId, id, concurrencyStamp, cancellationToken);
             if (await _bundles.IsReferencedAsync(tenantId, id, cancellationToken))
                 throw new BusinessException(SubscriptionErrorCodes.CatalogReferenced);
@@ -192,6 +226,19 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         var entity = await _products.GetAsync(id, cancellationToken: token);
         CheckStamp(entity.ConcurrencyStamp, stamp);
         return entity;
+    }
+
+    private Task LockCatalogAsync(Volo.Abp.Uow.IUnitOfWork unit, Guid? tenantId, CancellationToken token)
+    {
+        EnsureTenant(tenantId);
+        return _mutationLock.AcquireCatalogAsync(unit, tenantId, token);
+    }
+
+    private async Task EnsureNotDefaultAsync(SubscriptionPlan plan, CancellationToken token)
+    {
+        var product = await _products.GetAsync(plan.ProductId, cancellationToken: token);
+        if (product.DefaultPlanId == plan.Id)
+            throw new BusinessException(SubscriptionErrorCodes.DefaultPlanInUse);
     }
 
     private async Task<SubscriptionPlan> GetPlanAsync(Guid? tenantId, Guid id, string stamp, CancellationToken token)

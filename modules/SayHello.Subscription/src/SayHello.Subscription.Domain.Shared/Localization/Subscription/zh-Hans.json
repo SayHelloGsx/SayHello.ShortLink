@@ -19,6 +19,8 @@
     "Subscription:NoEffectiveSubscription": "该产品没有有效订阅。",
     "Subscription:EntitlementNotGranted": "订阅未授予所需权益。",
     "Subscription:InvalidPaging": "分页或排序参数无效。",
-    "Subscription:MutationLockUnavailable": "另一个订阅更新正在进行，请稍后重试。"
+    "Subscription:MutationLockUnavailable": "另一个订阅更新正在进行，请稍后重试。",
+    "Subscription:InvalidDefaultPlan": "默认方案必须属于同一产品和租户，且产品与方案均已发布。",
+    "Subscription:DefaultPlanInUse": "请先更换或显式清除产品的默认方案，再下架、归档或删除。"
   }
 }

@@ -28,6 +28,7 @@ public class SubscriptionRouteTests : WebHostWebTestBase
     [InlineData("/api/subscription/public/products?maxResultCount=10")]
     [InlineData("/api/subscription/public/plans?maxResultCount=10")]
     [InlineData("/api/subscription/public/bundles?maxResultCount=10")]
+    [InlineData("/api/subscription/public/default-entitlements?maxResultCount=10")]
     [InlineData("/api/subscription/admin/products?maxResultCount=10")]
     [InlineData("/api/subscription/admin/plans?maxResultCount=10")]
     [InlineData("/api/subscription/admin/bundles?maxResultCount=10")]

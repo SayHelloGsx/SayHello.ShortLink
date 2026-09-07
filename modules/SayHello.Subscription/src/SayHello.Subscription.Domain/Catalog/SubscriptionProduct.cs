@@ -14,6 +14,7 @@ public class SubscriptionProduct : AuditedAggregateRoot<Guid>, IMultiTenant
     public string? Description { get; private set; }
     public int DisplayOrder { get; private set; }
     public SubscriptionCatalogState State { get; private set; }
+    public Guid? DefaultPlanId { get; private set; }
 
     protected SubscriptionProduct()
     {
@@ -48,10 +49,39 @@ public class SubscriptionProduct : AuditedAggregateRoot<Guid>, IMultiTenant
     public void Withdraw()
     {
         EnsureNotArchived();
+        EnsureNoDefaultPlan();
         State = SubscriptionCatalogState.Withdrawn;
     }
 
-    public void Archive() => State = SubscriptionCatalogState.Archived;
+    public void Archive()
+    {
+        EnsureNoDefaultPlan();
+        State = SubscriptionCatalogState.Archived;
+    }
+
+    public void SetDefaultPlan(SubscriptionPlan? plan)
+    {
+        EnsureNotArchived();
+        if (plan != null)
+        {
+            SubscriptionGuard.SameTenant(TenantId, plan.TenantId);
+            if (State != SubscriptionCatalogState.Published ||
+                plan.State != SubscriptionCatalogState.Published ||
+                plan.ProductId != Id || plan.ProductCode != Code)
+            {
+                throw new BusinessException(SubscriptionErrorCodes.InvalidDefaultPlan);
+            }
+        }
+        DefaultPlanId = plan?.Id;
+    }
+
+    public void EnsureNoDefaultPlan()
+    {
+        if (DefaultPlanId.HasValue)
+        {
+            throw new BusinessException(SubscriptionErrorCodes.DefaultPlanInUse);
+        }
+    }
 
     private void EnsureNotArchived()
     {

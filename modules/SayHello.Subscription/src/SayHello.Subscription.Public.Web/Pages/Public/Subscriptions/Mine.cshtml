@@ -26,6 +26,11 @@
         <form method="get" class="row g-3 mb-4">
             <input asp-for="Input.CurrentOnly" type="hidden" />
             <input asp-for="Input.ProductId" type="hidden" />
+            <input asp-for="DefaultInput.ProductId" type="hidden" />
+            <input asp-for="DefaultInput.Filter" type="hidden" />
+            <input asp-for="DefaultInput.SkipCount" type="hidden" />
+            <input asp-for="DefaultInput.MaxResultCount" type="hidden" />
+            <input asp-for="DefaultInput.Sorting" type="hidden" />
             <div class="col-md-5">
                 <label asp-for="Input.Filter" class="form-label">@L["Search"]</label>
                 <input asp-for="Input.Filter" class="form-control" maxlength="@SubscriptionConsts.MaxNameLength" />
@@ -58,5 +63,70 @@
             <partial name="_Subscription" model="item" />
         }
         <partial name="_Pager" model="Model.Pagination" />
+        @if (Model.Input.CurrentOnly)
+        {
+            <section class="mt-5" aria-labelledby="default-entitlements-heading">
+                <h2 id="default-entitlements-heading">@L["DefaultFreeEntitlements"]</h2>
+                <p class="text-muted">@L["DefaultEntitlementsIntro"]</p>
+                <p class="alert alert-warning">@L["LiveDefaultWarning"]</p>
+                <p class="small text-muted">@L["DefaultFiltersIntro"]</p>
+                @if (Model.DefaultInput.ProductId.HasValue)
+                {
+                    <p class="text-muted">@L["ProductFilterActive"]</p>
+                }
+                <form method="get" class="row g-3 mb-4">
+                    <input asp-for="Input.CurrentOnly" type="hidden" />
+                    <input asp-for="Input.ProductId" type="hidden" />
+                    <input asp-for="Input.Filter" type="hidden" />
+                    <input asp-for="Input.Status" type="hidden" />
+                    <input asp-for="Input.SkipCount" type="hidden" />
+                    <input asp-for="Input.MaxResultCount" type="hidden" />
+                    <input asp-for="Input.Sorting" type="hidden" />
+                    <input asp-for="DefaultInput.ProductId" type="hidden" />
+                    <div class="col-md-6">
+                        <label asp-for="DefaultInput.Filter" class="form-label">@L["SearchDefaultPlans"]</label>
+                        <input asp-for="DefaultInput.Filter" class="form-control" maxlength="@SubscriptionConsts.MaxNameLength" />
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="DefaultInput.Sorting" class="form-label">@L["Sort"]</label>
+                        <select asp-for="DefaultInput.Sorting" class="form-select">
+                            @foreach (var sort in Enum.GetValues<SubscriptionCatalogSort>())
+                            {
+                                <option value="@sort">@L[$"Sort:{sort}"]</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="DefaultInput.MaxResultCount" class="form-label">@L["PageSize"]</label>
+                        <input asp-for="DefaultInput.MaxResultCount" class="form-control" type="number" min="1" max="@SubscriptionConsts.MaxPageSize" />
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">@L["ApplyFilters"]</button>
+                        <a href="@Model.DefaultProductUrl(null)" class="btn btn-link">@L["AllProducts"]</a>
+                    </div>
+                </form>
+                @if (Model.DefaultPlans.Count == 0)
+                {
+                    <p class="alert alert-info">@L["NoDefaultEntitlements"]</p>
+                }
+                <div class="row g-4">
+                    @foreach (var plan in Model.DefaultPlans)
+                    {
+                        <div class="col-lg-6">
+                            <article class="card h-100"><div class="card-body">
+                                <span class="badge bg-success mb-2">@L["DefaultFreePlan"]</span>
+                                <h3 class="h4">@plan.Name</h3>
+                                <p><a href="@Model.DefaultProductUrl(plan.ProductId)">@plan.ProductName</a> · @plan.Code</p>
+                                <p>@plan.Description</p>
+                                <p class="small text-muted">@L["Source"]: @L[$"EntitlementSource:{plan.Source}"]</p>
+                                <partial name="_Entitlements" model="plan.Entitlements" />
+                                <a asp-page="./Plans" asp-route-id="@plan.Id" class="btn btn-outline-primary mt-3">@L["Details"]</a>
+                            </div></article>
+                        </div>
+                    }
+                </div>
+                <partial name="_Pager" model="Model.DefaultPagination" />
+            </section>
+        }
     }
 </div>

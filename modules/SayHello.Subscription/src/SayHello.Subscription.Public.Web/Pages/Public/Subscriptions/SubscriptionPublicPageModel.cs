@@ -13,13 +13,14 @@ public abstract class SubscriptionPublicPageModel : AbpPageModel
         LocalizationResourceType = typeof(SubscriptionPublicResource);
     }
 
-    protected SubscriptionPager Pager(long totalCount, SubscriptionPagedInput input)
+    protected SubscriptionPager Pager(long totalCount, SubscriptionPagedInput input, string inputPrefix = "Input")
     {
+        var skipKey = $"{inputPrefix}.SkipCount";
         string Url(int skip) => Request.Path + QueryString.Create(
-            Request.Query.Where(p => !string.Equals(p.Key, "Input.SkipCount", StringComparison.OrdinalIgnoreCase))
+            Request.Query.Where(p => !string.Equals(p.Key, skipKey, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(p => p.Key, p => (string?)p.Value.ToString())
                 .Append(new System.Collections.Generic.KeyValuePair<string, string?>(
-                    "Input.SkipCount", skip.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+                    skipKey, skip.ToString(System.Globalization.CultureInfo.InvariantCulture))));
 
         return new SubscriptionPager(totalCount, input.SkipCount, input.MaxResultCount,
             input.SkipCount > 0 ? Url(Math.Max(0, input.SkipCount - input.MaxResultCount)) : null,

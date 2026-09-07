@@ -3,7 +3,15 @@ $(function () {
     const s = window.subscriptionAdmin, l = s.l, root = $('#subscription-catalog');
     const area = root.data('area'), products = area === 'Products', plans = area === 'Plans';
     let skip = 0, editing = null, selected = [], features = [], definitionReady = false, listGeneration = 0, editorGeneration = 0;
+    let defaultProduct = null, defaultPlan = null, defaultGeneration = 0, defaultSaving = false;
     const results = $('#catalog-results'), editor = $('#catalog-editor');
+    const defaultEditor = $('#default-plan-editor');
+
+    function defaultStatus(item) {
+        return $('<p class="mb-0">').addClass(item.defaultPlanId ? '' : 'text-warning')
+            .text(item.defaultPlanId ? l('DefaultPlan') + ': ' + (item.defaultPlanName || item.defaultPlanId) :
+                l('DefaultPlanUnconfigured'));
+    }
 
     async function load(offset) {
         skip = offset;
@@ -24,11 +32,14 @@ $(function () {
         results.empty();
         const table = $('<table class="table table-striped align-middle">'), body = $('<tbody>');
         table.append($('<thead>').append($('<tr>').append(
-            ['Code', 'Name', 'Details', 'State', 'Actions'].map(key => $('<th>').text(l(key))))), body);
+            (products ? ['Code', 'Name', 'Details', 'DefaultPlan', 'State', 'Actions'] :
+                ['Code', 'Name', 'Details', 'State', 'Actions']).map(key => $('<th>').text(l(key))))), body);
         page.items.forEach(item => {
             const actions = $('<td class="subscription-actions">');
             actions.append(s.button(l('Details'), () => showDetails(item)));
             if (root.data('update') && item.state !== 3) actions.append(s.button(l('Update'), () => edit(item.id)));
+            if (products && root.data('update') && (item.state === 1 || item.defaultPlanId))
+                actions.append(s.button(l('ConfigureDefaultPlan'), () => editDefaultPlan(item.id)));
             if (root.data('publish') && item.state !== 3) {
                 [1, 2, 3].filter(state => state !== item.state).forEach(state =>
                     actions.append(s.button(l('ActionState:' + state), async () => {
@@ -44,7 +55,9 @@ $(function () {
             }, 'btn-outline-danger'));
             const detail = plans ? item.productName : products ? item.description : item.items.map(x => x.productName + ': ' + x.planName).join('; ');
             body.append($('<tr>').append($('<td>').text(item.code), $('<td>').text(item.name),
-                $('<td class="subscription-wrap">').text(detail), $('<td>').text(l('State:' + item.state)), actions));
+                $('<td class="subscription-wrap">').text(detail),
+                products ? $('<td class="subscription-wrap">').append(defaultStatus(item)) : null,
+                $('<td>').text(l('State:' + item.state)), actions));
         });
         results.append($('<div class="table-responsive">').append(table));
         if (!page.items.length) results.append(s.text(l('NoResults')));
@@ -55,6 +68,11 @@ $(function () {
         const section = $('<section class="card p-3 mt-3">').append($('<h2>').text(item.name), $('<p>').text(item.description),
             $('<p>').text('ID: ' + item.id),
             $('<p>').text(l('DisplayOrder') + ': ' + item.displayOrder));
+        if (products) {
+            section.append(defaultStatus(item));
+            if (item.defaultPlanId) section.append($('<p>').text(l('DefaultPlanId') + ': ' + item.defaultPlanId),
+                $('<p class="alert alert-warning">').text(l('DefaultPlanRightsWarning')));
+        }
         if (plans) section.append($('<p>').text(l('ProductId') + ': ' + item.productId), s.entitlements(item.entitlements));
         if (!products && !plans) item.items.forEach(component => section.append(
             $('<h3 class="h5">').text(component.productName + ' / ' + component.planName), s.entitlements(component.entitlements)));
@@ -72,6 +90,59 @@ $(function () {
                     (feature.description ? ': ' + feature.description : ''))));
                 section.append($('<h3 class="h5">').text(l('Entitlements')), definition.features.length ? list : s.text(l('NoFeatures')));
             }
+        }
+    }
+
+    async function editDefaultPlan(id) {
+        if (defaultSaving) return;
+        ++editorGeneration; editor.prop('hidden', true);
+        const generation = ++defaultGeneration;
+        defaultProduct = null; defaultPlan = null; defaultEditor.prop('hidden', true);
+        const item = await s.request('Item', { id });
+        if (generation !== defaultGeneration) return;
+        defaultProduct = item; defaultPlan = null;
+        $('#default-plan-title').text(l('ConfigureDefaultPlan') + ' — ' + item.name);
+        $('#current-default-plan').empty().append(defaultStatus(item));
+        $('#selected-default-plan, #default-plan-validation, #default-plan-picker').empty();
+        $('#save-default-plan').prop('disabled', true);
+        $('#clear-default-plan').prop('disabled', !item.defaultPlanId);
+        defaultEditor.prop('hidden', false);
+        if (item.state === 1) {
+            s.picker($('#default-plan-picker'), 'DefaultPlanOptions', plan => {
+                if (generation !== defaultGeneration || defaultSaving) return;
+                defaultPlan = plan;
+                $('#selected-default-plan').empty().append(
+                    $('<h3 class="h5">').text(plan.name + ' (' + plan.code + ')'), s.entitlements(plan.entitlements));
+                $('#default-plan-validation').empty();
+                $('#save-default-plan').prop('disabled', plan.id === item.defaultPlanId);
+            }, plan => plan.name + ' (' + plan.code + ')', { id: item.id });
+        } else {
+            $('#default-plan-validation').text(l('DefaultPlanPublishedOnly'));
+        }
+        defaultEditor[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function saveDefaultPlan(clear) {
+        if (!defaultProduct || defaultSaving || (!clear && !defaultPlan) || (clear && !defaultProduct.defaultPlanId)) return;
+        const item = defaultProduct, plan = defaultPlan, generation = defaultGeneration;
+        const message = clear ? l('ConfirmClearDefaultPlan', item.name) : l('ConfirmDefaultPlan', plan.name, item.name);
+        if (!await s.confirm(message + '\n\n' + l('DefaultPlanRightsWarning')) ||
+            generation !== defaultGeneration || defaultSaving) return;
+        defaultSaving = true;
+        $('#default-plan-picker, #save-default-plan, #clear-default-plan, #cancel-default-plan').prop('disabled', true);
+        $('#default-plan-validation').empty();
+        try {
+            await s.request('DefaultPlan', { concurrencyStamp: item.concurrencyStamp, planId: clear ? null : plan.id }, 'POST', item.id);
+            defaultEditor.prop('hidden', true); ++defaultGeneration;
+            abp.notify.success(l('Saved')); await load(skip);
+        } catch (error) {
+            const details = error.responseJSON && error.responseJSON.error || error.error || error;
+            $('#default-plan-validation').text(details.message || l('DefaultPlanSaveFailed'));
+        } finally {
+            defaultSaving = false;
+            $('#default-plan-picker, #cancel-default-plan').prop('disabled', false);
+            $('#save-default-plan').prop('disabled', !defaultPlan || defaultPlan.id === item.defaultPlanId);
+            $('#clear-default-plan').prop('disabled', !item.defaultPlanId);
         }
     }
 
@@ -129,6 +200,8 @@ $(function () {
     }
 
     async function edit(id) {
+        if (defaultSaving) return;
+        ++defaultGeneration; defaultEditor.prop('hidden', true);
         const generation = ++editorGeneration;
         const item = id ? await s.request('Item', { id }) : null;
         if (generation !== editorGeneration) return;
@@ -227,6 +300,9 @@ $(function () {
         } finally { $('#save-item').prop('disabled', false); }
     });
     $('#catalog-filter').on('submit', event => { event.preventDefault(); load(0); });
+    $('#default-plan-form').on('submit', event => { event.preventDefault(); saveDefaultPlan(false); });
+    $('#clear-default-plan').on('click', () => saveDefaultPlan(true));
+    $('#cancel-default-plan').on('click', () => { ++defaultGeneration; defaultEditor.prop('hidden', true); });
     $('#create-item').on('click', () => edit(null));
     $('#cancel-edit').on('click', () => { ++editorGeneration; editor.prop('hidden', true); });
     load(0);

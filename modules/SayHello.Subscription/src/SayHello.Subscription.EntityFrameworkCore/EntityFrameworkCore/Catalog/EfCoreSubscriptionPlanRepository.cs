@@ -63,6 +63,7 @@ public class EfCoreSubscriptionPlanRepository : SubscriptionEfRepository<Subscri
         EnsureTenant(tenantId);
         var db = await GetDbContextAsync();
         return await db.SubscriptionBundleItems.AnyAsync(x => x.TenantId == tenantId && x.PlanId == planId, cancellationToken) ||
-            await db.UserSubscriptions.AnyAsync(x => x.TenantId == tenantId && x.SourcePlanId == planId, cancellationToken);
+            await db.UserSubscriptions.AnyAsync(x => x.TenantId == tenantId && x.SourcePlanId == planId, cancellationToken) ||
+            await db.SubscriptionProducts.AnyAsync(x => x.TenantId == tenantId && x.DefaultPlanId == planId, cancellationToken);
     }
 }

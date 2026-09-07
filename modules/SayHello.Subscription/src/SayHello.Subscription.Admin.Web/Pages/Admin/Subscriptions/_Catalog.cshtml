@@ -31,6 +31,24 @@
     @if (Model.CanCreate) { <button id="create-item" class="btn btn-success mb-3" type="button">@L["Create"]</button> }
     <div id="catalog-results" aria-live="polite"></div>
     <nav id="catalog-pager" aria-label="@L["Pagination"]" class="my-3"></nav>
+    @if (Model.AreaName == "Products" && Model.CanUpdate)
+    {
+        <section id="default-plan-editor" class="card p-3 mt-4" hidden>
+            <h2 id="default-plan-title">@L["ConfigureDefaultPlan"]</h2>
+            <p>@L["DefaultPlanHelp"]</p>
+            <p class="alert alert-warning">@L["DefaultPlanRightsWarning"]</p>
+            <div id="current-default-plan"></div>
+            <form id="default-plan-form" method="post">
+                @Html.AntiForgeryToken()
+                <fieldset id="default-plan-picker" aria-label="@L["DefaultPlan"]"></fieldset>
+                <div id="selected-default-plan" class="my-3" aria-live="polite"></div>
+                <div id="default-plan-validation" class="text-danger my-2" role="alert"></div>
+                <button id="save-default-plan" type="submit" class="btn btn-primary" disabled>@L["Save"]</button>
+                <button id="clear-default-plan" type="button" class="btn btn-outline-danger">@L["ClearDefaultPlan"]</button>
+                <button id="cancel-default-plan" type="button" class="btn btn-secondary">@L["Cancel"]</button>
+            </form>
+        </section>
+    }
     <section id="catalog-editor" class="card p-3 mt-4" hidden>
         <h2 id="editor-title"></h2>
         <form id="catalog-form" method="post">

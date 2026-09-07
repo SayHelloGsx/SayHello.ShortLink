@@ -66,6 +66,23 @@ product entitlement definitions.
   previous subscription originated from a bundle.
 - Each assignment stores its own entitlement snapshot. Later catalog edits and
   withdrawal do not alter existing grants. Reassignment captures the latest values.
+- Administrators can select, replace, or explicitly clear one published default
+  Free plan for each published product. Configuration is tenant-specific, including
+  the host (no tenant); there is no cross-tenant or host-to-tenant fallback.
+- Entitlement queries use an effective explicit subscription first, otherwise the
+  product's current default. Expired, revoked, or not-yet-effective assignments do
+  not suppress the default. An unconfigured product still returns `NoSubscription`.
+  Defaults never fill missing features in an explicit subscription or override its
+  false, zero, or unlimited values.
+- Default rights use the plan's live values: edits and replacement affect fallback
+  users on their next query, while actual subscriptions keep their snapshots.
+  Resolution reports the source and plan identity; a default has no subscription
+  ID and does not count as an effective subscription. It creates no subscription,
+  assignment history, or background work.
+- Replace or clear a default before withdrawing, archiving, or deleting its plan
+  or product. Stale configuration changes are rejected. Catalog writes are
+  serialized per tenant until transaction completion; default configuration remains
+  per product, and assignment locking remains separate.
 - Entitlements are registered in code and configured on plans by administrators.
   Values are Boolean switches or non-negative integer limits with an explicit
   unlimited state. An absent entitlement is not unlimited access.
@@ -77,8 +94,12 @@ product entitlement definitions.
   product assignments, including users without a tenant.
 
 Public catalog pages are available at `/subscriptions/plans` and
-`/subscriptions/bundles`; `/subscriptions/mine` requires login and shows only the
-current user's subscriptions. Administrative pages are under `/admin/subscriptions`.
+`/subscriptions/bundles`, with default plans marked in the plan catalog.
+`/subscriptions/mine` requires login and shows the current user's applicable default
+Free rights separately from actual subscriptions, with independent paging.
+Subscription history remains actual assignments only. Administrative pages are under
+`/admin/subscriptions`; product administration shows the selected default or an
+explicit unconfigured state.
 The API surfaces use `/api/subscription/public/*` and `/api/subscription/admin/*`
 with separate HTTP client registrations. Catalog publication does not expose user
 records or assignment history to anonymous visitors.
@@ -99,7 +120,10 @@ HTTP, or EntityFrameworkCore. Numeric checks do not reserve or consume quota.
 This host registers product `short-link`, Boolean feature `statistics`, and numeric
 feature `max-links` (including unlimited values). Database seeding creates only
 missing draft product metadata and preserves administrative edits. Publish the
-product and configure/publish its plans in administration before assigning them.
+product and configure/publish its plans in administration before selecting a default
+or assigning subscriptions. Free `max-links = 20` and Pro `max-links = 100` are
+administrator-configured examples, not hard-coded values; seeding does not publish
+sample plans, select a default, or assign users.
 Additional products and their feature definitions must be registered by the consuming
 host or product integration; they are not hard-coded into the Subscription module.
 
@@ -107,6 +131,10 @@ This version deliberately does **not** change ShortLink's existing feature acces
 quota settings. It provides entitlement queries for future business integration, but
 does not implement payments, checkout, automatic renewal, usage metering, or quota
 deduction. No user receives a subscription automatically.
+In particular, configuring Free 20 or Pro 100 does **not** prevent creation of a
+21st or 101st ShortLink. Future quota integration is intended to count currently
+owned links, with deletion releasing capacity; that enforcement is not implemented
+by Subscription.
 
 ## Development prerequisites
 
@@ -134,6 +162,8 @@ set `SUBSCRIPTION_TEST_POSTGRES_CONNECTION_STRING` to an **isolated PostgreSQL 1
 test instance**, using an account allowed to create databases. Never use a production
 connection string. The tests create uniquely named databases, apply the real host
 migrations, and delete only the databases they created.
+Coverage includes fresh schemas, upgrading existing `AddSubscriptions` data with
+nullable defaults, restrictive same-product references, and catalog lock leases.
 
 ```powershell
 $env:SUBSCRIPTION_TEST_POSTGRES_CONNECTION_STRING = '<isolated PostgreSQL test connection string>'

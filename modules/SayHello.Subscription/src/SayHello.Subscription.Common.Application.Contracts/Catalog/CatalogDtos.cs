@@ -15,6 +15,7 @@ public abstract class SubscriptionCatalogItemDto : EntityDto<Guid>
 
 public class SubscriptionProductDto : SubscriptionCatalogItemDto
 {
+    public Guid? DefaultPlanId { get; set; }
 }
 
 public class SubscriptionPlanDto : SubscriptionCatalogItemDto

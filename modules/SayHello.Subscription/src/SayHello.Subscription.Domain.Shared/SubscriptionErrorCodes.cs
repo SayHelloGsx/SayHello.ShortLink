@@ -21,4 +21,6 @@ public static class SubscriptionErrorCodes
     public const string EntitlementNotGranted = "Subscription:EntitlementNotGranted";
     public const string InvalidPaging = "Subscription:InvalidPaging";
     public const string MutationLockUnavailable = "Subscription:MutationLockUnavailable";
+    public const string InvalidDefaultPlan = "Subscription:InvalidDefaultPlan";
+    public const string DefaultPlanInUse = "Subscription:DefaultPlanInUse";
 }

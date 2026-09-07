@@ -48,6 +48,18 @@ public class PublicSurfaceMetadataTests
             .Template.ShouldBe(template);
 
     [Fact]
+    public void Default_entitlement_route_is_absolute_and_has_no_product_code_or_owner_parameter()
+    {
+        var action = typeof(CurrentUserEntitlementController)
+            .GetMethod(nameof(CurrentUserEntitlementController.GetDefaultPlansAsync))!;
+        action.GetCustomAttribute<HttpGetAttribute>()!.Template
+            .ShouldBe("/api/subscription/public/default-entitlements");
+        var input = action.GetParameters().Single();
+        input.ParameterType.ShouldBe(typeof(GetPublicCatalogInput));
+        input.IsDefined(typeof(FromQueryAttribute)).ShouldBeTrue();
+    }
+
+    [Fact]
     public void Razor_pages_and_application_services_have_real_authorization()
     {
         foreach (var type in new[] { typeof(MineModel), typeof(MySubscriptionAppService),
@@ -107,5 +119,11 @@ public class PublicSurfaceMetadataTests
             .ShouldBe(zh.RootElement.GetProperty("texts").EnumerateObject().Select(p => p.Name).OrderBy(n => n));
         en.RootElement.GetProperty("texts").GetProperty("Unlimited").GetString().ShouldBe("Unlimited");
         zh.RootElement.GetProperty("texts").GetProperty("Unlimited").GetString().ShouldBe("无限制");
+        foreach (var key in new[] { "DefaultFreePlan", "DefaultFreeEntitlements", "LiveDefaultWarning",
+                     "NoDefaultEntitlements", "EntitlementSource:DefaultPlan", "DefaultFiltersIntro" })
+        {
+            en.RootElement.GetProperty("texts").GetProperty(key).GetString().ShouldNotBeNullOrWhiteSpace();
+            zh.RootElement.GetProperty("texts").GetProperty(key).GetString().ShouldNotBeNullOrWhiteSpace();
+        }
     }
 }

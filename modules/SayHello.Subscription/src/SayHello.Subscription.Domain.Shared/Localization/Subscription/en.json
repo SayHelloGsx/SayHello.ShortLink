@@ -19,6 +19,8 @@
     "Subscription:NoEffectiveSubscription": "There is no effective subscription for this product.",
     "Subscription:EntitlementNotGranted": "The subscription does not grant the required entitlement.",
     "Subscription:InvalidPaging": "The paging or sorting input is invalid.",
-    "Subscription:MutationLockUnavailable": "Another subscription update is in progress. Try again."
+    "Subscription:MutationLockUnavailable": "Another subscription update is in progress. Try again.",
+    "Subscription:InvalidDefaultPlan": "The default plan must be a published plan of the same published product and tenant.",
+    "Subscription:DefaultPlanInUse": "Replace or explicitly clear the product's default plan before withdrawing, archiving or deleting it."
   }
 }

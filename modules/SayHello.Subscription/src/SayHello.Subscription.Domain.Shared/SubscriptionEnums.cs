@@ -36,6 +36,13 @@ public enum EntitlementGrantStatus
     Granted = 2
 }
 
+public enum EntitlementSource
+{
+    None = 0,
+    Subscription = 1,
+    DefaultPlan = 2
+}
+
 public enum SubscriptionCatalogSort
 {
     DisplayOrder = 0,
