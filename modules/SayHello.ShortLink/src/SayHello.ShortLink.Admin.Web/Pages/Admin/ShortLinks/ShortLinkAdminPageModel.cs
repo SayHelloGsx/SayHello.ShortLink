@@ -1,13 +1,11 @@
-using SayHello.ShortLink.Localization;
-using Volo.Abp.AspNetCore.Mvc.UI.RazorPages;
+using SayHello.ShortLink.Web.Pages;
 
 namespace SayHello.ShortLink.Admin.Web.Pages.Admin.ShortLinks;
 
-public abstract class ShortLinkAdminPageModel : AbpPageModel
+public abstract class ShortLinkAdminPageModel : ShortLinkPageModel
 {
     protected ShortLinkAdminPageModel()
     {
-        LocalizationResourceType = typeof(ShortLinkResource);
         ObjectMapperContext = typeof(ShortLinkAdminWebModule);
     }
 }

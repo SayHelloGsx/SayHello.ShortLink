@@ -22,6 +22,9 @@
   <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Application/SayHello.ShortLink.Application.csproj" />
   <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Common.Application.Contracts/SayHello.ShortLink.Common.Application.Contracts.csproj" />
   <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Common.Application/SayHello.ShortLink.Common.Application.csproj" />
+  <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Common.HttpApi.Client/SayHello.ShortLink.Common.HttpApi.Client.csproj" />
+  <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Common.HttpApi/SayHello.ShortLink.Common.HttpApi.csproj" />
+  <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Common.Web/SayHello.ShortLink.Common.Web.csproj" />
   <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Domain.Shared/SayHello.ShortLink.Domain.Shared.csproj" />
   <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.Domain/SayHello.ShortLink.Domain.csproj" />
   <Project Path="modules/SayHello.ShortLink/src/SayHello.ShortLink.EntityFrameworkCore/SayHello.ShortLink.EntityFrameworkCore.csproj" />
@@ -46,6 +49,9 @@
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Application/SayHello.Subscription.Application.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Common.Application.Contracts/SayHello.Subscription.Common.Application.Contracts.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Common.Application/SayHello.Subscription.Common.Application.csproj" />
+  <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Common.HttpApi.Client/SayHello.Subscription.Common.HttpApi.Client.csproj" />
+  <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Common.HttpApi/SayHello.Subscription.Common.HttpApi.csproj" />
+  <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Common.Web/SayHello.Subscription.Common.Web.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Domain.Shared/SayHello.Subscription.Domain.Shared.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Domain/SayHello.Subscription.Domain.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.EntityFrameworkCore/SayHello.Subscription.EntityFrameworkCore.csproj" />

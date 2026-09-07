@@ -5,8 +5,8 @@ using SayHello.ShortLink.Localization;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.Public.Web.Menus;
 using SayHello.ShortLink.Public.Web.Routing;
+using SayHello.ShortLink.Web;
 using Volo.Abp.AspNetCore.Mvc.Localization;
-using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.Mapperly;
 using Volo.Abp.Modularity;
 using Volo.Abp.UI.Navigation;
@@ -16,8 +16,7 @@ namespace SayHello.ShortLink.Public.Web;
 
 [DependsOn(
     typeof(ShortLinkPublicApplicationContractsModule),
-    typeof(AbpAspNetCoreMvcUiThemeSharedModule),
-    typeof(AbpMapperlyModule)
+    typeof(ShortLinkCommonWebModule)
 )]
 public class ShortLinkPublicWebModule : AbpModule
 {

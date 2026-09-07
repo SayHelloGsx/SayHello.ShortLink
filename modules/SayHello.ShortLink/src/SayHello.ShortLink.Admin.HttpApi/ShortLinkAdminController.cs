@@ -1,12 +1,5 @@
-using SayHello.ShortLink.Localization;
-using Volo.Abp.AspNetCore.Mvc;
-
 namespace SayHello.ShortLink.Admin;
 
-public abstract class ShortLinkAdminController : AbpControllerBase
+public abstract class ShortLinkAdminController : ShortLinkControllerBase
 {
-    protected ShortLinkAdminController()
-    {
-        LocalizationResource = typeof(ShortLinkResource);
-    }
 }

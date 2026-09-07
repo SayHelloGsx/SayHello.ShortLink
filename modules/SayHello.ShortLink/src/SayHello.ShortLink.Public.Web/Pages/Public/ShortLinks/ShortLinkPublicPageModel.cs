@@ -1,15 +1,13 @@
-﻿using SayHello.ShortLink.Localization;
-using Volo.Abp.AspNetCore.Mvc.UI.RazorPages;
+﻿using SayHello.ShortLink.Web.Pages;
 
 namespace SayHello.ShortLink.Public.Web.Pages.Public.ShortLinks;
 
 /* Inherit your PageModel classes from this class.
  */
-public abstract class ShortLinkPublicPageModel : AbpPageModel
+public abstract class ShortLinkPublicPageModel : ShortLinkPageModel
 {
     protected ShortLinkPublicPageModel()
     {
-        LocalizationResourceType = typeof(ShortLinkResource);
         ObjectMapperContext = typeof(ShortLinkPublicWebModule);
     }
 }

@@ -7,7 +7,7 @@ namespace SayHello.ShortLink.Admin;
 
 [DependsOn(
     typeof(ShortLinkAdminApplicationContractsModule),
-    typeof(AbpHttpClientModule)
+    typeof(ShortLinkCommonHttpApiClientModule)
 )]
 public class ShortLinkAdminHttpApiClientModule : AbpModule
 {

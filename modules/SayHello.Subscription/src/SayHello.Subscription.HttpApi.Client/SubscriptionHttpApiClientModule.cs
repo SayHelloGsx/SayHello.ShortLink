@@ -4,7 +4,11 @@ using Volo.Abp.Modularity;
 
 namespace SayHello.Subscription;
 
-[DependsOn(typeof(SubscriptionPublicHttpApiClientModule), typeof(SubscriptionAdminHttpApiClientModule))]
+[DependsOn(
+    typeof(SubscriptionAdminHttpApiClientModule),
+    typeof(SubscriptionPublicHttpApiClientModule),
+    typeof(SubscriptionApplicationContractsModule)
+)]
 public class SubscriptionHttpApiClientModule : AbpModule
 {
 }

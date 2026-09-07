@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using SayHello.Subscription.Admin.Localization;
 using SayHello.Subscription.Admin.Web.Menus;
+using SayHello.Subscription.Web;
 using Volo.Abp.AspNetCore.Mvc.Localization;
-using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.Mapperly;
 using Volo.Abp.Modularity;
 using Volo.Abp.VirtualFileSystem;
@@ -10,8 +10,10 @@ using Volo.Abp.UI.Navigation;
 
 namespace SayHello.Subscription.Admin.Web;
 
-[DependsOn(typeof(SubscriptionAdminApplicationContractsModule),
-    typeof(AbpAspNetCoreMvcUiThemeSharedModule), typeof(AbpMapperlyModule))]
+[DependsOn(
+    typeof(SubscriptionAdminApplicationContractsModule),
+    typeof(SubscriptionCommonWebModule)
+)]
 public class SubscriptionAdminWebModule : AbpModule
 {
     public override void PreConfigureServices(ServiceConfigurationContext context)

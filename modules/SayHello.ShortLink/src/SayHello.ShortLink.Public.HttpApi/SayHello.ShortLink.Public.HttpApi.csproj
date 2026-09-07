@@ -6,7 +6,7 @@
     <RootNamespace>SayHello.ShortLink.Public</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="10.6.0" />
+    <ProjectReference Include="..\SayHello.ShortLink.Common.HttpApi\SayHello.ShortLink.Common.HttpApi.csproj" />
     <ProjectReference Include="..\SayHello.ShortLink.Public.Application.Contracts\SayHello.ShortLink.Public.Application.Contracts.csproj" />
   </ItemGroup>
 </Project>

@@ -2,8 +2,8 @@
   <Import Project="..\..\common.props" />
   <PropertyGroup><OutputType>Library</OutputType></PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SayHello.Subscription.Public.Web\SayHello.Subscription.Public.Web.csproj" />
+    <ProjectReference Include="..\SayHello.Subscription.Application.Contracts\SayHello.Subscription.Application.Contracts.csproj" />
     <ProjectReference Include="..\SayHello.Subscription.Admin.Web\SayHello.Subscription.Admin.Web.csproj" />
-    <ProjectReference Include="..\SayHello.Subscription.HttpApi\SayHello.Subscription.HttpApi.csproj" />
+    <ProjectReference Include="..\SayHello.Subscription.Public.Web\SayHello.Subscription.Public.Web.csproj" />
   </ItemGroup>
 </Project>

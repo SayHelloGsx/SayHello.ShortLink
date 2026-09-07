@@ -6,8 +6,8 @@
     <RootNamespace>SayHello.ShortLink.Admin</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Volo.Abp.Http.Client" Version="10.6.0" />
     <ProjectReference Include="..\SayHello.ShortLink.Admin.Application.Contracts\SayHello.ShortLink.Admin.Application.Contracts.csproj" />
+    <ProjectReference Include="..\SayHello.ShortLink.Common.HttpApi.Client\SayHello.ShortLink.Common.HttpApi.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="**\*generate-proxy.json" />

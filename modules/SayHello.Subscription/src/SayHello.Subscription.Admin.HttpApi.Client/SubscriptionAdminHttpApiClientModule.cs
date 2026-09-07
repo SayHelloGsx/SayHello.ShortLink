@@ -1,10 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
-using Volo.Abp.Http.Client;
 using Volo.Abp.Modularity;
 
 namespace SayHello.Subscription.Admin;
 
-[DependsOn(typeof(SubscriptionAdminApplicationContractsModule), typeof(AbpHttpClientModule))]
+[DependsOn(
+    typeof(SubscriptionAdminApplicationContractsModule),
+    typeof(SubscriptionCommonHttpApiClientModule)
+)]
 public class SubscriptionAdminHttpApiClientModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)

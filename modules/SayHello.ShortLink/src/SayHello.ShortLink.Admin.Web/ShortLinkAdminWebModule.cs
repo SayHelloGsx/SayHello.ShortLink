@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using SayHello.ShortLink.Admin.Web.Menus;
 using SayHello.ShortLink.Localization;
 using SayHello.ShortLink.Permissions;
+using SayHello.ShortLink.Web;
 using Volo.Abp.AspNetCore.Mvc.Localization;
-using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.Mapperly;
 using Volo.Abp.Modularity;
 using Volo.Abp.UI.Navigation;
@@ -14,8 +14,7 @@ namespace SayHello.ShortLink.Admin.Web;
 
 [DependsOn(
     typeof(ShortLinkAdminApplicationContractsModule),
-    typeof(AbpAspNetCoreMvcUiThemeSharedModule),
-    typeof(AbpMapperlyModule)
+    typeof(ShortLinkCommonWebModule)
 )]
 public class ShortLinkAdminWebModule : AbpModule
 {

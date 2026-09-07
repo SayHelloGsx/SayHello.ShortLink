@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xunit;
 
@@ -17,6 +19,15 @@ public class ModuleBoundaryTests
             "modules",
             "SayHello.ShortLink",
             "src");
+        var expectedCommonReferences = new Dictionary<string, string>
+        {
+            ["SayHello.ShortLink.Admin.HttpApi"] = "SayHello.ShortLink.Common.HttpApi",
+            ["SayHello.ShortLink.Public.HttpApi"] = "SayHello.ShortLink.Common.HttpApi",
+            ["SayHello.ShortLink.Admin.HttpApi.Client"] = "SayHello.ShortLink.Common.HttpApi.Client",
+            ["SayHello.ShortLink.Public.HttpApi.Client"] = "SayHello.ShortLink.Common.HttpApi.Client",
+            ["SayHello.ShortLink.Admin.Web"] = "SayHello.ShortLink.Common.Web",
+            ["SayHello.ShortLink.Public.Web"] = "SayHello.ShortLink.Common.Web"
+        };
 
         foreach (var project in Directory.EnumerateFiles(
                      sourceRoot,
@@ -46,6 +57,15 @@ public class ModuleBoundaryTests
                 Assert.DoesNotContain(
                     references,
                     reference => reference.Contains(".Public.", StringComparison.Ordinal));
+            }
+
+            if (expectedCommonReferences.TryGetValue(projectName, out var commonReference))
+            {
+                Assert.Contains(commonReference, references);
+                var moduleSource = File.ReadAllText(Path.Combine(
+                    Path.GetDirectoryName(project)!,
+                    GetModuleTypeName(projectName) + ".cs"));
+                Assert.Contains($"typeof({GetModuleTypeName(commonReference)})", moduleSource, StringComparison.Ordinal);
             }
         }
     }
@@ -101,11 +121,17 @@ public class ModuleBoundaryTests
                 expected.OrderBy(value => value, StringComparer.Ordinal),
                 references.OrderBy(value => value, StringComparer.Ordinal));
 
-            var sourceFiles = Directory
-                .EnumerateFiles(projectDirectory, "*.cs", SearchOption.AllDirectories)
-                .Where(path => !IsBuildOutput(path))
-                .ToList();
-            Assert.Single(sourceFiles);
+            var sourceFile = Assert.Single(
+                Directory.EnumerateFiles(projectDirectory, "*.cs", SearchOption.AllDirectories),
+                path => !IsBuildOutput(path));
+            var actualModuleDependencies = Regex.Matches(
+                    File.ReadAllText(sourceFile),
+                    @"typeof\((?<module>\w+Module)\)")
+                .Select(match => match.Groups["module"].Value)
+                .OrderBy(value => value, StringComparer.Ordinal);
+            Assert.Equal(
+                expected.Select(GetModuleTypeName).OrderBy(value => value, StringComparer.Ordinal),
+                actualModuleDependencies);
         }
     }
 
@@ -117,6 +143,16 @@ public class ModuleBoundaryTests
         var metadata = File.ReadAllText(Path.Combine(moduleRoot, "SayHello.ShortLink.abpmdl"));
         var solution = File.ReadAllText(Path.Combine(repositoryRoot, "SayHello.ShortLink.slnx"));
 
+        Assert.Equal(
+            23,
+            Directory.EnumerateFiles(Path.Combine(moduleRoot, "src"), "*.csproj", SearchOption.AllDirectories).Count());
+        using var metadataDocument = JsonDocument.Parse(metadata);
+        Assert.Equal(27, metadataDocument.RootElement.GetProperty("packages").EnumerateObject().Count());
+        var solutionDocument = XDocument.Parse(solution);
+        Assert.Equal(
+            27,
+            solutionDocument.Descendants("Project").Count(project =>
+                project.Attribute("Path")!.Value.Contains("modules/SayHello.ShortLink/", StringComparison.Ordinal)));
         Assert.DoesNotContain("Blazor", metadata, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Blazor", solution, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(
@@ -175,6 +211,12 @@ public class ModuleBoundaryTests
         var normalized = path.Replace('\\', '/');
         return normalized.Contains("/bin/", StringComparison.OrdinalIgnoreCase) ||
                normalized.Contains("/obj/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetModuleTypeName(string projectName)
+    {
+        const string prefix = "SayHello.ShortLink.";
+        return "ShortLink" + projectName[prefix.Length..].Replace(".", string.Empty) + "Module";
     }
 
     private static string FindRepositoryRoot()

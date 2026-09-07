@@ -7,7 +7,7 @@ namespace SayHello.ShortLink.Public;
 
 [DependsOn(
     typeof(ShortLinkPublicApplicationContractsModule),
-    typeof(AbpHttpClientModule)
+    typeof(ShortLinkCommonHttpApiClientModule)
 )]
 public class ShortLinkPublicHttpApiClientModule : AbpModule
 {

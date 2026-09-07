@@ -2,7 +2,7 @@
   <Import Project="..\..\common.props" />
   <PropertyGroup><RootNamespace>SayHello.Subscription.Public</RootNamespace></PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Volo.Abp.Http.Client" Version="10.6.0" />
+    <ProjectReference Include="..\SayHello.Subscription.Common.HttpApi.Client\SayHello.Subscription.Common.HttpApi.Client.csproj" />
     <ProjectReference Include="..\SayHello.Subscription.Public.Application.Contracts\SayHello.Subscription.Public.Application.Contracts.csproj" />
   </ItemGroup>
 </Project>

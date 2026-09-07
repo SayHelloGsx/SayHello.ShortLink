@@ -2,8 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SayHello.Subscription.Public.Localization;
 using SayHello.Subscription.Public.Web.Menus;
+using SayHello.Subscription.Web;
 using Volo.Abp.AspNetCore.Mvc.Localization;
-using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.Mapperly;
 using Volo.Abp.Modularity;
 using Volo.Abp.UI.Navigation;
@@ -11,8 +11,10 @@ using Volo.Abp.VirtualFileSystem;
 
 namespace SayHello.Subscription.Public.Web;
 
-[DependsOn(typeof(SubscriptionPublicApplicationContractsModule),
-    typeof(AbpAspNetCoreMvcUiThemeSharedModule), typeof(AbpMapperlyModule))]
+[DependsOn(
+    typeof(SubscriptionPublicApplicationContractsModule),
+    typeof(SubscriptionCommonWebModule)
+)]
 public class SubscriptionPublicWebModule : AbpModule
 {
     public override void PreConfigureServices(ServiceConfigurationContext context)
