@@ -24,6 +24,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     private readonly IShortLinkCreationRateLimiter _creationRateLimiter;
     private readonly IShortLinkUrlBuilder _urlBuilder;
     private readonly IShortLinkCacheInvalidator _cacheInvalidator;
+    private readonly IShortLinkCapabilityProvider _capabilityProvider;
 
     public ShortLinkAppService(
         IShortLinkRepository shortLinkRepository,
@@ -32,7 +33,8 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         IShortLinkUserEligibilityChecker eligibilityChecker,
         IShortLinkCreationRateLimiter creationRateLimiter,
         IShortLinkUrlBuilder urlBuilder,
-        IShortLinkCacheInvalidator cacheInvalidator)
+        IShortLinkCacheInvalidator cacheInvalidator,
+        IShortLinkCapabilityProvider capabilityProvider)
     {
         _shortLinkRepository = shortLinkRepository;
         _statisticsRepository = statisticsRepository;
@@ -41,12 +43,42 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         _creationRateLimiter = creationRateLimiter;
         _urlBuilder = urlBuilder;
         _cacheInvalidator = cacheInvalidator;
+        _capabilityProvider = capabilityProvider;
+    }
+
+    public async Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync()
+    {
+        var ownerUserId = CurrentUser.GetId();
+        var tenantId = CurrentTenant.Id;
+        var cancellationToken = CancellationTokenProvider.Token;
+        var quota = await _capabilityProvider.GetQuotaAsync(tenantId, ownerUserId, cancellationToken);
+        var usedLinks = await _shortLinkRepository.GetCountByOwnerAsync(
+            ownerUserId, tenantId, cancellationToken);
+
+        return new ShortLinkCapabilitiesDto
+        {
+            UsedLinks = usedLinks,
+            IsQuotaGranted = quota.IsGranted,
+            IsUnlimited = quota.IsUnlimited,
+            MaxLinks = quota.Limit,
+            RemainingLinks = !quota.IsGranted
+                ? 0
+                : quota.IsUnlimited ? null : Math.Max(0, quota.Limit!.Value - usedLinks),
+            StatisticsEnabled = await _capabilityProvider.IsStatisticsEnabledAsync(
+                tenantId, ownerUserId, cancellationToken)
+        };
     }
 
     public async Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
     {
         var ownerUserId = CurrentUser.GetId();
         var cancellationToken = CancellationTokenProvider.Token;
+        var statisticsEnabled = await IsStatisticsEnabledAsync();
+        if (!statisticsEnabled && IsStatisticsSorting(input.Sorting))
+        {
+            throw new BusinessException(ShortLinkErrorCodes.StatisticsNotGranted);
+        }
+
         var totalCount = await _shortLinkRepository.GetCountAsync(
             ownerUserId,
             CurrentTenant.Id,
@@ -65,13 +97,13 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
 
         return new PagedResultDto<ShortLinkDto>(
             totalCount,
-            entities.Select(x => ShortLinkDtoMapper.ToDto(x, _urlBuilder)).ToList());
+            entities.Select(x => ShortLinkDtoMapper.ToPublicDto(x, _urlBuilder, statisticsEnabled)).ToList());
     }
 
     public async Task<ShortLinkDto> GetAsync(Guid id)
     {
         var shortLink = await GetOwnedAsync(id);
-        return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
+        return await ToPublicDtoAsync(shortLink);
     }
 
     [Authorize(ShortLinkPublicPermissions.Create)]
@@ -81,7 +113,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         await _eligibilityChecker.EnsureEligibleAsync(ownerUserId);
         await _creationRateLimiter.EnsureAllowedAsync(ownerUserId, CurrentTenant.Id);
 
-        var shortLink = await _shortLinkManager.CreateAsync(
+        var shortLink = await _shortLinkManager.CreateAndSaveAsync(
             GuidGenerator.Create(),
             CurrentTenant.Id,
             ownerUserId,
@@ -91,14 +123,10 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             NormalizeExpiration(input.ExpiresAt),
             CancellationTokenProvider.Token);
 
-        await _shortLinkRepository.InsertAsync(
-            shortLink,
-            autoSave: true,
-            cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
             shortLink.Code,
             CancellationTokenProvider.Token);
-        return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
+        return await ToPublicDtoAsync(shortLink);
     }
 
     [Authorize(ShortLinkPublicPermissions.Update)]
@@ -121,7 +149,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         await _cacheInvalidator.RemoveAsync(
             shortLink.Code,
             CancellationTokenProvider.Token);
-        return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
+        return await ToPublicDtoAsync(shortLink);
     }
 
     [Authorize(ShortLinkPublicPermissions.Update)]
@@ -147,7 +175,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         await _cacheInvalidator.RemoveAsync(
             shortLink.Code,
             CancellationTokenProvider.Token);
-        return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
+        return await ToPublicDtoAsync(shortLink);
     }
 
     [Authorize(ShortLinkPublicPermissions.Delete)]
@@ -168,6 +196,11 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     public async Task<ShortLinkStatisticsDto> GetStatisticsAsync(Guid id, int days = 30)
     {
         var shortLink = await GetOwnedAsync(id);
+        if (!await IsStatisticsEnabledAsync())
+        {
+            throw new BusinessException(ShortLinkErrorCodes.StatisticsNotGranted);
+        }
+
         var normalizedDays = Math.Clamp(days, 1, 365);
         var today = DateOnly.FromDateTime(Clock.Now.ToUniversalTime());
         var startDate = today.AddDays(-(normalizedDays - 1));
@@ -211,6 +244,25 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         {
             Content = qrCode.GetGraphic(5)
         };
+    }
+
+    private Task<bool> IsStatisticsEnabledAsync()
+    {
+        return _capabilityProvider.IsStatisticsEnabledAsync(
+            CurrentTenant.Id, CurrentUser.GetId(), CancellationTokenProvider.Token);
+    }
+
+    private async Task<ShortLinkDto> ToPublicDtoAsync(ShortLinkEntity shortLink)
+    {
+        return ShortLinkDtoMapper.ToPublicDto(
+            shortLink, _urlBuilder, await IsStatisticsEnabledAsync());
+    }
+
+    private static bool IsStatisticsSorting(string? sorting)
+    {
+        var parts = sorting?.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return parts is { Length: > 0 } &&
+            string.Equals(parts[0], "totalvisitcount", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<ShortLinkEntity> GetOwnedAsync(Guid id)

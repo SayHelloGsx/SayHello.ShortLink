@@ -73,6 +73,16 @@
     "Inactive": "Inactive",
     "ShortLinkSettings": "Short-link settings",
     "MaxLinksPerUser": "Maximum links per user",
+    "Quota:Usage": "Short-link usage",
+    "Quota:Used": "Used: {0}",
+    "Quota:Limit": "Limit: {0}",
+    "Quota:Remaining": "Remaining: {0}",
+    "Quota:Unlimited": "Unlimited",
+    "Quota:NotGranted": "Creating short links is not currently available for this account. Existing links remain available to manage.",
+    "Quota:Full": "Your short-link quota is full. Delete a link to make room before creating another.",
+    "Quota:OverLimit": "Your usage exceeds the current quota. Existing links are unchanged, but you cannot create more until usage is below the limit.",
+    "Quota:ExternallyManaged": "Link quotas are managed by an external capability provider. The maximum links per user setting is retained for standalone use and does not control the active quota.",
+    "Statistics:Unavailable": "Statistics are not currently available for this account.",
     "CreateLimitPerHour": "Creates per user per hour",
     "VisitRetentionDays": "Visit detail retention (days)",
     "DeletedCodeCooldownDays": "Deleted-code cooldown (days)",
@@ -116,6 +126,9 @@
     "ShortLink:010018": "The CSV file exceeds the 10,000 data row limit.",
     "ShortLink:010019": "Upload a file with the .csv extension.",
     "ShortLink:010020": "The CSV file must contain a Domain header.",
-    "ShortLink:010021": "The CSV file could not be parsed."
+    "ShortLink:010021": "The CSV file could not be parsed.",
+    "ShortLink:010022": "Creating short links is not currently granted for this account.",
+    "ShortLink:010023": "Viewing short-link statistics is not currently granted for this account.",
+    "ShortLink:010024": "Short-link creation is busy. Try again shortly."
   }
 }

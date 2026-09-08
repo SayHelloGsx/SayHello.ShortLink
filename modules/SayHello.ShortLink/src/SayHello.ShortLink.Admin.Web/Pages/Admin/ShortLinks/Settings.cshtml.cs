@@ -28,6 +28,7 @@ public class SettingsModel : ShortLinkAdminPageModel
     {
         if (!ModelState.IsValid)
         {
+            Settings.IsQuotaExternallyManaged = (await _appService.GetAsync()).IsQuotaExternallyManaged;
             return Page();
         }
 

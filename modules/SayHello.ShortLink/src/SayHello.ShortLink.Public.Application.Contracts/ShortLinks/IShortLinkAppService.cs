@@ -8,6 +8,8 @@ namespace SayHello.ShortLink.Public.ShortLinks;
 
 public interface IShortLinkAppService : IApplicationService
 {
+    Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync();
+
     Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input);
 
     Task<ShortLinkDto> GetAsync(Guid id);

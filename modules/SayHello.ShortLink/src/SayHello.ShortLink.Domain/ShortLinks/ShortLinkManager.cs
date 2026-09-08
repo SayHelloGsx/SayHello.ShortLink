@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,6 +7,8 @@ using SayHello.ShortLink.Settings;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
 using Volo.Abp.Settings;
+using Volo.Abp.MultiTenancy;
+using Volo.Abp.Uow;
 
 namespace SayHello.ShortLink.ShortLinks;
 
@@ -16,21 +19,75 @@ public class ShortLinkManager : DomainService
     private readonly ShortCodePolicy _shortCodePolicy;
     private readonly ITargetUrlValidator _targetUrlValidator;
     private readonly ISettingProvider _settingProvider;
+    private readonly IShortLinkCapabilityProvider _capabilityProvider;
+    private readonly ShortLinkCreationLock _creationLock;
+    private readonly IUnitOfWorkManager _unitOfWorkManager;
+    private readonly ICurrentTenant _currentTenant;
 
     public ShortLinkManager(
         IShortLinkRepository shortLinkRepository,
         IShortCodeGenerator shortCodeGenerator,
         ShortCodePolicy shortCodePolicy,
         ITargetUrlValidator targetUrlValidator,
-        ISettingProvider settingProvider)
+        ISettingProvider settingProvider,
+        IShortLinkCapabilityProvider capabilityProvider,
+        ShortLinkCreationLock creationLock,
+        IUnitOfWorkManager unitOfWorkManager,
+        ICurrentTenant currentTenant)
     {
         _shortLinkRepository = shortLinkRepository;
         _shortCodeGenerator = shortCodeGenerator;
         _shortCodePolicy = shortCodePolicy;
         _targetUrlValidator = targetUrlValidator;
         _settingProvider = settingProvider;
+        _capabilityProvider = capabilityProvider;
+        _creationLock = creationLock;
+        _unitOfWorkManager = unitOfWorkManager;
+        _currentTenant = currentTenant;
     }
 
+    public virtual async Task<ShortLink> CreateAndSaveAsync(
+        Guid id,
+        Guid? tenantId,
+        Guid ownerUserId,
+        string targetUrl,
+        string? customCode,
+        string? title,
+        DateTime? expiresAt,
+        CancellationToken cancellationToken = default)
+    {
+        using var owned = _unitOfWorkManager.Current is null
+            ? _unitOfWorkManager.Begin(requiresNew: true, isTransactional: true)
+            : null;
+        var unit = owned ?? _unitOfWorkManager.Current!;
+        if (!unit.Options.IsTransactional ||
+            unit.Options.IsolationLevel is IsolationLevel.RepeatableRead or
+                IsolationLevel.Snapshot or IsolationLevel.ReadUncommitted)
+        {
+            throw new AbpException("Short-link creation requires a transactional, read-committed or serializable unit of work.");
+        }
+
+        try
+        {
+            await _creationLock.AcquireAsync(unit, tenantId, ownerUserId, cancellationToken);
+            var shortLink = await CreateAsync(
+                id, tenantId, ownerUserId, targetUrl, customCode, title, expiresAt, cancellationToken);
+            await _shortLinkRepository.InsertAsync(shortLink, autoSave: true, cancellationToken);
+            if (owned is not null)
+            {
+                await owned.CompleteAsync(cancellationToken);
+            }
+
+            return shortLink;
+        }
+        catch
+        {
+            await unit.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    // Constructs an entity only. Persist through CreateAndSaveAsync to serialize quota checks.
     public async Task<ShortLink> CreateAsync(
         Guid id,
         Guid? tenantId,
@@ -41,18 +98,26 @@ public class ShortLinkManager : DomainService
         DateTime? expiresAt,
         CancellationToken cancellationToken = default)
     {
-        var maxLinks = await GetPositiveSettingAsync(
-            ShortLinkSettings.MaxLinksPerUser,
-            ShortLinkDefaults.MaxLinksPerUser);
+        if (ownerUserId == Guid.Empty || tenantId != _currentTenant.Id)
+        {
+            throw new BusinessException(ShortLinkErrorCodes.LinkAccessDenied);
+        }
+
+        var quota = await _capabilityProvider.GetQuotaAsync(tenantId, ownerUserId, cancellationToken);
+        if (!quota.IsGranted)
+        {
+            throw new BusinessException(ShortLinkErrorCodes.LinkQuotaNotGranted);
+        }
+
         var currentCount = await _shortLinkRepository.GetCountByOwnerAsync(
             ownerUserId,
             tenantId,
             cancellationToken);
 
-        if (currentCount >= maxLinks)
+        if (quota.Limit is { } limit && currentCount >= limit)
         {
             throw new BusinessException(ShortLinkErrorCodes.LinkQuotaExceeded)
-                .WithData("Limit", maxLinks);
+                .WithData("Limit", limit);
         }
 
         var validatedTarget = await _targetUrlValidator.ValidateAsync(

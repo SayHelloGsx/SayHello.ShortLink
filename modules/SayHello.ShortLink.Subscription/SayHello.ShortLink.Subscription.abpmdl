@@ -1,0 +1,13 @@
+{
+  "folders": { "items": { "src": {}, "test": {} } },
+  "packages": {
+    "SayHello.ShortLink.Subscription.Domain": {
+      "path": "src/SayHello.ShortLink.Subscription.Domain/SayHello.ShortLink.Subscription.Domain.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Subscription.Domain.Tests": {
+      "path": "test/SayHello.ShortLink.Subscription.Domain.Tests/SayHello.ShortLink.Subscription.Domain.Tests.abppkg",
+      "folder": "test"
+    }
+  }
+}

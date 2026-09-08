@@ -5,6 +5,20 @@ namespace SayHello.ShortLink.Common.ShortLinks;
 
 public static class ShortLinkDtoMapper
 {
+    public static ShortLinkDto ToPublicDto(
+        ShortLinkEntity shortLink,
+        IShortLinkUrlBuilder urlBuilder,
+        bool statisticsEnabled)
+    {
+        var dto = ToDto(shortLink, urlBuilder);
+        if (!statisticsEnabled)
+        {
+            dto.TotalVisitCount = null;
+        }
+
+        return dto;
+    }
+
     public static ShortLinkDto ToDto(ShortLinkEntity shortLink, IShortLinkUrlBuilder urlBuilder)
     {
         return new ShortLinkDto

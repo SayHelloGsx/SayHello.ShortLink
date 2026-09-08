@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using SayHello.ShortLink.Subscription;
 using SayHello.ShortLink.WebHost.MultiTenancy;
 using SayHello.ShortLink.WebHost.Subscriptions;
 using SayHello.Subscription.Definitions;
@@ -22,6 +23,7 @@ namespace SayHello.ShortLink.WebHost;
     typeof(WebHostDomainSharedModule),
     typeof(global::SayHello.ShortLink.ShortLinkDomainModule),
     typeof(global::SayHello.Subscription.SubscriptionDomainModule),
+    typeof(ShortLinkSubscriptionDomainModule),
     typeof(AbpAuditLoggingDomainModule),
     typeof(AbpBackgroundJobsDomainModule),
     typeof(AbpFeatureManagementDomainModule),
@@ -40,6 +42,13 @@ public class WebHostDomainModule : AbpModule
         Configure<SubscriptionDefinitionOptions>(options =>
         {
             options.DefinitionProviders.Add<ShortLinkSubscriptionDefinitionProvider>();
+        });
+
+        Configure<ShortLinkSubscriptionOptions>(options =>
+        {
+            options.ProductCode = ShortLinkSubscriptionDefinitions.ProductCode;
+            options.QuotaFeatureKey = ShortLinkSubscriptionDefinitions.MaxLinks;
+            options.StatisticsFeatureKey = ShortLinkSubscriptionDefinitions.Statistics;
         });
 
         Configure<AbpLocalizationOptions>(options =>

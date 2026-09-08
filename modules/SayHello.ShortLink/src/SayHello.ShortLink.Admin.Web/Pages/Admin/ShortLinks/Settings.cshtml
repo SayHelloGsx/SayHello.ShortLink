@@ -12,6 +12,10 @@
     <div class="card shadow-sm mx-auto" style="max-width: 720px">
         <div class="card-body">
             <h1 class="h3 mb-4">@L["ShortLinkSettings"]</h1>
+            @if (Model.Settings.IsQuotaExternallyManaged)
+            {
+                <div class="alert alert-info" role="status">@L["Quota:ExternallyManaged"]</div>
+            }
             <form method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 <div class="mb-3">

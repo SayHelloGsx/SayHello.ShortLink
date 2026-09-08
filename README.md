@@ -31,6 +31,8 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
   - Unsuffixed `Application*`, `HttpApi*`, and `Web` projects are composition-only modules.
 - `modules/SayHello.Subscription`: independent product subscription module, using the
   same Common/Public/Admin and composition-only upper layers.
+- `modules/SayHello.ShortLink.Subscription`: optional Domain bridge between the two
+  independent modules. Neither business module references the bridge or the other module.
 - `host`: layered MVC host and unified database migrations.
 - `deploy`: production Compose, Caddy, certificate, backup, restore, and update assets.
 - `.github/workflows`: CI and container publishing.
@@ -127,14 +129,59 @@ sample plans, select a default, or assign users.
 Additional products and their feature definitions must be registered by the consuming
 host or product integration; they are not hard-coded into the Subscription module.
 
-This version deliberately does **not** change ShortLink's existing feature access or
-quota settings. It provides entitlement queries for future business integration, but
-does not implement payments, checkout, automatic renewal, usage metering, or quota
-deduction. No user receives a subscription automatically.
-In particular, configuring Free 20 or Pro 100 does **not** prevent creation of a
-21st or 101st ShortLink. Future quota integration is intended to count currently
-owned links, with deletion releasing capacity; that enforcement is not implemented
-by Subscription.
+### Optional ShortLink integration
+
+This host explicitly loads the ShortLink Subscription Domain bridge and maps the
+existing product and feature constants to its options. Product definitions, publication,
+default-plan configuration, and Identity integration remain host responsibilities.
+The bridge depends only on both Domain modules and replaces ShortLink's own
+`IShortLinkCapabilityProvider`; it has no dependency on the host, Identity, EF Core,
+or either module's Public/Admin layers. Invalid mappings or feature types fail at startup.
+
+- With the bridge, `max-links` entirely replaces `MaxLinksPerUser`. Missing rights
+  deny creation; zero permits no links; unlimited is an explicit grant, not a null
+  or missing-value fallback. Per-hour creation rate limits, email confirmation,
+  permissions, target validation, and domain blocking still apply.
+- Usage is the current tenant/user's **non-deleted** links, including disabled and
+  expired links. Committed deletion by the user or an administrator releases capacity;
+  failed operations and rolled-back deletions do not. There is no consumption ledger,
+  monthly reset, or cross-module create/delete event accounting.
+- Free 20 and Pro 100 therefore reject the 21st and 101st owned links respectively.
+  A downgrade below current usage blocks further creation, not editing, deletion,
+  QR codes, or existing redirects.
+- Creation is serialized per tenant/owner through ABP distributed locking and a
+  transactional UOW. `ShortLinkManager.CreateAndSaveAsync` checks and inserts under
+  that lock; an ambient transaction retains the lock until commit or rollback/disposal.
+  The older `CreateAsync` only constructs an entity and is not an atomic persistence API.
+  Nontransactional, read-uncommitted, repeatable-read, and snapshot UOWs are rejected
+  by the atomic entry point; use read-committed or serializable transactions.
+  A lock acquisition failure never falls back to an unlocked write.
+- `statistics` gates ordinary-user statistics, including total visits in list/get
+  and mutation responses and ordering by visit count. `ShortLinkDto.TotalVisitCount`
+  is now nullable: `null` means not disclosed, not zero visits. Update typed clients
+  accordingly. Administrative responses still return actual counts under their
+  existing permissions.
+- Redirects continue collecting visits without consulting subscriptions. Restored
+  statistics access includes history that remains within the original retention policy.
+- `GET /api/short-link/public/links/capabilities` returns the authenticated user's
+  current usage, quota state, finite limit/remaining capacity or unlimited flag, and
+  statistics availability. The ShortLink page displays these values; the Subscription
+  UI stays generic. A displayed capability is not a reservation or a substitute for
+  server-side authorization and quota checks.
+- Each server-side entitlement check uses then-effective rights. Later checks see
+  expired/revoked assignments or changed defaults; already-checked in-flight operations
+  may finish. Subscription administration is not globally locked against link creation.
+
+Before enabling the bridge, publish the product and configure an appropriate default
+plan or assign explicit subscriptions. Seeding does **not** grant rights automatically.
+Without a usable grant, creation and statistics are denied; existing links remain.
+Removing the bridge's host module dependency restores ShortLink's setting-backed quota
+and normal statistics behavior without a database migration. Both modules remain usable
+on their own. Multi-instance ShortLink deployments must configure a shared ABP lock
+provider; this host uses Redis. Process-local locks cannot enforce a cross-instance quota.
+
+No payments, checkout, automatic renewal, or subscription purchase/upgrade flow is
+implemented by this integration. No tables or usage backfill are required.
 
 ## Development prerequisites
 

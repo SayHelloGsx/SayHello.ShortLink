@@ -60,12 +60,9 @@ public class EfCoreShortLinkRepository :
         Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
-        return await GetCountAsync(
-            ownerUserId,
-            tenantId,
-            filter: null,
-            status: null,
-            cancellationToken);
+        return await (await GetDbSetAsync()).LongCountAsync(
+            x => x.TenantId == tenantId && x.OwnerUserId == ownerUserId && !x.IsDeleted,
+            GetCancellationToken(cancellationToken));
     }
 
     public async Task<List<ShortLink>> GetListAsync(

@@ -21,7 +21,7 @@ public class ShortLinkDto : FullAuditedEntityDto<Guid>
 
     public DateTime? ExpiresAt { get; set; }
 
-    public long TotalVisitCount { get; set; }
+    public long? TotalVisitCount { get; set; }
 
     public string ConcurrencyStamp { get; set; } = string.Empty;
 }

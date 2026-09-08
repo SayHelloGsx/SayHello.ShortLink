@@ -2,6 +2,8 @@ namespace SayHello.ShortLink.Admin.Settings;
 
 public class ShortLinkSettingsDto
 {
+    public bool IsQuotaExternallyManaged { get; set; }
+
     public int MaxLinksPerUser { get; set; }
 
     public int CreateLimitPerHour { get; set; }

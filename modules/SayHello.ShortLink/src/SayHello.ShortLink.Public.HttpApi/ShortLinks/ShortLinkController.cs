@@ -19,6 +19,12 @@ public class ShortLinkController : ShortLinkPublicController, IShortLinkAppServi
         _appService = appService;
     }
 
+    [HttpGet("capabilities")]
+    public Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync()
+    {
+        return _appService.GetCapabilitiesAsync();
+    }
+
     [HttpGet]
     public Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
     {

@@ -23,4 +23,7 @@ public static class ShortLinkErrorCodes
     public const string BlockedDomainImportInvalidExtension = "ShortLink:010019";
     public const string BlockedDomainImportMissingDomainHeader = "ShortLink:010020";
     public const string BlockedDomainImportInvalidCsv = "ShortLink:010021";
+    public const string LinkQuotaNotGranted = "ShortLink:010022";
+    public const string StatisticsNotGranted = "ShortLink:010023";
+    public const string CreationLockUnavailable = "ShortLink:010024";
 }

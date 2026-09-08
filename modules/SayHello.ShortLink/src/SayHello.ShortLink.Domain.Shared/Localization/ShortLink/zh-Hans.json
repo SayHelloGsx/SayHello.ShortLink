@@ -73,6 +73,16 @@
     "Inactive": "停用",
     "ShortLinkSettings": "短链接设置",
     "MaxLinksPerUser": "每用户最大短链接数",
+    "Quota:Usage": "短链接用量",
+    "Quota:Used": "已用：{0}",
+    "Quota:Limit": "上限：{0}",
+    "Quota:Remaining": "剩余：{0}",
+    "Quota:Unlimited": "不限数量",
+    "Quota:NotGranted": "当前账户尚未获得创建短链接的授权，已有链接仍可管理。",
+    "Quota:Full": "短链接配额已用满，请删除部分链接后再创建。",
+    "Quota:OverLimit": "当前用量已超过配额上限，已有链接不受影响；用量降至上限以下后才能继续创建。",
+    "Quota:ExternallyManaged": "短链接配额由外部能力提供者管理。每用户最大短链接数设置仅保留用于独立运行，不控制当前生效的配额。",
+    "Statistics:Unavailable": "当前账户暂不可查看访问统计。",
     "CreateLimitPerHour": "每用户每小时创建上限",
     "VisitRetentionDays": "访问明细保留天数",
     "DeletedCodeCooldownDays": "已删除短码冷却天数",
@@ -116,6 +126,9 @@
     "ShortLink:010018": "CSV 文件超过 10,000 个数据行上限。",
     "ShortLink:010019": "请上传扩展名为 .csv 的文件。",
     "ShortLink:010020": "CSV 文件必须包含 Domain 表头。",
-    "ShortLink:010021": "无法解析 CSV 文件。"
+    "ShortLink:010021": "无法解析 CSV 文件。",
+    "ShortLink:010022": "当前账户尚未获得创建短链接的授权。",
+    "ShortLink:010023": "当前账户尚未获得查看短链接统计的授权。",
+    "ShortLink:010024": "短链接创建服务正忙，请稍后重试。"
   }
 }

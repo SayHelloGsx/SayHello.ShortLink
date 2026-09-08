@@ -19,19 +19,23 @@ public class ShortLinkSettingsAppService :
 {
     private readonly ISettingProvider _settingProvider;
     private readonly ISettingManager _settingManager;
+    private readonly IShortLinkCapabilityProvider _capabilityProvider;
 
     public ShortLinkSettingsAppService(
         ISettingProvider settingProvider,
-        ISettingManager settingManager)
+        ISettingManager settingManager,
+        IShortLinkCapabilityProvider capabilityProvider)
     {
         _settingProvider = settingProvider;
         _settingManager = settingManager;
+        _capabilityProvider = capabilityProvider;
     }
 
     public async Task<ShortLinkSettingsDto> GetAsync()
     {
         return new ShortLinkSettingsDto
         {
+            IsQuotaExternallyManaged = _capabilityProvider.IsQuotaExternallyManaged,
             MaxLinksPerUser = await GetValueAsync(
                 ShortLinkSettings.MaxLinksPerUser,
                 ShortLinkDefaults.MaxLinksPerUser),
