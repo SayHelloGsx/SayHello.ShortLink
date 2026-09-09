@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -36,12 +37,14 @@ public class CurrentUserEntitlementController : AbpControllerBase, ICurrentUserE
     [HttpGet("boolean/{featureKey}")]
     public Task<BooleanEntitlementResultDto> GetBooleanAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
-        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey) =>
-        _service.GetBooleanAsync(productCode, featureKey);
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default) =>
+        _service.GetBooleanAsync(productCode, featureKey, cancellationToken);
 
     [HttpGet("numeric/{featureKey}")]
     public Task<NumericEntitlementResultDto> GetNumericAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
-        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey) =>
-        _service.GetNumericAsync(productCode, featureKey);
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default) =>
+        _service.GetNumericAsync(productCode, featureKey, cancellationToken);
 }

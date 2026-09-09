@@ -1,4 +1,4 @@
-namespace SayHello.ShortLink.WebHost.Subscriptions;
+namespace SayHello.ShortLink.Subscription;
 
 public static class ShortLinkSubscriptionDefinitions
 {

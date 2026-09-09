@@ -1,4 +1,5 @@
-﻿using Volo.Abp.Account;
+﻿using SayHello.ShortLink.Subscription;
+using Volo.Abp.Account;
 using Volo.Abp.Mapperly;
 using Volo.Abp.FeatureManagement;
 using Volo.Abp.Identity;
@@ -13,6 +14,7 @@ namespace SayHello.ShortLink.WebHost;
 [DependsOn(
     typeof(WebHostDomainModule),
     typeof(global::SayHello.ShortLink.ShortLinkApplicationModule),
+    typeof(ShortLinkSubscriptionApplicationModule),
     typeof(global::SayHello.Subscription.SubscriptionApplicationModule),
     typeof(AbpAccountApplicationModule),
     typeof(WebHostApplicationContractsModule),

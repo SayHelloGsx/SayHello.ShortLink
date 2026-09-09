@@ -1,0 +1,8 @@
+{
+  "culture": "en",
+  "texts": {
+    "Subscription:ShortLink": "ShortLink",
+    "Subscription:Statistics": "Visit statistics",
+    "Subscription:MaxLinks": "Maximum number of links"
+  }
+}

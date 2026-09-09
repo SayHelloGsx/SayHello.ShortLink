@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using NSubstitute;
+using SayHello.ShortLink.Subscription;
 using SayHello.ShortLink.WebHost.Data;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Definitions;

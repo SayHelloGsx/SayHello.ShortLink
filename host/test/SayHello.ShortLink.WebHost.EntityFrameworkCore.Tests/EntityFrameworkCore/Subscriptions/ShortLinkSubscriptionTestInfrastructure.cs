@@ -11,7 +11,7 @@ using NSubstitute;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Public.ShortLinks;
 using SayHello.ShortLink.ShortLinks;
-using SayHello.ShortLink.WebHost.Subscriptions;
+using SayHello.ShortLink.Subscription;
 using SayHello.Subscription;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Definitions;

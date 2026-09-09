@@ -1,12 +1,16 @@
 {
   "folders": { "items": { "src": {}, "test": {} } },
   "packages": {
-    "SayHello.ShortLink.Subscription.Domain": {
-      "path": "src/SayHello.ShortLink.Subscription.Domain/SayHello.ShortLink.Subscription.Domain.abppkg",
+    "SayHello.ShortLink.Subscription.Domain.Shared": {
+      "path": "src/SayHello.ShortLink.Subscription.Domain.Shared/SayHello.ShortLink.Subscription.Domain.Shared.abppkg",
       "folder": "src"
     },
-    "SayHello.ShortLink.Subscription.Domain.Tests": {
-      "path": "test/SayHello.ShortLink.Subscription.Domain.Tests/SayHello.ShortLink.Subscription.Domain.Tests.abppkg",
+    "SayHello.ShortLink.Subscription.Application": {
+      "path": "src/SayHello.ShortLink.Subscription.Application/SayHello.ShortLink.Subscription.Application.abppkg",
+      "folder": "src"
+    },
+    "SayHello.ShortLink.Subscription.Application.Tests": {
+      "path": "test/SayHello.ShortLink.Subscription.Application.Tests/SayHello.ShortLink.Subscription.Application.Tests.abppkg",
       "folder": "test"
     }
   }

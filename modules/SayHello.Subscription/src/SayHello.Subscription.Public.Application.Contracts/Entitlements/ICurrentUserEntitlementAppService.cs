@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Threading;
 using System.Threading.Tasks;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Entitlements;
@@ -37,9 +38,11 @@ public interface ICurrentUserEntitlementAppService : IApplicationService
 
     Task<BooleanEntitlementResultDto> GetBooleanAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
-        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey);
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default);
 
     Task<NumericEntitlementResultDto> GetNumericAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
-        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey);
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default);
 }

@@ -1,23 +1,28 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
 using SayHello.ShortLink.ShortLinks;
-using SayHello.Subscription.Entitlements;
+using SayHello.Subscription.Public.Entitlements;
+using Volo.Abp.Authorization;
+using Volo.Abp.MultiTenancy;
+using Volo.Abp.Users;
 
 namespace SayHello.ShortLink.Subscription;
 
 public sealed class SubscriptionShortLinkCapabilityProvider : IShortLinkCapabilityProvider
 {
-    private readonly ISubscriptionEntitlementChecker _entitlements;
-    private readonly ShortLinkSubscriptionOptions _options;
+    private readonly ICurrentUserEntitlementAppService _entitlements;
+    private readonly ICurrentUser _currentUser;
+    private readonly ICurrentTenant _currentTenant;
 
     public SubscriptionShortLinkCapabilityProvider(
-        ISubscriptionEntitlementChecker entitlements,
-        IOptions<ShortLinkSubscriptionOptions> options)
+        ICurrentUserEntitlementAppService entitlements,
+        ICurrentUser currentUser,
+        ICurrentTenant currentTenant)
     {
         _entitlements = entitlements;
-        _options = options.Value;
+        _currentUser = currentUser;
+        _currentTenant = currentTenant;
     }
 
     public bool IsQuotaExternallyManaged => true;
@@ -27,8 +32,11 @@ public sealed class SubscriptionShortLinkCapabilityProvider : IShortLinkCapabili
         Guid userId,
         CancellationToken cancellationToken = default)
     {
+        EnsureCurrentSubject(tenantId, userId);
         var result = await _entitlements.GetNumericAsync(
-            tenantId, userId, _options.ProductCode, _options.QuotaFeatureKey, cancellationToken);
+            ShortLinkSubscriptionDefinitions.ProductCode,
+            ShortLinkSubscriptionDefinitions.MaxLinks,
+            cancellationToken);
         if (!result.IsGranted)
         {
             return ShortLinkQuota.Denied;
@@ -45,8 +53,21 @@ public sealed class SubscriptionShortLinkCapabilityProvider : IShortLinkCapabili
         Guid userId,
         CancellationToken cancellationToken = default)
     {
+        EnsureCurrentSubject(tenantId, userId);
         var result = await _entitlements.GetBooleanAsync(
-            tenantId, userId, _options.ProductCode, _options.StatisticsFeatureKey, cancellationToken);
+            ShortLinkSubscriptionDefinitions.ProductCode,
+            ShortLinkSubscriptionDefinitions.Statistics,
+            cancellationToken);
         return result.IsGranted;
+    }
+
+    private void EnsureCurrentSubject(Guid? tenantId, Guid userId)
+    {
+        if (!_currentUser.IsAuthenticated ||
+            _currentUser.Id != userId ||
+            _currentTenant.Id != tenantId)
+        {
+            throw new AbpAuthorizationException();
+        }
     }
 }

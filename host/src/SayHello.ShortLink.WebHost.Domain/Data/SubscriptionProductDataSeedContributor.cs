@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using SayHello.ShortLink.WebHost.Subscriptions;
+using SayHello.ShortLink.Subscription;
 using SayHello.Subscription.Catalog;
 using Volo.Abp.Data;
 using Volo.Abp.DependencyInjection;

@@ -1,8 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using SayHello.ShortLink.Subscription;
 using SayHello.ShortLink.WebHost.MultiTenancy;
-using SayHello.ShortLink.WebHost.Subscriptions;
-using SayHello.Subscription.Definitions;
 using Volo.Abp.AuditLogging;
 using Volo.Abp.BackgroundJobs;
 using Volo.Abp.Emailing;
@@ -23,7 +21,7 @@ namespace SayHello.ShortLink.WebHost;
     typeof(WebHostDomainSharedModule),
     typeof(global::SayHello.ShortLink.ShortLinkDomainModule),
     typeof(global::SayHello.Subscription.SubscriptionDomainModule),
-    typeof(ShortLinkSubscriptionDomainModule),
+    typeof(ShortLinkSubscriptionDomainSharedModule),
     typeof(AbpAuditLoggingDomainModule),
     typeof(AbpBackgroundJobsDomainModule),
     typeof(AbpFeatureManagementDomainModule),
@@ -39,18 +37,6 @@ public class WebHostDomainModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        Configure<SubscriptionDefinitionOptions>(options =>
-        {
-            options.DefinitionProviders.Add<ShortLinkSubscriptionDefinitionProvider>();
-        });
-
-        Configure<ShortLinkSubscriptionOptions>(options =>
-        {
-            options.ProductCode = ShortLinkSubscriptionDefinitions.ProductCode;
-            options.QuotaFeatureKey = ShortLinkSubscriptionDefinitions.MaxLinks;
-            options.StatisticsFeatureKey = ShortLinkSubscriptionDefinitions.Statistics;
-        });
-
         Configure<AbpLocalizationOptions>(options =>
         {
             options.Languages.Add(new LanguageInfo("en", "en", "English"));

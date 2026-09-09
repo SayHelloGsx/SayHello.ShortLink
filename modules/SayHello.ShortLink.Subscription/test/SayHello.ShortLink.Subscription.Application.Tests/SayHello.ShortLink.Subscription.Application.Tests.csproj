@@ -13,6 +13,8 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <PackageReference Include="Volo.Abp.Autofac" Version="10.6.0" />
     <PackageReference Include="Volo.Abp.TestBase" Version="10.6.0" />
-    <ProjectReference Include="..\..\src\SayHello.ShortLink.Subscription.Domain\SayHello.ShortLink.Subscription.Domain.csproj" />
+    <ProjectReference Include="..\..\src\SayHello.ShortLink.Subscription.Application\SayHello.ShortLink.Subscription.Application.csproj" />
+    <ProjectReference Include="..\..\..\SayHello.Subscription\src\SayHello.Subscription.Public.Application\SayHello.Subscription.Public.Application.csproj" />
+    <ProjectReference Include="..\..\..\SayHello.Subscription\src\SayHello.Subscription.Public.HttpApi.Client\SayHello.Subscription.Public.HttpApi.Client.csproj" />
   </ItemGroup>
 </Project>

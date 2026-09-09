@@ -75,6 +75,26 @@ public class CurrentUserEntitlementAppServiceTests
     }
 
     [Fact]
+    public async Task Typed_queries_forward_explicit_cancellation_tokens()
+    {
+        using var cancellation = new CancellationTokenSource();
+        _checker.GetNumericAsync(
+                _context.TenantId, _context.UserId, "one", "limit", cancellation.Token)
+            .Returns(NumericEntitlementResult.Finite(Guid.NewGuid(), 20));
+        _checker.GetBooleanAsync(
+                _context.TenantId, _context.UserId, "one", "enabled", cancellation.Token)
+            .Returns(BooleanEntitlementResult.FromSubscription(Guid.NewGuid(), true));
+
+        await _service.GetNumericAsync("one", "limit", cancellation.Token);
+        await _service.GetBooleanAsync("one", "enabled", cancellation.Token);
+
+        await _checker.Received(1).GetNumericAsync(
+            _context.TenantId, _context.UserId, "one", "limit", cancellation.Token);
+        await _checker.Received(1).GetBooleanAsync(
+            _context.TenantId, _context.UserId, "one", "enabled", cancellation.Token);
+    }
+
+    [Fact]
     public async Task Effective_snapshot_is_queried_through_checker_not_current_catalog()
     {
         var (_, product, plan) = _context.Catalog("one");

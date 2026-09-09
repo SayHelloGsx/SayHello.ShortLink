@@ -1,0 +1,8 @@
+{
+  "culture": "zh-Hans",
+  "texts": {
+    "Subscription:ShortLink": "短链接",
+    "Subscription:Statistics": "访问统计",
+    "Subscription:MaxLinks": "链接数量上限"
+  }
+}

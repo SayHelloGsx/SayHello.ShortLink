@@ -40,8 +40,9 @@
   <Project Path="modules/SayHello.ShortLink/test/SayHello.ShortLink.Domain.Tests/SayHello.ShortLink.Domain.Tests.csproj" />
   <Project Path="modules/SayHello.ShortLink/test/SayHello.ShortLink.EntityFrameworkCore.Tests/SayHello.ShortLink.EntityFrameworkCore.Tests.csproj" />
   <Project Path="modules/SayHello.ShortLink/test/SayHello.ShortLink.TestBase/SayHello.ShortLink.TestBase.csproj" />
-  <Project Path="modules/SayHello.ShortLink.Subscription/src/SayHello.ShortLink.Subscription.Domain/SayHello.ShortLink.Subscription.Domain.csproj" />
-  <Project Path="modules/SayHello.ShortLink.Subscription/test/SayHello.ShortLink.Subscription.Domain.Tests/SayHello.ShortLink.Subscription.Domain.Tests.csproj" />
+  <Project Path="modules/SayHello.ShortLink.Subscription/src/SayHello.ShortLink.Subscription.Application/SayHello.ShortLink.Subscription.Application.csproj" />
+  <Project Path="modules/SayHello.ShortLink.Subscription/src/SayHello.ShortLink.Subscription.Domain.Shared/SayHello.ShortLink.Subscription.Domain.Shared.csproj" />
+  <Project Path="modules/SayHello.ShortLink.Subscription/test/SayHello.ShortLink.Subscription.Application.Tests/SayHello.ShortLink.Subscription.Application.Tests.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Admin.Application.Contracts/SayHello.Subscription.Admin.Application.Contracts.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Admin.Application/SayHello.Subscription.Admin.Application.csproj" />
   <Project Path="modules/SayHello.Subscription/src/SayHello.Subscription.Admin.HttpApi.Client/SayHello.Subscription.Admin.HttpApi.Client.csproj" />

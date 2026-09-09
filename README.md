@@ -31,8 +31,10 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
   - Unsuffixed `Application*`, `HttpApi*`, and `Web` projects are composition-only modules.
 - `modules/SayHello.Subscription`: independent product subscription module, using the
   same Common/Public/Admin and composition-only upper layers.
-- `modules/SayHello.ShortLink.Subscription`: optional Domain bridge between the two
-  independent modules. Neither business module references the bridge or the other module.
+- `modules/SayHello.ShortLink.Subscription`: optional integration module. Its
+  `Domain.Shared` project owns the subscription definition and its `Application` project
+  adapts the Subscription public application contract to ShortLink's domain capability port.
+  Neither business module references the bridge or the other module.
 - `host`: layered MVC host and unified database migrations.
 - `deploy`: production Compose, Caddy, certificate, backup, restore, and update assets.
 - `.github/workflows`: CI and container publishing.
@@ -57,8 +59,8 @@ Domain read models. Architecture tests enforce this boundary.
 
 The Subscription module provides an administrator-managed subscription catalog and
 user entitlements. It does not depend on ShortLink or Identity implementation types;
-the host composes the modules and supplies its Identity user-directory adapter and
-product entitlement definitions.
+the host composes the modules and supplies its Identity user-directory adapter. Optional
+product integrations supply their own product entitlement definitions.
 
 - A plan belongs to one product. Products can have multiple plan tiers.
 - A bundle is a catalog combination of plans for different products, not a user
@@ -115,28 +117,44 @@ implement `ISubscriptionUserDirectory` using that host's user system. Register a
 `SubscriptionDefinitionProvider` through `SubscriptionDefinitionOptions.DefinitionProviders`.
 The standalone connection-string name is `Subscription` (falling back to `Default`);
 table prefix and schema are configurable through `SubscriptionDbProperties`.
-Business integrations can inject `ISubscriptionEntitlementChecker` from Domain and
-use its Boolean or numeric query/require methods without referencing Public, Admin,
-HTTP, or EntityFrameworkCore. Numeric checks do not reserve or consume quota.
+Code inside the Subscription domain can inject `ISubscriptionEntitlementChecker`.
+Cross-module integrations should instead depend on a Subscription Application Contracts
+package, allowing the composing Host to supply either a local application service or an
+HTTP client proxy. Numeric checks do not reserve or consume quota.
 
-This host registers product `short-link`, Boolean feature `statistics`, and numeric
-feature `max-links` (including unlimited values). Database seeding creates only
-missing draft product metadata and preserves administrative edits. Publish the
-product and configure/publish its plans in administration before selecting a default
-or assigning subscriptions. Free `max-links = 20` and Pro `max-links = 100` are
-administrator-configured examples, not hard-coded values; seeding does not publish
-sample plans, select a default, or assign users.
+The ShortLink Subscription shared integration package registers product `short-link`,
+Boolean feature `statistics`, and numeric feature `max-links` (including unlimited
+values). This host's database seeding creates only missing draft product metadata and
+preserves administrative edits. Publish the product and configure/publish its plans in
+administration before selecting a default or assigning subscriptions. Free
+`max-links = 20` and Pro `max-links = 100` are administrator-configured examples, not
+hard-coded values; seeding does not publish sample plans, select a default, or assign
+users.
 Additional products and their feature definitions must be registered by the consuming
 host or product integration; they are not hard-coded into the Subscription module.
 
 ### Optional ShortLink integration
 
-This host explicitly loads the ShortLink Subscription Domain bridge and maps the
-existing product and feature constants to its options. Product definitions, publication,
-default-plan configuration, and Identity integration remain host responsibilities.
-The bridge depends only on both Domain modules and replaces ShortLink's own
-`IShortLinkCapabilityProvider`; it has no dependency on the host, Identity, EF Core,
-or either module's Public/Admin layers. Invalid mappings or feature types fail at startup.
+The integration is split by responsibility:
+
+- `SayHello.ShortLink.Subscription.Domain.Shared` owns and registers the stable product and
+  feature definitions. A Host that owns the Subscription catalog loads this module.
+- `SayHello.ShortLink.Subscription.Application` replaces ShortLink's
+  `IShortLinkCapabilityProvider` and consumes only
+  `ICurrentUserEntitlementAppService` from
+  `SayHello.Subscription.Public.Application.Contracts`.
+
+The bridge does not choose how that application contract is implemented. A monolithic Host,
+including this one, loads `SubscriptionApplicationModule` (which includes the local public
+application implementation). A distributed ShortLink Host instead loads
+`SubscriptionPublicHttpApiClientModule` and configures the `SubscriptionPublic` remote
+service endpoint. Do not add either implementation module to the bridge itself.
+
+The entitlement contract is intentionally current-user-only. Before calling it, the adapter
+requires the tenant and user passed by ShortLink's domain port to match ABP's ambient
+authenticated context. Anonymous or mismatched-subject calls fail authorization; they never
+fall back to settings or query another user. A future background or administrative workflow
+for another subject requires a separate, explicitly authorized integration contract.
 
 - With the bridge, `max-links` entirely replaces `MaxLinksPerUser`. Missing rights
   deny creation; zero permits no links; unlimited is an explicit grant, not a null
@@ -175,10 +193,11 @@ or either module's Public/Admin layers. Invalid mappings or feature types fail a
 Before enabling the bridge, publish the product and configure an appropriate default
 plan or assign explicit subscriptions. Seeding does **not** grant rights automatically.
 Without a usable grant, creation and statistics are denied; existing links remain.
-Removing the bridge's host module dependency restores ShortLink's setting-backed quota
-and normal statistics behavior without a database migration. Both modules remain usable
-on their own. Multi-instance ShortLink deployments must configure a shared ABP lock
-provider; this host uses Redis. Process-local locks cannot enforce a cross-instance quota.
+Removing `ShortLinkSubscriptionApplicationModule` from a Host restores ShortLink's
+setting-backed quota and normal statistics behavior without a database migration. Both
+modules remain usable on their own. Multi-instance ShortLink deployments must configure
+a shared ABP lock provider; this host uses Redis. Process-local locks cannot enforce a
+cross-instance quota.
 
 No payments, checkout, automatic renewal, or subscription purchase/upgrade flow is
 implemented by this integration. No tables or usage backfill are required.

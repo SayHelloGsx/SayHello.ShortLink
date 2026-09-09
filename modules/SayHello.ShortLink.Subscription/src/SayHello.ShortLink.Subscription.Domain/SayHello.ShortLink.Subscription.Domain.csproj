@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\common.props" />
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\SayHello.ShortLink\src\SayHello.ShortLink.Domain\SayHello.ShortLink.Domain.csproj" />
-    <ProjectReference Include="..\..\..\SayHello.Subscription\src\SayHello.Subscription.Domain\SayHello.Subscription.Domain.csproj" />
-  </ItemGroup>
-</Project>

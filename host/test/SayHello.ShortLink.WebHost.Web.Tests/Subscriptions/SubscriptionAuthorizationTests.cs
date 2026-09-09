@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SayHello.ShortLink.Subscription;
 using SayHello.Subscription;
 using SayHello.Subscription.Admin.Catalog;
 using SayHello.Subscription.Catalog;

@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Localization;
@@ -85,13 +86,22 @@ public class CurrentUserEntitlementAppService : SubscriptionApplicationService, 
         return SubscriptionDtoMapper.ToPage(page, MapDefaultPlan);
     }
 
-    public virtual async Task<BooleanEntitlementResultDto> GetBooleanAsync(string productCode, string featureKey) =>
+    public virtual async Task<BooleanEntitlementResultDto> GetBooleanAsync(
+        string productCode,
+        string featureKey,
+        CancellationToken cancellationToken = default) =>
         SubscriptionDtoMapper.ToDto(await _checker.GetBooleanAsync(CurrentTenant.Id, CurrentUser.GetId(),
-            productCode, featureKey, CancellationTokenProvider.Token));
+            productCode, featureKey, ResolveCancellationToken(cancellationToken)));
 
-    public virtual async Task<NumericEntitlementResultDto> GetNumericAsync(string productCode, string featureKey) =>
+    public virtual async Task<NumericEntitlementResultDto> GetNumericAsync(
+        string productCode,
+        string featureKey,
+        CancellationToken cancellationToken = default) =>
         SubscriptionDtoMapper.ToDto(await _checker.GetNumericAsync(CurrentTenant.Id, CurrentUser.GetId(),
-            productCode, featureKey, CancellationTokenProvider.Token));
+            productCode, featureKey, ResolveCancellationToken(cancellationToken)));
+
+    private CancellationToken ResolveCancellationToken(CancellationToken cancellationToken) =>
+        cancellationToken.CanBeCanceled ? cancellationToken : CancellationTokenProvider.Token;
 
     private DefaultSubscriptionPlanDto MapDefaultPlan(DefaultSubscriptionPlan defaultPlan)
     {

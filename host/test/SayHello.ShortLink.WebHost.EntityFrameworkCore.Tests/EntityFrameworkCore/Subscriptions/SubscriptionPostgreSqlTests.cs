@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using SayHello.ShortLink.Subscription;
 using SayHello.ShortLink.WebHost.Data;
 using SayHello.ShortLink.WebHost.Subscriptions;
 using SayHello.Subscription;

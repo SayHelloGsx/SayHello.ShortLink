@@ -1,9 +1,9 @@
-using SayHello.ShortLink.WebHost.Localization;
+using SayHello.ShortLink.Subscription.Localization;
 using SayHello.Subscription;
 using SayHello.Subscription.Definitions;
 using Volo.Abp.Localization;
 
-namespace SayHello.ShortLink.WebHost.Subscriptions;
+namespace SayHello.ShortLink.Subscription;
 
 public class ShortLinkSubscriptionDefinitionProvider : SubscriptionDefinitionProvider
 {
@@ -11,15 +11,15 @@ public class ShortLinkSubscriptionDefinitionProvider : SubscriptionDefinitionPro
     {
         context.AddProduct(new ProductDefinition(
             ShortLinkSubscriptionDefinitions.ProductCode,
-            LocalizableString.Create<WebHostResource>("Subscription:ShortLink"),
+            LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:ShortLink"),
             [
                 new FeatureDefinition(
                     ShortLinkSubscriptionDefinitions.Statistics,
-                    LocalizableString.Create<WebHostResource>("Subscription:Statistics"),
+                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:Statistics"),
                     SubscriptionEntitlementType.Boolean),
                 new FeatureDefinition(
                     ShortLinkSubscriptionDefinitions.MaxLinks,
-                    LocalizableString.Create<WebHostResource>("Subscription:MaxLinks"),
+                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxLinks"),
                     SubscriptionEntitlementType.Numeric,
                     allowUnlimited: true)
             ]));

@@ -1,4 +1,5 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -84,6 +85,13 @@ public class ShortLinkSubscriptionWebFactory : WebApplicationFactory<Program>, I
 
     private static async Task<ShortLinkEntity> CreateVisitedLinkAsync(IServiceProvider services, Guid owner)
     {
+        using var principal = services.GetRequiredService<ICurrentPrincipalAccessor>().Change(
+            new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim(AbpClaimTypes.UserId, owner.ToString("D")),
+                    new Claim(AbpClaimTypes.UserName, "bridge-web-seed")
+                ],
+                "BridgeWebSeed")));
         var input = ShortLinkSubscriptionTestData.NewLink();
         var entity = await services.GetRequiredService<ShortLinkManager>().CreateAndSaveAsync(
             Guid.NewGuid(), null, owner, input.TargetUrl, input.CustomCode, input.Title, null);
