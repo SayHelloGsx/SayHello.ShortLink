@@ -28,7 +28,6 @@ public abstract class SubscriptionPersistenceTestBase : SubscriptionTestBase<Sub
     protected async Task<CatalogData> SeedAsync(Guid? tenantId = null)
     {
         var userId = Guid.NewGuid();
-        GetRequiredService<SubscriptionTestUserDirectory>().Add(tenantId, userId);
         return await InTransactionAsync(async () =>
         {
             var products = new List<SubscriptionProduct>();

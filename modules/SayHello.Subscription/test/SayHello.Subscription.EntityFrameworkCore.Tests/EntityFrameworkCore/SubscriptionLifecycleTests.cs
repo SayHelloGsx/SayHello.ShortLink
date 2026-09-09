@@ -180,11 +180,15 @@ public class SubscriptionLifecycleTests : SubscriptionPersistenceTestBase
     }
 
     [Fact]
-    public async Task Missing_user_and_tenant_mismatch_fail_closed()
+    public async Task Opaque_user_references_still_validate_identity_and_tenant()
     {
         var data = await SeedAsync();
-        Assert.Equal(SubscriptionErrorCodes.UserNotFound, (await Assert.ThrowsAsync<BusinessException>(() =>
-            InTransactionAsync(() => Manager.PreviewPlanAsync(null, Guid.NewGuid(), data.Plans[0].Id)))).Code);
+        var externalUserId = Guid.NewGuid();
+        var preview = await InTransactionAsync(() =>
+            Manager.PreviewPlanAsync(null, externalUserId, data.Plans[0].Id));
+        Assert.Equal(externalUserId, preview.UserId);
+        Assert.Equal(SubscriptionErrorCodes.InvalidAssignment, (await Assert.ThrowsAsync<BusinessException>(() =>
+            InTransactionAsync(() => Manager.PreviewPlanAsync(null, Guid.Empty, data.Plans[0].Id)))).Code);
         Assert.Equal(SubscriptionErrorCodes.TenantMismatch, (await Assert.ThrowsAsync<BusinessException>(() =>
             InTransactionAsync(() => Manager.PreviewPlanAsync(Guid.NewGuid(), data.UserId, data.Plans[0].Id)))).Code);
     }

@@ -130,6 +130,72 @@ public class ModuleBoundaryTests
     }
 
     [Fact]
+    public void User_lookup_uses_ABP_users_without_identity_or_local_user_storage()
+    {
+        foreach (var projectPath in Directory.EnumerateFiles(SourceRoot, "*.csproj", SearchOption.AllDirectories))
+        {
+            var dependencies = XDocument.Load(projectPath).Descendants()
+                .Where(element => element.Name.LocalName is "PackageReference" or "ProjectReference")
+                .Select(element => element.Attribute("Include")?.Value)
+                .Where(value => value != null)
+                .ToArray();
+            Assert.DoesNotContain(dependencies,
+                dependency => dependency!.Contains("Volo.Abp.Identity", StringComparison.Ordinal));
+        }
+
+        var domainProject = XDocument.Load(Path.Combine(
+            SourceRoot,
+            "SayHello.Subscription.Domain",
+            "SayHello.Subscription.Domain.csproj"));
+        Assert.Contains(domainProject.Descendants("PackageReference"),
+            reference => reference.Attribute("Include")!.Value == "Volo.Abp.Users.Domain");
+
+        var domainUsers = Path.Combine(SourceRoot, "SayHello.Subscription.Domain", "Users");
+        Assert.True(File.Exists(Path.Combine(domainUsers, "ISubscriptionUserLookupService.cs")));
+        Assert.True(File.Exists(Path.Combine(domainUsers, "SubscriptionUserLookupService.cs")));
+        Assert.False(File.Exists(Path.Combine(domainUsers, "ISubscriptionUserDirectory.cs")));
+        Assert.DoesNotContain("IUserRepository", File.ReadAllText(
+            Path.Combine(domainUsers, "SubscriptionUserLookupService.cs")), StringComparison.Ordinal);
+
+        var manager = File.ReadAllText(Path.Combine(
+            SourceRoot,
+            "SayHello.Subscription.Domain",
+            "Subscriptions",
+            "SubscriptionManager.cs"));
+        Assert.DoesNotContain("UserLookupService", manager, StringComparison.Ordinal);
+        Assert.DoesNotContain("ExternalUserLookup", manager, StringComparison.Ordinal);
+
+        var efRoot = Path.Combine(SourceRoot, "SayHello.Subscription.EntityFrameworkCore");
+        foreach (var source in Directory.EnumerateFiles(efRoot, "*.cs", SearchOption.AllDirectories)
+                     .Where(NotBuildOutput))
+        {
+            var code = File.ReadAllText(source);
+            Assert.DoesNotContain("DbSet<SubscriptionUser>", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("Entity<SubscriptionUser>", code, StringComparison.Ordinal);
+        }
+
+        var hostSource = Path.Combine(RepositoryRoot, "host", "src");
+        foreach (var source in Directory.EnumerateFiles(hostSource, "*.cs", SearchOption.AllDirectories)
+                     .Where(NotBuildOutput))
+        {
+            var code = File.ReadAllText(source);
+            Assert.DoesNotContain("ISubscriptionUserDirectory", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("IdentitySubscriptionUserDirectory", code, StringComparison.Ordinal);
+        }
+
+        var hostDomainModule = File.ReadAllText(Path.Combine(
+            hostSource,
+            "SayHello.ShortLink.WebHost.Domain",
+            "WebHostDomainModule.cs"));
+        Assert.Contains("typeof(AbpIdentityDomainModule)", hostDomainModule, StringComparison.Ordinal);
+        var hostClientModule = File.ReadAllText(Path.Combine(
+            hostSource,
+            "SayHello.ShortLink.WebHost.HttpApi.Client",
+            "WebHostHttpApiClientModule.cs"));
+        Assert.Contains("typeof(AbpIdentityHttpApiClientModule)", hostClientModule, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Scaffold_has_twenty_three_source_four_test_projects_and_matching_metadata()
     {
         var moduleRoot = Path.GetDirectoryName(SourceRoot)!;

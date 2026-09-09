@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 namespace SayHello.Subscription.Subscriptions;
 
 /// <summary>
-/// Validates the required host user directory and current tenant. Mutations hold the tenant/user lock
-/// through transactional unit-of-work completion. Bundle targets must exactly match the previewed bundle;
-/// check bundle, product, plan and expected-current versions before retiring only the targeted slots.
-/// Every assignment creates new independent product rows and immutable snapshots, including reassignment.
+/// Treats UserId as an opaque external reference whose existence is validated by the calling application.
+/// Validates the current tenant and non-empty user identity. Mutations hold the tenant/user lock through
+/// transactional unit-of-work completion. Bundle targets must exactly match the previewed bundle; check
+/// bundle, product, plan and expected-current versions before retiring only the targeted slots. Every
+/// assignment creates new independent product rows and immutable snapshots, including reassignment.
 /// </summary>
 public interface ISubscriptionManager
 {

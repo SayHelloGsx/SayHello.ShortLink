@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Localization;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Definitions;
-using SayHello.Subscription.Users;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Services;
@@ -23,7 +22,6 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
     private readonly ISubscriptionBundleRepository _bundles;
     private readonly IUserSubscriptionRepository _subscriptions;
     private readonly ISubscriptionDefinitionRegistry _definitions;
-    private readonly ISubscriptionUserDirectory _users;
     private readonly ICurrentTenant _tenant;
     private readonly IClock _clock;
     private readonly IGuidGenerator _guids;
@@ -33,7 +31,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
 
     public SubscriptionManager(ISubscriptionProductRepository products, ISubscriptionPlanRepository plans,
         ISubscriptionBundleRepository bundles, IUserSubscriptionRepository subscriptions,
-        ISubscriptionDefinitionRegistry definitions, ISubscriptionUserDirectory users, ICurrentTenant tenant,
+        ISubscriptionDefinitionRegistry definitions, ICurrentTenant tenant,
         IClock clock, IGuidGenerator guids, IStringLocalizerFactory localizers,
         SubscriptionTransactionRunner transactions, SubscriptionMutationLock mutationLock)
     {
@@ -42,7 +40,6 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         _bundles = bundles;
         _subscriptions = subscriptions;
         _definitions = definitions;
-        _users = users;
         _tenant = tenant;
         _clock = clock;
         _guids = guids;
@@ -54,7 +51,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
     public virtual async Task<SubscriptionAssignmentPreview> PreviewPlanAsync(Guid? tenantId, Guid userId, Guid planId,
         CancellationToken cancellationToken = default)
     {
-        await ValidateUserAsync(tenantId, userId, cancellationToken);
+        ValidateUserReference(tenantId, userId);
         var plan = (await _plans.GetByIdsAsync(tenantId, new[] { planId }, cancellationToken)).SingleOrDefault()
             ?? throw new EntityNotFoundException(typeof(SubscriptionPlan), planId);
         var product = (await _products.GetByIdsAsync(tenantId, new[] { plan.ProductId }, cancellationToken)).Single();
@@ -67,7 +64,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
     public virtual async Task<SubscriptionAssignmentPreview> PreviewBundleAsync(Guid? tenantId, Guid userId, Guid bundleId,
         CancellationToken cancellationToken = default)
     {
-        await ValidateUserAsync(tenantId, userId, cancellationToken);
+        ValidateUserReference(tenantId, userId);
         var bundle = (await _bundles.GetByIdsAsync(tenantId, new[] { bundleId }, cancellationToken)).SingleOrDefault()
             ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), bundleId);
         var plans = await _plans.GetByIdsAsync(tenantId, bundle.Items.Select(x => x.PlanId).ToArray(), cancellationToken);
@@ -98,9 +95,8 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         IReadOnlyList<SubscriptionAssignmentTarget> targets, Guid? bundleId, string? bundleStamp, CancellationToken token) =>
         _transactions.RunAsync<IReadOnlyList<UserSubscription>>(async unitOfWork =>
         {
-            EnsureTenant(tenantId);
+            ValidateUserReference(tenantId, userId);
             await _mutationLock.AcquireAsync(unitOfWork, tenantId, userId, token);
-            await ValidateUserAsync(tenantId, userId, token);
             SubscriptionBundle? bundle = null;
             if (bundleId.HasValue)
             {
@@ -194,16 +190,10 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
 
     private static string OwnerKey(Guid id) => $"Subscription:Owner:{id:N}";
 
-    private async Task ValidateUserAsync(Guid? tenantId, Guid userId, CancellationToken token)
+    private void ValidateUserReference(Guid? tenantId, Guid userId)
     {
         EnsureTenant(tenantId);
         SubscriptionGuard.Id(userId, nameof(userId));
-        var user = await _users.FindAsync(tenantId, userId, token);
-        if (user == null || !user.IsActive)
-            throw new BusinessException(SubscriptionErrorCodes.UserNotFound);
-        SubscriptionGuard.SameTenant(tenantId, user.TenantId);
-        if (user.Id != userId)
-            throw new BusinessException(SubscriptionErrorCodes.UserNotFound);
     }
 
     private void ValidatePlan(SubscriptionProduct product, SubscriptionPlan plan)

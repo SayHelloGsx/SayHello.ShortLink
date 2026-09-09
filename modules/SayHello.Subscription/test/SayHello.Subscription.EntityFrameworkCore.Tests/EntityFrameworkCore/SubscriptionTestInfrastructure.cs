@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NSubstitute;
-using SayHello.Subscription.Users;
 using Volo.Abp.DistributedLocking;
-using Volo.Abp.MultiTenancy;
 using Volo.Abp.Timing;
 
 namespace SayHello.Subscription.EntityFrameworkCore;
@@ -25,41 +22,6 @@ public class SubscriptionTestClock
         Clock.Kind.Returns(DateTimeKind.Unspecified);
         Clock.SupportsMultipleTimezone.Returns(false);
         Clock.Normalize(Arg.Any<DateTime>()).Returns(call => call.Arg<DateTime>());
-    }
-}
-
-public class SubscriptionTestUserDirectory : ISubscriptionUserDirectory
-{
-    private readonly ConcurrentDictionary<(Guid?, Guid), SubscriptionUserData> _users = new();
-    private readonly ICurrentTenant _tenant;
-
-    public SubscriptionTestUserDirectory(ICurrentTenant tenant) => _tenant = tenant;
-
-    public void Add(Guid? tenantId, Guid userId) =>
-        _users[(tenantId, userId)] = new SubscriptionUserData(userId, tenantId, "test-user", "Test", "User", null, true);
-
-    public Task<SubscriptionUserData?> FindAsync(Guid? tenantId, Guid userId, CancellationToken cancellationToken = default)
-    {
-        SubscriptionGuard.SameTenant(_tenant.Id, tenantId);
-        return Task.FromResult(_users.GetValueOrDefault((tenantId, userId)));
-    }
-
-    public Task<SubscriptionPage<SubscriptionUserData>> SearchAsync(Guid? tenantId, string? filter,
-        int skipCount, int maxResultCount, CancellationToken cancellationToken = default)
-    {
-        SubscriptionGuard.SameTenant(_tenant.Id, tenantId);
-        SubscriptionGuard.Paging(skipCount, maxResultCount);
-        var users = _users.Values.Where(x => x.TenantId == tenantId &&
-            (string.IsNullOrEmpty(filter) || x.UserName.Contains(filter, StringComparison.OrdinalIgnoreCase))).ToArray();
-        return Task.FromResult(new SubscriptionPage<SubscriptionUserData>(users.Length, users.Skip(skipCount).Take(maxResultCount)));
-    }
-
-    public Task<IReadOnlyList<SubscriptionUserData>> GetByIdsAsync(Guid? tenantId, IReadOnlyCollection<Guid> userIds,
-        CancellationToken cancellationToken = default)
-    {
-        SubscriptionGuard.SameTenant(_tenant.Id, tenantId);
-        return Task.FromResult<IReadOnlyList<SubscriptionUserData>>(_users.Values
-            .Where(x => x.TenantId == tenantId && userIds.Contains(x.Id)).ToArray());
     }
 }
 

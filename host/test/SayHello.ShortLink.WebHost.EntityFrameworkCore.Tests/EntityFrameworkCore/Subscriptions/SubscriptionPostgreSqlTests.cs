@@ -10,7 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using SayHello.ShortLink.Subscription;
 using SayHello.ShortLink.WebHost.Data;
-using SayHello.ShortLink.WebHost.Subscriptions;
 using SayHello.Subscription;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Definitions;
@@ -22,6 +21,7 @@ using Volo.Abp.DistributedLocking;
 using Volo.Abp.Identity;
 using Volo.Abp.MultiTenancy;
 using Volo.Abp.Uow;
+using Volo.Abp.Users;
 using Xunit;
 
 namespace SayHello.ShortLink.WebHost.EntityFrameworkCore.Subscriptions;
@@ -392,9 +392,10 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         {
             var users = services.GetRequiredService<IIdentityUserRepository>();
             var user = await users.InsertAsync(new IdentityUser(Guid.NewGuid(), "postgres-user", "postgres@example.test", tenantId), true);
-            var directory = services.GetRequiredService<ISubscriptionUserDirectory>();
-            Assert.IsAssignableFrom<IdentitySubscriptionUserDirectory>(directory);
-            Assert.Equal(user.Id, (await directory.FindAsync(tenantId, user.Id))!.Id);
+            Assert.IsType<IdentityUserRepositoryExternalUserLookupServiceProvider>(
+                services.GetRequiredService<IExternalUserLookupServiceProvider>());
+            var userLookup = services.GetRequiredService<ISubscriptionUserLookupService>();
+            Assert.Equal(user.Id, (await userLookup.FindByIdAsync(user.Id)).Id);
 
             var seed = services.GetRequiredService<SubscriptionProductDataSeedContributor>();
             var products = services.GetRequiredService<ISubscriptionProductRepository>();

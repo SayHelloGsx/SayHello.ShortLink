@@ -59,8 +59,8 @@ Domain read models. Architecture tests enforce this boundary.
 
 The Subscription module provides an administrator-managed subscription catalog and
 user entitlements. It does not depend on ShortLink or Identity implementation types;
-the host composes the modules and supplies its Identity user-directory adapter. Optional
-product integrations supply their own product entitlement definitions.
+the host composes the modules and supplies ABP's standard external user lookup provider.
+Optional product integrations supply their own product entitlement definitions.
 
 - A plan belongs to one product. Products can have multiple plan tiers.
 - A bundle is a catalog combination of plans for different products, not a user
@@ -96,6 +96,10 @@ product integrations supply their own product entitlement definitions.
 - Bundle assignment and all affected replacements are transactional. Stale
   administrative changes are rejected, and database uniqueness protects current
   product assignments, including users without a tenant.
+- Subscription stores only the external user ID and does not replicate Identity users.
+  Admin search queries the configured ABP external user provider. Preview and assignment
+  require a currently existing, active user in the current tenant; inactive users remain
+  visible in search but cannot receive a new assignment.
 
 Public catalog pages are available at `/subscriptions/plans` and
 `/subscriptions/bundles`, with default plans marked in the plan catalog.
@@ -112,9 +116,12 @@ The host adds the module model to its existing database and migrations; a standa
 consumer can use the module's own DbContext and connection-string configuration.
 Subscription management permissions are separate from product entitlements.
 
-For another host, compose the appropriate Subscription modules at each layer and
-implement `ISubscriptionUserDirectory` using that host's user system. Register a
-`SubscriptionDefinitionProvider` through `SubscriptionDefinitionOptions.DefinitionProviders`.
+For another host, compose the appropriate Subscription modules at each layer and provide
+ABP's `IExternalUserLookupServiceProvider`: load `AbpIdentityDomainModule` for a local
+Identity repository, or `AbpIdentityHttpApiClientModule` and configure the Identity remote
+service for distributed deployment. No Subscription-specific Host adapter or local user table
+is required. Register a `SubscriptionDefinitionProvider` through
+`SubscriptionDefinitionOptions.DefinitionProviders`.
 The standalone connection-string name is `Subscription` (falling back to `Default`);
 table prefix and schema are configurable through `SubscriptionDbProperties`.
 Code inside the Subscription domain can inject `ISubscriptionEntitlementChecker`.

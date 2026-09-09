@@ -26,6 +26,7 @@ using Volo.Abp.Modularity;
 using Volo.Abp.MultiTenancy;
 using Volo.Abp.Timing;
 using Volo.Abp.Uow;
+using Volo.Abp.Users;
 using Volo.Abp.Validation;
 using Xunit;
 
@@ -42,7 +43,7 @@ public class AdminSurfaceTestModule : AbpModule
         context.Services.AddSingleton(Substitute.For<IUserSubscriptionRepository>());
         context.Services.AddSingleton(Substitute.For<ISubscriptionCatalogManager>());
         context.Services.AddSingleton(Substitute.For<ISubscriptionManager>());
-        context.Services.AddSingleton(Substitute.For<ISubscriptionUserDirectory>());
+        context.Services.AddSingleton(Substitute.For<ISubscriptionUserLookupService>());
         context.Services.AddSingleton(Substitute.For<ISubscriptionDefinitionRegistry>());
         context.Services.AddSingleton(Substitute.For<IPermissionChecker>());
         Configure<AbpClockOptions>(options => options.Kind = DateTimeKind.Local);
@@ -55,6 +56,7 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
     private readonly HashSet<string> _granted = new();
     private readonly ISubscriptionManager _manager;
     private readonly ISubscriptionCatalogManager _catalog;
+    private readonly ISubscriptionUserLookupService _users;
 
     public AdminSurfaceTests()
     {
@@ -64,6 +66,10 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
             .Returns(call => _granted.Contains(call.Arg<string>()));
         _manager = GetRequiredService<ISubscriptionManager>();
         _catalog = GetRequiredService<ISubscriptionCatalogManager>();
+        _users = GetRequiredService<ISubscriptionUserLookupService>();
+        _users.FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(call => User(call.Arg<Guid>(), GetRequiredService<ICurrentTenant>().Id));
+        _users.ClearReceivedCalls();
     }
 
     [Fact]
@@ -131,7 +137,184 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
         foreach (var command in commands) await Should.ThrowAsync<AbpAuthorizationException>(command);
         _manager.ReceivedCalls().ShouldBeEmpty();
         _catalog.ReceivedCalls().ShouldBeEmpty();
-        GetRequiredService<ISubscriptionUserDirectory>().ReceivedCalls().ShouldBeEmpty();
+        _users.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task User_lookup_forwards_normalized_filter_stable_sorting_paging_and_inactive_users()
+    {
+        _granted.UnionWith(new[]
+        {
+            SubscriptionAdminPermissions.Users.Default,
+            SubscriptionAdminPermissions.Users.Lookup
+        });
+        var tenantId = Guid.NewGuid();
+        var inactive = new UserData(
+            Guid.NewGuid(),
+            "inactive-user",
+            "inactive@example.test",
+            "Inactive",
+            "User",
+            tenantId: tenantId,
+            isActive: false);
+        _users.GetCountAsync("inactive", Arg.Any<CancellationToken>()).Returns(3L);
+        _users.SearchAsync(
+                "userName asc, id asc",
+                "inactive",
+                2,
+                1,
+                Arg.Any<CancellationToken>())
+            .Returns(new List<IUserData> { inactive });
+
+        using var tenant = GetRequiredService<ICurrentTenant>().Change(tenantId);
+        var page = await GetRequiredService<IUserSubscriptionAdminAppService>()
+            .LookupUsersAsync(new UserLookupInputDto
+            {
+                Filter = " inactive ",
+                SkipCount = 1,
+                MaxResultCount = 2
+            });
+
+        page.TotalCount.ShouldBe(3);
+        var user = page.Items.ShouldHaveSingleItem();
+        user.Id.ShouldBe(inactive.Id);
+        user.UserName.ShouldBe(inactive.UserName);
+        user.Email.ShouldBe(inactive.Email);
+        user.DisplayName.ShouldBe("Inactive User");
+        user.IsActive.ShouldBeFalse();
+        await _users.Received(1).GetCountAsync("inactive", Arg.Any<CancellationToken>());
+        await _users.Received(1).SearchAsync(
+            "userName asc, id asc",
+            "inactive",
+            2,
+            1,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("missing", SubscriptionErrorCodes.UserNotFound)]
+    [InlineData("inactive", SubscriptionErrorCodes.UserNotFound)]
+    [InlineData("wrong-id", SubscriptionErrorCodes.UserNotFound)]
+    [InlineData("other-tenant", SubscriptionErrorCodes.TenantMismatch)]
+    public async Task Preview_rejects_users_that_are_not_assignable_before_calling_manager(
+        string condition,
+        string errorCode)
+    {
+        _granted.UnionWith(new[]
+        {
+            SubscriptionAdminPermissions.Users.Default,
+            SubscriptionAdminPermissions.Users.Assign
+        });
+        var userId = Guid.NewGuid();
+        var user = condition switch
+        {
+            "missing" => null,
+            "inactive" => User(userId, null, isActive: false),
+            "wrong-id" => User(Guid.NewGuid(), null),
+            _ => User(userId, Guid.NewGuid())
+        };
+        _users.FindByIdAsync(userId, Arg.Any<CancellationToken>()).Returns(user!);
+        _manager.ClearReceivedCalls();
+
+        var exception = await Should.ThrowAsync<BusinessException>(() =>
+            GetRequiredService<IUserSubscriptionAdminAppService>().PreviewPlanAsync(userId, Guid.NewGuid()));
+
+        exception.Code.ShouldBe(errorCode);
+        _manager.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("preview-plan")]
+    [InlineData("preview-bundle")]
+    [InlineData("assign-plan")]
+    [InlineData("assign-bundle")]
+    public async Task Every_preview_and_assignment_entry_point_validates_the_user(string operation)
+    {
+        _granted.UnionWith(new[]
+        {
+            SubscriptionAdminPermissions.Users.Default,
+            SubscriptionAdminPermissions.Users.Assign
+        });
+        var userId = Guid.NewGuid();
+        _users.FindByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns((SubscriptionUser)null!);
+        _manager.ClearReceivedCalls();
+        var service = GetRequiredService<IUserSubscriptionAdminAppService>();
+
+        Func<Task> action = operation switch
+        {
+            "preview-plan" => () => service.PreviewPlanAsync(userId, Guid.NewGuid()),
+            "preview-bundle" => () => service.PreviewBundleAsync(userId, Guid.NewGuid()),
+            "assign-plan" => () => service.AssignPlanAsync(new AssignPlanDto
+            {
+                UserId = userId,
+                Target = Target()
+            }),
+            _ => () => service.AssignBundleAsync(new AssignBundleDto
+            {
+                UserId = userId,
+                BundleId = Guid.NewGuid(),
+                BundleConcurrencyStamp = "bundle",
+                Targets = new() { Target(), Target() }
+            })
+        };
+
+        (await Should.ThrowAsync<BusinessException>(action))
+            .Code.ShouldBe(SubscriptionErrorCodes.UserNotFound);
+        await _users.Received(1).FindByIdAsync(userId, Arg.Any<CancellationToken>());
+        _manager.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Assignment_revalidates_the_user_after_a_successful_preview()
+    {
+        _granted.UnionWith(new[]
+        {
+            SubscriptionAdminPermissions.Users.Default,
+            SubscriptionAdminPermissions.Users.Assign
+        });
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        _users.FindByIdAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(User(userId, null), (SubscriptionUser)null!);
+        _manager.PreviewPlanAsync(null, userId, planId, Arg.Any<CancellationToken>())
+            .Returns(new SubscriptionAssignmentPreview(
+                null,
+                userId,
+                null,
+                null,
+                new[]
+                {
+                    new SubscriptionAssignmentPreviewItem(
+                        Guid.NewGuid(),
+                        "alpha",
+                        "Alpha",
+                        "product",
+                        planId,
+                        "basic",
+                        "Basic",
+                        "plan",
+                        null,
+                        null,
+                        Array.Empty<EntitlementSnapshotData>())
+                }));
+        _users.ClearReceivedCalls();
+        _manager.ClearReceivedCalls();
+        var service = GetRequiredService<IUserSubscriptionAdminAppService>();
+
+        await service.PreviewPlanAsync(userId, planId);
+        var exception = await Should.ThrowAsync<BusinessException>(() =>
+            service.AssignPlanAsync(new AssignPlanDto
+            {
+                UserId = userId,
+                Target = Target()
+            }));
+
+        exception.Code.ShouldBe(SubscriptionErrorCodes.UserNotFound);
+        await _users.Received(2).FindByIdAsync(userId, Arg.Any<CancellationToken>());
+        await _manager.Received(1).PreviewPlanAsync(null, userId, planId, Arg.Any<CancellationToken>());
+        await _manager.DidNotReceive()
+            .AssignPlanAsync(Arg.Any<AssignSubscriptionPlan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -329,4 +512,14 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
 
     private static SubscriptionProduct Product(string code, Guid? tenantId = null) =>
         new(Guid.NewGuid(), tenantId, new ProductDefinition(code, new FixedLocalizableString(code)), code);
+
+    private static SubscriptionUser User(Guid id, Guid? tenantId, bool isActive = true) =>
+        new(new UserData(
+            id,
+            "test-user",
+            "test-user@example.test",
+            "Test",
+            "User",
+            tenantId: tenantId,
+            isActive: isActive));
 }

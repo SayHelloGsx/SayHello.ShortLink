@@ -2,7 +2,6 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using SayHello.Subscription.Users;
 using Volo.Abp;
 using Volo.Abp.Data;
 using Volo.Abp.DistributedLocking;
@@ -24,8 +23,6 @@ public class SubscriptionEntityFrameworkCoreTestModule : AbpModule
     {
         context.Services.AddSingleton<SubscriptionTestClock>();
         context.Services.Replace(ServiceDescriptor.Singleton<IClock>(provider => provider.GetRequiredService<SubscriptionTestClock>().Clock));
-        context.Services.AddSingleton<SubscriptionTestUserDirectory>();
-        context.Services.AddSingleton<ISubscriptionUserDirectory>(provider => provider.GetRequiredService<SubscriptionTestUserDirectory>());
         context.Services.AddSingleton<SubscriptionTestDistributedLock>();
         context.Services.Replace(ServiceDescriptor.Singleton<IAbpDistributedLock>(provider => provider.GetRequiredService<SubscriptionTestDistributedLock>()));
 
