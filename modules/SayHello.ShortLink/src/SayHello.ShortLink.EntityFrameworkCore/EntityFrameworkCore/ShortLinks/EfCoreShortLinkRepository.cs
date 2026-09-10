@@ -57,17 +57,15 @@ public class EfCoreShortLinkRepository :
 
     public async Task<long> GetCountByOwnerAsync(
         Guid ownerUserId,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
         return await (await GetDbSetAsync()).LongCountAsync(
-            x => x.TenantId == tenantId && x.OwnerUserId == ownerUserId && !x.IsDeleted,
+            x => x.OwnerUserId == ownerUserId && !x.IsDeleted,
             GetCancellationToken(cancellationToken));
     }
 
     public async Task<List<ShortLink>> GetListAsync(
         Guid? ownerUserId,
-        Guid? tenantId,
         string? filter,
         ShortLinkStatus? status,
         string? sorting,
@@ -75,7 +73,7 @@ public class EfCoreShortLinkRepository :
         int maxResultCount,
         CancellationToken cancellationToken = default)
     {
-        var query = await CreateFilteredQueryAsync(ownerUserId, tenantId, filter, status);
+        var query = await CreateFilteredQueryAsync(ownerUserId, filter, status);
 
         return await ApplySorting(query, sorting)
             .AsNoTracking()
@@ -86,12 +84,11 @@ public class EfCoreShortLinkRepository :
 
     public async Task<long> GetCountAsync(
         Guid? ownerUserId,
-        Guid? tenantId,
         string? filter,
         ShortLinkStatus? status,
         CancellationToken cancellationToken = default)
     {
-        var query = await CreateFilteredQueryAsync(ownerUserId, tenantId, filter, status);
+        var query = await CreateFilteredQueryAsync(ownerUserId, filter, status);
         return await query.LongCountAsync(GetCancellationToken(cancellationToken));
     }
 
@@ -131,11 +128,10 @@ public class EfCoreShortLinkRepository :
 
     private async Task<IQueryable<ShortLink>> CreateFilteredQueryAsync(
         Guid? ownerUserId,
-        Guid? tenantId,
         string? filter,
         ShortLinkStatus? status)
     {
-        var query = (await GetDbSetAsync()).Where(x => x.TenantId == tenantId);
+        var query = (await GetDbSetAsync()).AsQueryable();
 
         if (ownerUserId.HasValue)
         {

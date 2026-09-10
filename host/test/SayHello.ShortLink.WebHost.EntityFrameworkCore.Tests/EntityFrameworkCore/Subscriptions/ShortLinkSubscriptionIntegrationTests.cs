@@ -154,7 +154,7 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
 
         await RunAsync(async services =>
         {
-            var subscription = await services.GetRequiredService<IUserSubscriptionRepository>().GetAsync(null, subscriptionId);
+            var subscription = await services.GetRequiredService<IUserSubscriptionRepository>().GetAsync(subscriptionId);
             await services.GetRequiredService<ISubscriptionManager>()
                 .RevokeAsync(null, subscription.Id, subscription.ConcurrencyStamp, "integration revoke");
         });

@@ -9,10 +9,10 @@ namespace SayHello.Subscription.Catalog;
 /// <summary>All reads materialize component children. Reference checks include assignment history.</summary>
 public interface ISubscriptionBundleRepository : IBasicRepository<SubscriptionBundle, Guid>
 {
-    Task<SubscriptionBundle?> FindByCodeAsync(Guid? tenantId, string code, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<SubscriptionBundle>> GetByIdsAsync(Guid? tenantId, IReadOnlyCollection<Guid> ids,
+    Task<SubscriptionBundle?> FindByCodeAsync(string code, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SubscriptionBundle>> GetByIdsAsync(IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default);
     Task<SubscriptionPage<SubscriptionBundle>> GetPageAsync(SubscriptionCatalogQuery query,
         CancellationToken cancellationToken = default);
-    Task<bool> IsReferencedAsync(Guid? tenantId, Guid bundleId, CancellationToken cancellationToken = default);
+    Task<bool> IsReferencedAsync(Guid bundleId, CancellationToken cancellationToken = default);
 }

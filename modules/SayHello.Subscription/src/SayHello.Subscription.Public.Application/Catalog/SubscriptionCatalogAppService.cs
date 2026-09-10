@@ -45,7 +45,7 @@ public class SubscriptionCatalogAppService : SubscriptionApplicationService, ISu
 
     public virtual async Task<SubscriptionProductDto> GetProductAsync(Guid id)
     {
-        var product = (await _products.GetByIdsAsync(CurrentTenant.Id, new[] { id },
+        var product = (await _products.GetByIdsAsync(new[] { id },
             CancellationTokenProvider.Token)).SingleOrDefault();
         EnsurePublished(product, id);
         return SubscriptionDtoMapper.ToDto(product!);
@@ -60,7 +60,7 @@ public class SubscriptionCatalogAppService : SubscriptionApplicationService, ISu
 
     public virtual async Task<PublicSubscriptionPlanDto> GetPlanAsync(Guid id)
     {
-        var plan = (await _plans.GetByIdsAsync(CurrentTenant.Id, new[] { id },
+        var plan = (await _plans.GetByIdsAsync(new[] { id },
             CancellationTokenProvider.Token)).SingleOrDefault();
         EnsurePublished(plan, id);
         return (await MapPlansAsync(new[] { plan! }))[id];
@@ -75,21 +75,21 @@ public class SubscriptionCatalogAppService : SubscriptionApplicationService, ISu
 
     public virtual async Task<PublicSubscriptionBundleDto> GetBundleAsync(Guid id)
     {
-        var bundle = (await _bundles.GetByIdsAsync(CurrentTenant.Id, new[] { id },
+        var bundle = (await _bundles.GetByIdsAsync(new[] { id },
             CancellationTokenProvider.Token)).SingleOrDefault();
         EnsurePublished(bundle, id);
         return (await MapBundlesAsync(new[] { bundle! })).Single();
     }
 
     private SubscriptionCatalogQuery Query(GetPublicCatalogInput input) =>
-        new(CurrentTenant.Id, input.Filter, PublishedOnly: true, ProductId: input.ProductId,
+        new(input.Filter, PublishedOnly: true, ProductId: input.ProductId,
             Sorting: input.Sorting, SkipCount: input.SkipCount, MaxResultCount: input.MaxResultCount);
 
     private async Task<Dictionary<Guid, PublicSubscriptionPlanDto>> MapPlansAsync(
         IReadOnlyCollection<SubscriptionPlan> plans,
         IReadOnlyDictionary<Guid, SubscriptionProduct>? loadedProducts = null)
     {
-        var products = loadedProducts ?? (await _products.GetByIdsAsync(CurrentTenant.Id,
+        var products = loadedProducts ?? (await _products.GetByIdsAsync(
             plans.Select(p => p.ProductId).Distinct().ToArray(), CancellationTokenProvider.Token)).ToDictionary(p => p.Id);
         var result = new Dictionary<Guid, PublicSubscriptionPlanDto>();
         foreach (var plan in plans)
@@ -130,10 +130,10 @@ public class SubscriptionCatalogAppService : SubscriptionApplicationService, ISu
 
     private async Task<List<PublicSubscriptionBundleDto>> MapBundlesAsync(IReadOnlyCollection<SubscriptionBundle> bundles)
     {
-        var plans = await _plans.GetByIdsAsync(CurrentTenant.Id,
+        var plans = await _plans.GetByIdsAsync(
             bundles.SelectMany(b => b.Items).Select(i => i.PlanId).Distinct().ToArray(),
             CancellationTokenProvider.Token);
-        var products = await _products.GetByIdsAsync(CurrentTenant.Id,
+        var products = await _products.GetByIdsAsync(
             plans.Select(p => p.ProductId).Distinct().ToArray(), CancellationTokenProvider.Token);
         foreach (var bundle in bundles)
         {

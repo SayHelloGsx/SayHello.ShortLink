@@ -30,7 +30,6 @@ public class TargetUrlValidator : DomainService, ITargetUrlValidator
 
     public async Task<TargetUrlValidationResult> ValidateAsync(
         string targetUrl,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
         if (targetUrl.IsNullOrWhiteSpace() ||
@@ -60,7 +59,7 @@ public class TargetUrlValidator : DomainService, ITargetUrlValidator
             throw new BusinessException(ShortLinkErrorCodes.UnsafeTargetUrl);
         }
 
-        if (await _blockedDomainRepository.IsBlockedAsync(normalizedHost, tenantId, cancellationToken))
+        if (await _blockedDomainRepository.IsBlockedAsync(normalizedHost, cancellationToken))
         {
             throw new BusinessException(ShortLinkErrorCodes.BlockedTargetDomain)
                 .WithData("Host", normalizedHost);

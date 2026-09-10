@@ -13,7 +13,6 @@ using Shouldly;
 using Volo.Abp;
 using Volo.Abp.Authorization;
 using Volo.Abp.Authorization.Permissions;
-using Volo.Abp.Data;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Localization;
 using Volo.Abp.MultiTenancy;
@@ -60,7 +59,7 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
         free.Publish(product, definition);
         replacement.Publish(product, definition);
         var plans = new[] { free, replacement };
-        _plans.GetByIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _plans.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(call => plans.Where(plan => call.Arg<IReadOnlyCollection<Guid>>().Contains(plan.Id)).ToArray());
         _catalog.SetDefaultPlanAsync(Arg.Is<Guid?>(id => id == tenantId), product.Id,
                 Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
@@ -113,7 +112,7 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
         SetDefault(second, other.Id);
         _products.GetPageAsync(Arg.Any<SubscriptionCatalogQuery>(), Arg.Any<CancellationToken>())
             .Returns(new SubscriptionPage<SubscriptionProduct>(51, new[] { first, second, unconfigured }));
-        _plans.GetByIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _plans.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { free, other });
 
         using (GetRequiredService<ICurrentTenant>().Change(tenantId))
@@ -127,7 +126,7 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
             result.Items[2].DefaultPlanId.ShouldBeNull();
             result.Items[2].DefaultPlanName.ShouldBeNull();
         }
-        await _plans.Received(1).GetByIdsAsync(tenantId,
+        await _plans.Received(1).GetByIdsAsync(
             Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 2 && ids.Contains(free.Id) && ids.Contains(other.Id)),
             Arg.Any<CancellationToken>());
     }
@@ -139,9 +138,9 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
         var otherProduct = Product("beta");
         var free = Plan(product, "free");
         SetDefault(product, free.Id);
-        _products.GetByIdsAsync(null, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _products.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { product });
-        _plans.GetByIdsAsync(null, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _plans.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { free });
         var dto = await _service.GetAsync(product.Id);
         dto.HasDefaultPlan.ShouldBeTrue();
@@ -149,7 +148,7 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
 
         var wrongProductPlan = Plan(otherProduct, "other");
         SetDefault(product, wrongProductPlan.Id);
-        _plans.GetByIdsAsync(null, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _plans.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { wrongProductPlan });
         dto = await _service.GetAsync(product.Id);
         dto.HasDefaultPlan.ShouldBeTrue();
@@ -160,14 +159,14 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Picker_forces_route_product_current_tenant_and_publication_before_repository_paging(bool tenant)
+    public async Task Picker_forces_route_product_and_publication_before_repository_paging(bool tenant)
     {
         Guid? tenantId = tenant ? Guid.NewGuid() : null;
         var product = Product("alpha", tenantId);
         product.Publish();
         var free = Plan(product, "free");
         free.Publish(product, new ProductDefinition(product.Code, new FixedLocalizableString(product.Name)));
-        _products.GetByIdsAsync(tenantId, Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(product.Id)),
+        _products.GetByIdsAsync(Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(product.Id)),
             Arg.Any<CancellationToken>()).Returns(new[] { product });
         _plans.GetPageAsync(Arg.Any<SubscriptionCatalogQuery>(), Arg.Any<CancellationToken>())
             .Returns(new SubscriptionPage<SubscriptionPlan>(37, new[] { free }));
@@ -184,7 +183,7 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
             page.Items.Single().ProductId.ShouldBe(product.Id);
         }
         await _plans.Received(1).GetPageAsync(Arg.Is<SubscriptionCatalogQuery>(query =>
-            query.TenantId == tenantId && query.ProductId == product.Id && query.PublishedOnly &&
+            query.ProductId == product.Id && query.PublishedOnly &&
             query.State == SubscriptionCatalogState.Published && query.Filter == "free" &&
             query.SkipCount == 20 && query.MaxResultCount == 10 && query.Sorting == SubscriptionCatalogSort.NameDescending),
             Arg.Any<CancellationToken>());
@@ -199,7 +198,7 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
         var product = Product("alpha");
         if (state == SubscriptionCatalogState.Withdrawn) product.Withdraw();
         if (state == SubscriptionCatalogState.Archived) product.Archive();
-        _products.GetByIdsAsync(null, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _products.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { product });
 
         var page = await _service.GetDefaultPlanOptionsAsync(product.Id, new AdminCatalogQueryDto());
@@ -209,17 +208,16 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
     }
 
     [Fact]
-    public async Task Picker_rejects_products_outside_current_tenant_even_with_data_filter_disabled()
+    public async Task Picker_rejects_missing_products()
     {
         var tenantId = Guid.NewGuid();
         var productId = Guid.NewGuid();
-        _products.GetByIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _products.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<SubscriptionProduct>());
         using (GetRequiredService<ICurrentTenant>().Change(tenantId))
-        using (GetRequiredService<IDataFilter>().Disable<IMultiTenant>())
             await Should.ThrowAsync<EntityNotFoundException>(() =>
                 _service.GetDefaultPlanOptionsAsync(productId, new AdminCatalogQueryDto()));
-        await _products.Received(1).GetByIdsAsync(tenantId,
+        await _products.Received(1).GetByIdsAsync(
             Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(productId)), Arg.Any<CancellationToken>());
         _plans.ReceivedCalls().ShouldBeEmpty();
     }

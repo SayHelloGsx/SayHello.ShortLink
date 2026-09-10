@@ -26,7 +26,7 @@ public class MySubscriptionAppServiceTests
     }
 
     [Fact]
-    public async Task List_always_scopes_filters_to_current_tenant_and_user()
+    public async Task List_forwards_current_user_and_filters()
     {
         UserSubscriptionQuery? observed = null;
         _repository.GetPageAsync(Arg.Any<UserSubscriptionQuery>(), Arg.Any<CancellationToken>())
@@ -44,7 +44,6 @@ public class MySubscriptionAppServiceTests
         (await _service.GetListAsync(input)).TotalCount.ShouldBe(12);
         observed.ShouldNotBeNull();
         observed.UserId.ShouldBe(_context.UserId);
-        observed.TenantId.ShouldBe(_context.TenantId);
         observed.Now.ShouldBe(_context.Now);
         observed.ProductId.ShouldBe(input.ProductId);
         observed.Status.ShouldBe(input.Status);
@@ -107,7 +106,7 @@ public class MySubscriptionAppServiceTests
     {
         var (_, product, plan) = _context.Catalog("one");
         var subscription = _context.Assign(product, plan, _context.Now);
-        _repository.GetAsync(_context.TenantId, subscription.Id, Arg.Any<CancellationToken>()).Returns(subscription);
+        _repository.GetAsync(subscription.Id, Arg.Any<CancellationToken>()).Returns(subscription);
         var result = await _service.GetAsync(subscription.Id);
         result.IsCurrent.ShouldBeTrue();
         result.Status.ShouldBe(UserSubscriptionStatus.Expired);
@@ -118,7 +117,7 @@ public class MySubscriptionAppServiceTests
     {
         var (_, product, plan) = _context.Catalog("one");
         var other = _context.Assign(product, plan, userId: Guid.NewGuid());
-        _repository.GetAsync(_context.TenantId, other.Id, Arg.Any<CancellationToken>()).Returns(other);
+        _repository.GetAsync(other.Id, Arg.Any<CancellationToken>()).Returns(other);
         _repository.GetPageAsync(Arg.Any<UserSubscriptionQuery>(), Arg.Any<CancellationToken>())
             .Returns(new SubscriptionPage<UserSubscription>(1, new[] { other }));
         await Should.ThrowAsync<EntityNotFoundException>(() => _service.GetAsync(other.Id));
@@ -131,7 +130,7 @@ public class MySubscriptionAppServiceTests
         var (_, product, plan) = _context.Catalog("one");
         var subscription = _context.Assign(product, plan);
         _context.CurrentTenant.Id.Returns(Guid.NewGuid());
-        _repository.GetAsync(Arg.Any<Guid?>(), subscription.Id, Arg.Any<CancellationToken>()).Returns(subscription);
+        _repository.GetAsync(subscription.Id, Arg.Any<CancellationToken>()).Returns(subscription);
         await Should.ThrowAsync<EntityNotFoundException>(() => _service.GetAsync(subscription.Id));
     }
 }

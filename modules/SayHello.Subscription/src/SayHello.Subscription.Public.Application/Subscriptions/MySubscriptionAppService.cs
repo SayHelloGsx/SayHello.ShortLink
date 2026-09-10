@@ -24,7 +24,7 @@ public class MySubscriptionAppService : SubscriptionApplicationService, IMySubsc
     {
         var owner = CurrentUser.GetId();
         var now = Clock.Now.ToUniversalTime();
-        var page = await _subscriptions.GetPageAsync(new UserSubscriptionQuery(CurrentTenant.Id, now,
+        var page = await _subscriptions.GetPageAsync(new UserSubscriptionQuery(now,
             UserId: owner, ProductId: input.ProductId, Status: input.Status, CurrentOnly: input.CurrentOnly,
             Filter: input.Filter, Sorting: input.Sorting, SkipCount: input.SkipCount,
             MaxResultCount: input.MaxResultCount), CancellationTokenProvider.Token);
@@ -38,7 +38,7 @@ public class MySubscriptionAppService : SubscriptionApplicationService, IMySubsc
     public virtual async Task<UserSubscriptionDto> GetAsync(Guid id)
     {
         var owner = CurrentUser.GetId();
-        var subscription = await _subscriptions.GetAsync(CurrentTenant.Id, id, CancellationTokenProvider.Token);
+        var subscription = await _subscriptions.GetAsync(id, CancellationTokenProvider.Token);
         EnsureOwner(subscription, owner);
         return SubscriptionDtoMapper.ToDto(subscription, Clock.Now.ToUniversalTime());
     }

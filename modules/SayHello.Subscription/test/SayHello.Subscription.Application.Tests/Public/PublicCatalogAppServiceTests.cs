@@ -29,11 +29,11 @@ public class PublicCatalogAppServiceTests
         _context.CurrentUser.IsAuthenticated.Returns(false);
         _service = _context.Configure(new SubscriptionCatalogAppService(_products, _plans, _bundles,
             _definitions, Substitute.For<IStringLocalizerFactory>()));
-        _products.GetByIdsAsync(Arg.Any<Guid?>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _products.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<SubscriptionProduct>());
-        _plans.GetByIdsAsync(Arg.Any<Guid?>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _plans.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<SubscriptionPlan>());
-        _bundles.GetByIdsAsync(Arg.Any<Guid?>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _bundles.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<SubscriptionBundle>());
     }
 
@@ -68,7 +68,6 @@ public class PublicCatalogAppServiceTests
                 .GetArguments()[0].ShouldBeOfType<SubscriptionCatalogQuery>();
             query.PublishedOnly.ShouldBeTrue();
             query.State.ShouldBeNull();
-            query.TenantId.ShouldBe(_context.TenantId);
             query.ProductId.ShouldBe(product.Id);
             query.Filter.ShouldBe(input.Filter);
             query.Sorting.ShouldBe(input.Sorting);
@@ -170,7 +169,7 @@ public class PublicCatalogAppServiceTests
         var bundle = new SubscriptionBundle(Guid.NewGuid(), _context.TenantId, "bundle", "Both", plans);
         bundle.Publish(plans, products);
         ReturnCatalog(products, plans);
-        _bundles.GetByIdsAsync(_context.TenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+        _bundles.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { bundle });
         if (unavailable == "plan-withdrawn") secondPlan.Withdraw();
         if (unavailable == "product-archived") secondProduct.Archive();
@@ -204,9 +203,9 @@ public class PublicCatalogAppServiceTests
 
     private void ReturnCatalog(IReadOnlyList<SubscriptionProduct> products, IReadOnlyList<SubscriptionPlan> plans)
     {
-        _products.GetByIdsAsync(_context.TenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
-            .Returns(call => products.Where(p => call.ArgAt<IReadOnlyCollection<Guid>>(1).Contains(p.Id)).ToArray());
-        _plans.GetByIdsAsync(_context.TenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
-            .Returns(call => plans.Where(p => call.ArgAt<IReadOnlyCollection<Guid>>(1).Contains(p.Id)).ToArray());
+        _products.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(call => products.Where(p => call.ArgAt<IReadOnlyCollection<Guid>>(0).Contains(p.Id)).ToArray());
+        _plans.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(call => plans.Where(p => call.ArgAt<IReadOnlyCollection<Guid>>(0).Contains(p.Id)).ToArray());
     }
 }

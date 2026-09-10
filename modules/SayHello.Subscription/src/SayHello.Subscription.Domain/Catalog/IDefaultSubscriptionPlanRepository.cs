@@ -6,7 +6,7 @@ namespace SayHello.Subscription.Catalog;
 
 public interface IDefaultSubscriptionPlanRepository
 {
-    Task<DefaultSubscriptionPlan?> FindAsync(Guid? tenantId, string productCode,
+    Task<DefaultSubscriptionPlan?> FindAsync(string productCode,
         CancellationToken cancellationToken = default);
     Task<SubscriptionPage<DefaultSubscriptionPlan>> GetPageAsync(SubscriptionCatalogQuery query, Guid userId, DateTime now,
         CancellationToken cancellationToken = default);

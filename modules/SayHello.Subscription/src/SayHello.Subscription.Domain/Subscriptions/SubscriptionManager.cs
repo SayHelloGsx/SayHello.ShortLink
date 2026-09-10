@@ -52,11 +52,11 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         CancellationToken cancellationToken = default)
     {
         ValidateUserReference(tenantId, userId);
-        var plan = (await _plans.GetByIdsAsync(tenantId, new[] { planId }, cancellationToken)).SingleOrDefault()
+        var plan = (await _plans.GetByIdsAsync(new[] { planId }, cancellationToken)).SingleOrDefault()
             ?? throw new EntityNotFoundException(typeof(SubscriptionPlan), planId);
-        var product = (await _products.GetByIdsAsync(tenantId, new[] { plan.ProductId }, cancellationToken)).Single();
+        var product = (await _products.GetByIdsAsync(new[] { plan.ProductId }, cancellationToken)).Single();
         ValidatePlan(product, plan);
-        var current = await _subscriptions.FindCurrentAsync(tenantId, userId, product.Id, cancellationToken);
+        var current = await _subscriptions.FindCurrentAsync(userId, product.Id, cancellationToken);
         return new SubscriptionAssignmentPreview(tenantId, userId, null, null,
             new[] { PreviewItem(product, plan, current) });
     }
@@ -65,12 +65,12 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         CancellationToken cancellationToken = default)
     {
         ValidateUserReference(tenantId, userId);
-        var bundle = (await _bundles.GetByIdsAsync(tenantId, new[] { bundleId }, cancellationToken)).SingleOrDefault()
+        var bundle = (await _bundles.GetByIdsAsync(new[] { bundleId }, cancellationToken)).SingleOrDefault()
             ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), bundleId);
-        var plans = await _plans.GetByIdsAsync(tenantId, bundle.Items.Select(x => x.PlanId).ToArray(), cancellationToken);
-        var products = await _products.GetByIdsAsync(tenantId, bundle.Items.Select(x => x.ProductId).ToArray(), cancellationToken);
+        var plans = await _plans.GetByIdsAsync(bundle.Items.Select(x => x.PlanId).ToArray(), cancellationToken);
+        var products = await _products.GetByIdsAsync(bundle.Items.Select(x => x.ProductId).ToArray(), cancellationToken);
         EnsureBundle(bundle, plans, products);
-        var current = await _subscriptions.GetCurrentListAsync(tenantId, userId, products.Select(x => x.Id).ToArray(), cancellationToken);
+        var current = await _subscriptions.GetCurrentListAsync(userId, products.Select(x => x.Id).ToArray(), cancellationToken);
         var items = plans.OrderBy(x => x.ProductCode, StringComparer.Ordinal).Select(plan =>
         {
             var product = products.Single(x => x.Id == plan.ProductId);
@@ -100,7 +100,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             SubscriptionBundle? bundle = null;
             if (bundleId.HasValue)
             {
-                bundle = (await _bundles.GetByIdsAsync(tenantId, new[] { bundleId.Value }, token)).SingleOrDefault()
+                bundle = (await _bundles.GetByIdsAsync(new[] { bundleId.Value }, token)).SingleOrDefault()
                     ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), bundleId.Value);
                 SubscriptionCatalogManager.CheckStamp(bundle.ConcurrencyStamp, bundleStamp!);
                 if (bundle.Items.Count != targets.Count || bundle.Items.Any(item =>
@@ -108,12 +108,12 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
                     throw new BusinessException(SubscriptionErrorCodes.ConcurrencyConflict);
             }
 
-            var plans = await _plans.GetByIdsAsync(tenantId, targets.Select(x => x.PlanId).ToArray(), token);
-            var products = await _products.GetByIdsAsync(tenantId, targets.Select(x => x.ProductId).ToArray(), token);
+            var plans = await _plans.GetByIdsAsync(targets.Select(x => x.PlanId).ToArray(), token);
+            var products = await _products.GetByIdsAsync(targets.Select(x => x.ProductId).ToArray(), token);
             if (plans.Count != targets.Count || products.Count != targets.Count)
                 throw new BusinessException(SubscriptionErrorCodes.InvalidAssignment);
             if (bundle != null) EnsureBundle(bundle, plans, products);
-            var currents = await _subscriptions.GetCurrentListAsync(tenantId, userId, products.Select(x => x.Id).ToArray(), token);
+            var currents = await _subscriptions.GetCurrentListAsync(userId, products.Select(x => x.Id).ToArray(), token);
             var now = _clock.Now.ToUniversalTime();
             var assignmentId = _guids.Create();
             var replacements = new List<UserSubscription>();
@@ -153,7 +153,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         return await _transactions.RunAsync(async unitOfWork =>
         {
             await _mutationLock.AcquireAsync(unitOfWork, tenantId, userId, cancellationToken);
-            var subscription = await _subscriptions.GetAsync(tenantId, subscriptionId, cancellationToken);
+            var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
             SubscriptionCatalogManager.CheckStamp(subscription.ConcurrencyStamp, concurrencyStamp);
             subscription.End(_clock.Now.ToUniversalTime(), SubscriptionEndReason.Revoked, reason);
@@ -168,7 +168,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         return await _transactions.RunAsync(async unitOfWork =>
         {
             await _mutationLock.AcquireAsync(unitOfWork, tenantId, userId, cancellationToken);
-            var subscription = await _subscriptions.GetAsync(tenantId, subscriptionId, cancellationToken);
+            var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
             SubscriptionCatalogManager.CheckStamp(subscription.ConcurrencyStamp, concurrencyStamp);
             subscription.AdjustExpiration(_clock.Now.ToUniversalTime(), expiresAt);
@@ -185,7 +185,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         }
         // Resolve only the immutable owner in a separate read scope, so no database locks are held
         // while waiting for the user mutation lock. Reload and check the version after acquiring it.
-        return _transactions.ReadAsync(async () => (await _subscriptions.GetAsync(tenantId, subscriptionId, token)).UserId, token);
+        return _transactions.ReadAsync(async () => (await _subscriptions.GetAsync(subscriptionId, token)).UserId, token);
     }
 
     private static string OwnerKey(Guid id) => $"Subscription:Owner:{id:N}";

@@ -66,7 +66,7 @@ public class ShortLinkSubscriptionPostgreSqlTests : IAsyncLifetime
         attempts.Count(result => result == "created").ShouldBe(1);
         attempts.Count(result => result == ShortLinkErrorCodes.LinkQuotaExceeded).ShouldBe(5);
         (await RunAsync(tenantId, owner, services =>
-            services.GetRequiredService<IShortLinkRepository>().GetCountByOwnerAsync(owner, tenantId))).ShouldBe(1);
+            services.GetRequiredService<IShortLinkRepository>().GetCountByOwnerAsync(owner))).ShouldBe(1);
     }
 
     [PostgreSqlFact]
@@ -76,10 +76,10 @@ public class ShortLinkSubscriptionPostgreSqlTests : IAsyncLifetime
         await RunAsync(null, owner, services => ShortLinkSubscriptionTestData.CreatePlanAsync(services, 1, true));
         await CreateAsync(null, owner, commit: false);
         (await RunAsync(null, owner, services =>
-            services.GetRequiredService<IShortLinkRepository>().GetCountByOwnerAsync(owner, null))).ShouldBe(0);
+            services.GetRequiredService<IShortLinkRepository>().GetCountByOwnerAsync(owner))).ShouldBe(0);
         await CreateAsync(null, owner);
         (await RunAsync(null, owner, services =>
-            services.GetRequiredService<IShortLinkRepository>().GetCountByOwnerAsync(owner, null))).ShouldBe(1);
+            services.GetRequiredService<IShortLinkRepository>().GetCountByOwnerAsync(owner))).ShouldBe(1);
     }
 
     private Task CreateAsync(Guid? tenantId, Guid owner, bool commit = true) =>

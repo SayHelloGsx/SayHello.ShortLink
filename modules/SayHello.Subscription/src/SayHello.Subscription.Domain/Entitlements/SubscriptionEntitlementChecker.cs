@@ -37,7 +37,7 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
         if (subscription != null && subscription.IsEffectiveAt(_clock.Now.ToUniversalTime()))
             return EffectiveEntitlementContext.FromSubscription(subscription);
         var product = _definitions.GetProduct(productCode);
-        var plan = await _defaults.FindAsync(tenantId, product.Code, cancellationToken);
+        var plan = await _defaults.FindAsync(product.Code, cancellationToken);
         if (plan == null) return EffectiveEntitlementContext.None();
         ValidateDefault(plan, tenantId, product.Code);
         return EffectiveEntitlementContext.FromDefaultPlan(plan);
@@ -47,7 +47,6 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
         SubscriptionCatalogQuery query, CancellationToken cancellationToken = default)
     {
         SubscriptionGuard.SameTenant(_tenant.Id, tenantId);
-        SubscriptionGuard.SameTenant(tenantId, query.TenantId);
         SubscriptionGuard.Id(userId, nameof(userId));
         query.Validate();
         var page = await _defaults.GetPageAsync(query, userId, _clock.Now.ToUniversalTime(), cancellationToken);
@@ -61,7 +60,7 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
         SubscriptionGuard.SameTenant(_tenant.Id, tenantId);
         SubscriptionGuard.Id(userId, nameof(userId));
         var product = _definitions.GetProduct(productCode);
-        return _subscriptions.FindEffectiveAsync(tenantId, userId, product.Code, _clock.Now.ToUniversalTime(), cancellationToken);
+        return _subscriptions.FindEffectiveAsync(userId, product.Code, _clock.Now.ToUniversalTime(), cancellationToken);
     }
 
     public virtual async Task<BooleanEntitlementResult> GetBooleanAsync(Guid? tenantId, Guid userId, string productCode,

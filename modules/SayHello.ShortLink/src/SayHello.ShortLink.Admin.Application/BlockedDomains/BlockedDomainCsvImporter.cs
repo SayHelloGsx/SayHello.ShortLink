@@ -71,7 +71,6 @@ public class BlockedDomainCsvImporter : ITransientDependency
 
         var existingDomains = (await _repository.GetExistingDomainsAsync(
                 distinctCandidates.Keys.ToList(),
-                tenantId,
                 cancellationToken))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var entities = new List<BlockedDomain>();

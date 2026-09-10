@@ -55,7 +55,7 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
             cancellationToken);
         if (handle is null)
         {
-            return await ResolveAsync(normalizedHost, tenantId, cancellationToken);
+            return await ResolveAsync(normalizedHost, cancellationToken);
         }
 
         cached = await _resolutionCache.GetAsync(cacheKey, token: cancellationToken);
@@ -64,7 +64,7 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
             return cached;
         }
 
-        var result = await ResolveAsync(normalizedHost, tenantId, cancellationToken);
+        var result = await ResolveAsync(normalizedHost, cancellationToken);
         await AddHostToIndexAsync(normalizedHost, tenantId, cancellationToken);
         await _resolutionCache.SetAsync(
             cacheKey,
@@ -156,12 +156,10 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
 
     private async Task<BlockedDomainResolutionCacheItem> ResolveAsync(
         string normalizedHost,
-        Guid? tenantId,
         CancellationToken cancellationToken)
     {
         var match = await _repository.FindMatchingActiveAsync(
             normalizedHost,
-            tenantId,
             cancellationToken);
 
         return match is null

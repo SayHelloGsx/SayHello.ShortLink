@@ -30,7 +30,7 @@ public class SubscriptionProductDataSeedContributor : IDataSeedContributor, ITra
         using (_currentTenant.Change(context.TenantId))
         {
             var product = await _products.FindByCodeAsync(
-                context.TenantId, ShortLinkSubscriptionDefinitions.ProductCode);
+                ShortLinkSubscriptionDefinitions.ProductCode);
             if (product is null)
             {
                 await _catalog.CreateProductAsync(

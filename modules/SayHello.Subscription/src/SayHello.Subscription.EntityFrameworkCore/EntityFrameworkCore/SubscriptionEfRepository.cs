@@ -29,7 +29,7 @@ public abstract class SubscriptionEfRepository<TEntity> : EfCoreRepository<ISubs
         CancellationToken cancellationToken = default)
     {
         var query = includeDetails ? await WithDetailsAsync() : await GetQueryableAsync();
-        return await query.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == _tenant.Id, cancellationToken);
+        return await query.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public override async Task<TEntity> GetAsync(Guid id, bool includeDetails = true,

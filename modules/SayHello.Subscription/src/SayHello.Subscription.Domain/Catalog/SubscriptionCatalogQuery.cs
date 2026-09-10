@@ -9,7 +9,6 @@ namespace SayHello.Subscription.Catalog;
 /// ProductId selects a product, a plan's product, or a bundle containing that product respectively.
 /// </summary>
 public sealed record SubscriptionCatalogQuery(
-    Guid? TenantId,
     string? Filter = null,
     SubscriptionCatalogState? State = null,
     bool PublishedOnly = false,

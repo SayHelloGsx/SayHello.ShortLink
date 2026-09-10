@@ -41,7 +41,7 @@ public class SubscriptionProductDataSeedContributorTests
             Guid.NewGuid(), tenantId,
             new ProductDefinition(ShortLinkSubscriptionDefinitions.ProductCode, new FixedLocalizableString("ShortLink")),
             "Customized catalog name");
-        products.FindByCodeAsync(tenantId, ShortLinkSubscriptionDefinitions.ProductCode).Returns(product);
+        products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode).Returns(product);
 
         await new SubscriptionProductDataSeedContributor(products, catalog, tenant)
             .SeedAsync(new DataSeedContext(tenantId));

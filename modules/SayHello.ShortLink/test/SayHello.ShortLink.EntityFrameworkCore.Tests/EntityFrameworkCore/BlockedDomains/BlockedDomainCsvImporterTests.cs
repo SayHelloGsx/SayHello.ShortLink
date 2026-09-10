@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Localization;
 using SayHello.ShortLink.Admin.BlockedDomains;
@@ -69,7 +70,7 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
             ],
             ignoreOrder: true);
 
-        var imported = await WithUnitOfWorkAsync(() => _repository.GetListAsync(null));
+        var imported = await WithUnitOfWorkAsync(() => _repository.GetListAsync(CancellationToken.None));
         imported.Select(x => x.Domain).ShouldContain("new.example");
         imported.Select(x => x.Domain).ShouldContain("xn--bcher-kva.example");
         var importedReason = imported.Single(x => x.Domain == "new.example").Reason;

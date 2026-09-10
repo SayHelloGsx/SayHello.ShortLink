@@ -18,46 +18,39 @@ public class EfCoreUserSubscriptionRepository : SubscriptionEfRepository<UserSub
     public override async Task<IQueryable<UserSubscription>> WithDetailsAsync() =>
         (await GetQueryableAsync()).Include(x => x.Entitlements);
 
-    public Task<UserSubscription> GetAsync(Guid? tenantId, Guid id, CancellationToken cancellationToken = default)
-    {
-        EnsureTenant(tenantId);
-        return base.GetAsync(id, includeDetails: true, cancellationToken);
-    }
+    public Task<UserSubscription> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
+        base.GetAsync(id, includeDetails: true, cancellationToken);
 
-    public async Task<UserSubscription?> FindCurrentAsync(Guid? tenantId, Guid userId, Guid productId,
+    public async Task<UserSubscription?> FindCurrentAsync(Guid userId, Guid productId,
         CancellationToken cancellationToken = default)
     {
-        EnsureTenant(tenantId);
         return await (await WithDetailsAsync()).SingleOrDefaultAsync(
-            x => x.TenantId == tenantId && x.UserId == userId && x.ProductId == productId && x.IsCurrent, cancellationToken);
+            x => x.UserId == userId && x.ProductId == productId && x.IsCurrent, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<UserSubscription>> GetCurrentListAsync(Guid? tenantId, Guid userId,
+    public async Task<IReadOnlyList<UserSubscription>> GetCurrentListAsync(Guid userId,
         IReadOnlyCollection<Guid>? productIds = null, CancellationToken cancellationToken = default)
     {
-        EnsureTenant(tenantId);
-        var data = (await WithDetailsAsync()).Where(x => x.TenantId == tenantId && x.UserId == userId && x.IsCurrent);
+        var data = (await WithDetailsAsync()).Where(x => x.UserId == userId && x.IsCurrent);
         if (productIds != null) data = data.Where(x => productIds.Contains(x.ProductId));
         return await data.OrderBy(x => x.ProductCode).ToListAsync(cancellationToken);
     }
 
-    public async Task<UserSubscription?> FindEffectiveAsync(Guid? tenantId, Guid userId, string productCode, DateTime now,
+    public async Task<UserSubscription?> FindEffectiveAsync(Guid userId, string productCode, DateTime now,
         CancellationToken cancellationToken = default)
     {
-        EnsureTenant(tenantId);
         SubscriptionGuard.Utc(now);
         productCode = SubscriptionCode.Normalize(productCode);
         return await (await WithDetailsAsync()).AsNoTracking().SingleOrDefaultAsync(
-            x => x.TenantId == tenantId && x.UserId == userId && x.ProductCode == productCode &&
+            x => x.UserId == userId && x.ProductCode == productCode &&
                 x.IsCurrent && x.EndedAt == null && x.StartsAt <= now && (x.ExpiresAt == null || x.ExpiresAt > now), cancellationToken);
     }
 
     public async Task<SubscriptionPage<UserSubscription>> GetPageAsync(UserSubscriptionQuery query,
         CancellationToken cancellationToken = default)
     {
-        EnsureTenant(query.TenantId);
         query.Validate();
-        var data = (await GetDbSetAsync()).Where(x => x.TenantId == query.TenantId);
+        var data = (await GetDbSetAsync()).AsQueryable();
         if (query.UserId.HasValue) data = data.Where(x => x.UserId == query.UserId);
         if (query.ProductId.HasValue) data = data.Where(x => x.ProductId == query.ProductId);
         if (query.CurrentOnly) data = data.Where(x => x.IsCurrent);

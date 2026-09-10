@@ -18,34 +18,31 @@ public class EfCoreSubscriptionBundleRepository : SubscriptionEfRepository<Subsc
     public override async Task<IQueryable<SubscriptionBundle>> WithDetailsAsync() =>
         (await GetQueryableAsync()).Include(x => x.Items);
 
-    public async Task<SubscriptionBundle?> FindByCodeAsync(Guid? tenantId, string code, CancellationToken cancellationToken = default)
+    public async Task<SubscriptionBundle?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
-        EnsureTenant(tenantId);
         code = SubscriptionCode.Normalize(code);
-        return await (await WithDetailsAsync()).FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Code == code, cancellationToken);
+        return await (await WithDetailsAsync()).FirstOrDefaultAsync(x => x.Code == code, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<SubscriptionBundle>> GetByIdsAsync(Guid? tenantId, IReadOnlyCollection<Guid> ids,
+    public async Task<IReadOnlyList<SubscriptionBundle>> GetByIdsAsync(IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default)
     {
-        EnsureTenant(tenantId);
-        return await (await WithDetailsAsync()).AsNoTracking().Where(x => x.TenantId == tenantId && ids.Contains(x.Id)).ToListAsync(cancellationToken);
+        return await (await WithDetailsAsync()).AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(cancellationToken);
     }
 
     public async Task<SubscriptionPage<SubscriptionBundle>> GetPageAsync(SubscriptionCatalogQuery query,
         CancellationToken cancellationToken = default)
     {
-        EnsureTenant(query.TenantId);
         query.Validate();
         var db = await GetDbContextAsync();
-        var data = db.SubscriptionBundles.Where(x => x.TenantId == query.TenantId);
+        var data = db.SubscriptionBundles.AsQueryable();
         if (query.ProductId.HasValue) data = data.Where(x => x.Items.Any(i => i.ProductId == query.ProductId));
         if (query.State.HasValue) data = data.Where(x => x.State == query.State);
         if (query.PublishedOnly)
             data = data.Where(x => x.State == SubscriptionCatalogState.Published && x.Items.Count >= 2 &&
                 x.Items.All(i =>
-                    db.SubscriptionPlans.Any(p => p.Id == i.PlanId && p.TenantId == query.TenantId && p.State == SubscriptionCatalogState.Published) &&
-                    db.SubscriptionProducts.Any(p => p.Id == i.ProductId && p.TenantId == query.TenantId && p.State == SubscriptionCatalogState.Published)));
+                    db.SubscriptionPlans.Any(p => p.Id == i.PlanId && p.State == SubscriptionCatalogState.Published) &&
+                    db.SubscriptionProducts.Any(p => p.Id == i.ProductId && p.State == SubscriptionCatalogState.Published)));
         if (!string.IsNullOrWhiteSpace(query.Filter))
         {
             var filter = query.Filter.Trim().ToLowerInvariant();
@@ -58,10 +55,9 @@ public class EfCoreSubscriptionBundleRepository : SubscriptionEfRepository<Subsc
         return new SubscriptionPage<SubscriptionBundle>(count, items);
     }
 
-    public async Task<bool> IsReferencedAsync(Guid? tenantId, Guid bundleId, CancellationToken cancellationToken = default)
+    public async Task<bool> IsReferencedAsync(Guid bundleId, CancellationToken cancellationToken = default)
     {
-        EnsureTenant(tenantId);
         return await (await GetDbContextAsync()).UserSubscriptions.AnyAsync(
-            x => x.TenantId == tenantId && x.SourceBundleId == bundleId, cancellationToken);
+            x => x.SourceBundleId == bundleId, cancellationToken);
     }
 }

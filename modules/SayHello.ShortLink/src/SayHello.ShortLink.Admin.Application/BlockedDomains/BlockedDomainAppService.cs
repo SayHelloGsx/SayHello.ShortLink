@@ -35,7 +35,6 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
     public async Task<ListResultDto<BlockedDomainDto>> GetListAsync()
     {
         var entities = await _repository.GetListAsync(
-            CurrentTenant.Id,
             CancellationTokenProvider.Token);
 
         return new ListResultDto<BlockedDomainDto>(entities.Select(ToDto).ToList());
@@ -46,7 +45,6 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         var normalizedDomain = DomainNameNormalizer.Normalize(input.Domain);
         if (await _repository.ExistsAsync(
                 normalizedDomain,
-                CurrentTenant.Id,
                 cancellationToken: CancellationTokenProvider.Token))
         {
             throw new BusinessException(ShortLinkErrorCodes.BlockedDomainAlreadyExists)

@@ -11,18 +11,18 @@ namespace SayHello.Subscription.Subscriptions;
 /// </summary>
 public interface IUserSubscriptionRepository
 {
-    Task<UserSubscription> GetAsync(Guid? tenantId, Guid id, CancellationToken cancellationToken = default);
+    Task<UserSubscription> GetAsync(Guid id, CancellationToken cancellationToken = default);
     Task<UserSubscription> InsertAsync(UserSubscription subscription, bool autoSave = false,
         CancellationToken cancellationToken = default);
     Task<UserSubscription> UpdateAsync(UserSubscription subscription, bool autoSave = false,
         CancellationToken cancellationToken = default);
     // Current-slot reads include expired rows, because replacement must retire those slots too.
-    Task<UserSubscription?> FindCurrentAsync(Guid? tenantId, Guid userId, Guid productId,
+    Task<UserSubscription?> FindCurrentAsync(Guid userId, Guid productId,
         CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<UserSubscription>> GetCurrentListAsync(Guid? tenantId, Guid userId,
+    Task<IReadOnlyList<UserSubscription>> GetCurrentListAsync(Guid userId,
         IReadOnlyCollection<Guid>? productIds = null, CancellationToken cancellationToken = default);
     // Catalog withdrawal does not invalidate a snapshot; do not join to current catalog availability here.
-    Task<UserSubscription?> FindEffectiveAsync(Guid? tenantId, Guid userId, string productCode, DateTime now,
+    Task<UserSubscription?> FindEffectiveAsync(Guid userId, string productCode, DateTime now,
         CancellationToken cancellationToken = default);
     Task<SubscriptionPage<UserSubscription>> GetPageAsync(UserSubscriptionQuery query,
         CancellationToken cancellationToken = default);

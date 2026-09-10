@@ -20,7 +20,7 @@ public class SubscriptionTimestampTests : SubscriptionPersistenceTestBase
         var expiresAt = permanent ? null : (DateTime?)startsAt.AddHours(1);
         var assigned = await AssignPlanAsync(data, 0, expiresAt);
 
-        var stored = await InTransactionAsync(() => Subscriptions.GetAsync(null, assigned.Id));
+        var stored = await InTransactionAsync(() => Subscriptions.GetAsync(assigned.Id));
         Assert.Equal(startsAt, stored.StartsAt);
         Assert.Equal(DateTimeKind.Utc, stored.StartsAt.Kind);
         Assert.Equal(expiresAt, stored.ExpiresAt);
@@ -29,7 +29,7 @@ public class SubscriptionTimestampTests : SubscriptionPersistenceTestBase
 
         TestClock.Now = TestClock.Now.AddMinutes(15);
         await InTransactionAsync(() => Manager.RevokeAsync(null, stored.Id, stored.ConcurrencyStamp, "history"));
-        var history = await InTransactionAsync(() => Subscriptions.GetAsync(null, assigned.Id));
+        var history = await InTransactionAsync(() => Subscriptions.GetAsync(assigned.Id));
         Assert.Equal(DateTimeKind.Utc, history.StartsAt.Kind);
         Assert.Equal(expiresAt, history.ExpiresAt);
         if (!permanent) Assert.Equal(DateTimeKind.Utc, history.ExpiresAt!.Value.Kind);

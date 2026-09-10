@@ -19,12 +19,10 @@ public interface IShortLinkRepository : IRepository<ShortLink, Guid>
 
     Task<long> GetCountByOwnerAsync(
         Guid ownerUserId,
-        Guid? tenantId,
         CancellationToken cancellationToken = default);
 
     Task<List<ShortLink>> GetListAsync(
         Guid? ownerUserId,
-        Guid? tenantId,
         string? filter,
         ShortLinkStatus? status,
         string? sorting,
@@ -34,7 +32,6 @@ public interface IShortLinkRepository : IRepository<ShortLink, Guid>
 
     Task<long> GetCountAsync(
         Guid? ownerUserId,
-        Guid? tenantId,
         string? filter,
         ShortLinkStatus? status,
         CancellationToken cancellationToken = default);

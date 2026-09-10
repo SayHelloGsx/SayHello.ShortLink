@@ -78,7 +78,7 @@ public class CurrentUserEntitlementAppService : SubscriptionApplicationService, 
 
     public virtual async Task<PagedResultDto<DefaultSubscriptionPlanDto>> GetDefaultPlansAsync(GetPublicCatalogInput input)
     {
-        var query = new SubscriptionCatalogQuery(CurrentTenant.Id, input.Filter, PublishedOnly: true,
+        var query = new SubscriptionCatalogQuery(input.Filter, PublishedOnly: true,
             ProductId: input.ProductId, Sorting: input.Sorting, SkipCount: input.SkipCount,
             MaxResultCount: input.MaxResultCount);
         var page = await _checker.GetDefaultPlansAsync(CurrentTenant.Id, CurrentUser.GetId(), query,

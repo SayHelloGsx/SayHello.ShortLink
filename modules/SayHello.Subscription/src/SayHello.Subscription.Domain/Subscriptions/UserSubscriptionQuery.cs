@@ -4,7 +4,6 @@ using Volo.Abp;
 namespace SayHello.Subscription.Subscriptions;
 
 public sealed record UserSubscriptionQuery(
-    Guid? TenantId,
     DateTime Now,
     Guid? UserId = null,
     Guid? ProductId = null,

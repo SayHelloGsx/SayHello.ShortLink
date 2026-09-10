@@ -11,7 +11,6 @@ using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Entitlements;
 using SayHello.Subscription.Subscriptions;
 using Volo.Abp;
-using Volo.Abp.Data;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.EntityFrameworkCore;
 using Volo.Abp.MultiTenancy;
@@ -42,7 +41,7 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         Assert.Equal(free.Id, context.DefaultPlan!.Plan.Id);
         Assert.Null(context.Subscription);
         Assert.Null(await Checker.FindEffectiveSubscriptionAsync(null, data.UserId, "alpha"));
-        Assert.Equal(0, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(null, TestClock.Now, data.UserId))).TotalCount);
+        Assert.Equal(0, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
         Assert.Null(GetRequiredService<IUnitOfWorkManager>().Current);
     }
 
@@ -81,7 +80,7 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         Assert.Equal(25, fallback.Limit);
         Assert.Equal(EntitlementSource.DefaultPlan, fallback.Source);
         Assert.Null(fallback.SubscriptionId);
-        Assert.Equal(1, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(null, TestClock.Now, data.UserId))).TotalCount);
+        Assert.Equal(1, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
     }
 
     [Theory]
@@ -142,7 +141,7 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var data = await SeedAsync();
         for (var index = 0; index < 3; index++) await ConfigureFreeAsync(data, index);
         await AssignPlanAsync(data, 0);
-        var query = new SubscriptionCatalogQuery(null, Sorting: SubscriptionCatalogSort.Name, MaxResultCount: 1);
+        var query = new SubscriptionCatalogQuery(Sorting: SubscriptionCatalogSort.Name, MaxResultCount: 1);
         var first = await Checker.GetDefaultPlansAsync(null, data.UserId, query);
         Assert.Equal(2, first.TotalCount);
         Assert.Equal("beta", Assert.Single(first.Items).Product.Code);
@@ -154,30 +153,27 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var searched = await Checker.GetDefaultPlansAsync(null, data.UserId, query with { Filter = "GAMMA" });
         Assert.Equal(1, searched.TotalCount);
         Assert.Equal("gamma", Assert.Single(searched.Items).Product.Code);
-        Assert.Equal(1, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(null, TestClock.Now, data.UserId))).TotalCount);
+        Assert.Equal(1, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
     }
 
     [Fact]
-    public async Task Defaults_are_product_and_tenant_scoped_even_with_filters_disabled()
+    public async Task Defaults_are_scoped_by_ABP_tenant_filter()
     {
         var host = await SeedAsync();
         var tenantId = Guid.NewGuid();
         var tenant = await SeedAsync(tenantId);
         await ConfigureFreeAsync(host);
         var tenantPlan = await ConfigureFreeAsync(tenant, 1);
-        using (GetRequiredService<IDataFilter<IMultiTenant>>().Disable())
+        Assert.Equal(EntitlementSource.DefaultPlan, (await Checker.ResolveAsync(null, host.UserId, "alpha")).Source);
+        Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(null, host.UserId, "beta")).Source);
+        using (GetRequiredService<ICurrentTenant>().Change(tenantId))
         {
-            Assert.Equal(EntitlementSource.DefaultPlan, (await Checker.ResolveAsync(null, host.UserId, "alpha")).Source);
-            Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(null, host.UserId, "beta")).Source);
-            using (GetRequiredService<ICurrentTenant>().Change(tenantId))
-            {
-                Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(tenantId, tenant.UserId, "alpha")).Source);
-                Assert.Equal(tenantPlan.Id, (await Checker.ResolveAsync(tenantId, tenant.UserId, "beta")).PlanId);
-                var page = await Checker.GetDefaultPlansAsync(tenantId, tenant.UserId, new SubscriptionCatalogQuery(tenantId));
-                Assert.Equal(tenantPlan.Id, Assert.Single(page.Items).Plan.Id);
-                Assert.Equal(SubscriptionErrorCodes.TenantMismatch,
-                    (await Assert.ThrowsAsync<BusinessException>(() => Checker.ResolveAsync(null, host.UserId, "alpha"))).Code);
-            }
+            Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(tenantId, tenant.UserId, "alpha")).Source);
+            Assert.Equal(tenantPlan.Id, (await Checker.ResolveAsync(tenantId, tenant.UserId, "beta")).PlanId);
+            var page = await Checker.GetDefaultPlansAsync(tenantId, tenant.UserId, new SubscriptionCatalogQuery());
+            Assert.Equal(tenantPlan.Id, Assert.Single(page.Items).Plan.Id);
+            Assert.Equal(SubscriptionErrorCodes.TenantMismatch,
+                (await Assert.ThrowsAsync<BusinessException>(() => Checker.ResolveAsync(null, host.UserId, "alpha"))).Code);
         }
         var product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(host.Products[0].Id);
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
@@ -334,8 +330,8 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         });
         Assert.Equal(30, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
         Assert.Equal("new-free", Assert.Single((await Checker.GetDefaultPlansAsync(null, data.UserId,
-            new SubscriptionCatalogQuery(null))).Items).Plan.Code);
-        Assert.Empty(await Subscriptions.GetCurrentListAsync(null, data.UserId));
+            new SubscriptionCatalogQuery())).Items).Plan.Code);
+        Assert.Empty(await Subscriptions.GetCurrentListAsync(data.UserId));
     }
 
     [Fact]
@@ -348,10 +344,10 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var subscription = await AssignProAsync(data, TestClock.Now.AddHours(1));
         TestClock.Now = now;
         Assert.Equal(20, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
-        Assert.Single((await Checker.GetDefaultPlansAsync(null, data.UserId, new SubscriptionCatalogQuery(null))).Items);
+        Assert.Single((await Checker.GetDefaultPlansAsync(null, data.UserId, new SubscriptionCatalogQuery())).Items);
         TestClock.Now = subscription.StartsAt;
         Assert.Equal(100, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
-        Assert.Empty((await Checker.GetDefaultPlansAsync(null, data.UserId, new SubscriptionCatalogQuery(null))).Items);
+        Assert.Empty((await Checker.GetDefaultPlansAsync(null, data.UserId, new SubscriptionCatalogQuery())).Items);
     }
 
     [Fact]
@@ -364,11 +360,11 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
             var db = await GetRequiredService<IDbContextProvider<ISubscriptionDbContext>>().GetDbContextAsync();
             using var commands = new QueryCommandObserver(db);
             var repository = GetRequiredService<IDefaultSubscriptionPlanRepository>();
-            var single = await repository.FindAsync(null, "alpha");
+            var single = await repository.FindAsync("alpha");
             Assert.NotNull(single);
             Assert.Equal(2, single.Plan.Entitlements.Count);
             Assert.Equal(1, commands.Count);
-            var page = await repository.GetPageAsync(new SubscriptionCatalogQuery(null), data.UserId, TestClock.Now);
+            var page = await repository.GetPageAsync(new SubscriptionCatalogQuery(), data.UserId, TestClock.Now);
             Assert.Equal(2, Assert.Single(page.Items).Plan.Entitlements.Count);
             Assert.Equal(3, commands.Count); // Count plus one coherent product/plan/value query.
             return true;

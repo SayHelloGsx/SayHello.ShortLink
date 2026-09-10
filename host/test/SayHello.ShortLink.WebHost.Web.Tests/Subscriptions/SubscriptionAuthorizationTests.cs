@@ -422,7 +422,7 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
         var definitions = services.GetRequiredService<ISubscriptionDefinitionRegistry>();
         var definition = definitions.GetProduct(ShortLinkSubscriptionDefinitions.ProductCode);
         var products = services.GetRequiredService<ISubscriptionProductRepository>();
-        var product = await products.FindByCodeAsync(null, definition.Code);
+        var product = await products.FindByCodeAsync(definition.Code);
         if (product == null)
         {
             product = new SubscriptionProduct(Guid.NewGuid(), null, definition, "Authorization product");

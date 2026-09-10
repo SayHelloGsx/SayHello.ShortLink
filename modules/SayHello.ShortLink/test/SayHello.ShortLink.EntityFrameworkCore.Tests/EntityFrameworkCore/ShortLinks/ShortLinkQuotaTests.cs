@@ -246,7 +246,7 @@ public class ShortLinkQuotaTests : ShortLinkTestBase<ShortLinkQuotaTestModule>
             "Q" + Guid.NewGuid().ToString("N"), null, null);
 
     private Task<long> CountAsync() =>
-        WithUnitOfWorkAsync(() => _repository.GetCountByOwnerAsync(_owner, null));
+        WithUnitOfWorkAsync(() => _repository.GetCountByOwnerAsync(_owner));
 }
 
 [DependsOn(typeof(ShortLinkEntityFrameworkCoreTestModule))]

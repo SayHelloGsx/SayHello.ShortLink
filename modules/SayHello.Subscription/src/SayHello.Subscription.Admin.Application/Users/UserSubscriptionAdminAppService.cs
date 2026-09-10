@@ -55,14 +55,14 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     public virtual async Task<PagedResultDto<AdminUserSubscriptionDto>> GetListAsync(AdminSubscriptionQueryDto input)
     {
         var now = _clock.Now.ToUniversalTime();
-        var page = await _subscriptions.GetPageAsync(new UserSubscriptionQuery(CurrentTenant.Id, now, input.UserId,
+        var page = await _subscriptions.GetPageAsync(new UserSubscriptionQuery(now, input.UserId,
             input.ProductId, input.Status, input.CurrentOnly, input.Filter, input.Sorting,
             input.SkipCount, input.MaxResultCount), CancellationTokenProvider.Token);
         return SubscriptionDtoMapper.ToPage(page, subscription => AdminDtoMapper.ToDto(subscription, now));
     }
 
     public virtual async Task<AdminUserSubscriptionDto> GetAsync(Guid id) =>
-        AdminDtoMapper.ToDto(await _subscriptions.GetAsync(CurrentTenant.Id, id, CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
+        AdminDtoMapper.ToDto(await _subscriptions.GetAsync(id, CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
 
     [Authorize(SubscriptionAdminPermissions.Users.Assign)]
     public virtual Task<PagedResultDto<AdminPlanDto>> GetPlansAsync(AdminCatalogQueryDto input) =>

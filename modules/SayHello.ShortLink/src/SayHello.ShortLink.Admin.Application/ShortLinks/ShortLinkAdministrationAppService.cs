@@ -33,13 +33,11 @@ public class ShortLinkAdministrationAppService :
         var cancellationToken = CancellationTokenProvider.Token;
         var totalCount = await _shortLinkRepository.GetCountAsync(
             input.OwnerUserId,
-            CurrentTenant.Id,
             input.Filter,
             input.Status,
             cancellationToken);
         var entities = await _shortLinkRepository.GetListAsync(
             input.OwnerUserId,
-            CurrentTenant.Id,
             input.Filter,
             input.Status,
             input.Sorting,

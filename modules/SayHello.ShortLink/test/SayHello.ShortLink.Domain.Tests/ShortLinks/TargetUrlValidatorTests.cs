@@ -28,7 +28,7 @@ public class TargetUrlValidatorTests
             .Returns(new List<IPAddress> { IPAddress.Parse("93.184.216.34") });
         var validator = CreateValidator();
 
-        var result = await validator.ValidateAsync("HTTPS://Example.COM:443/a?b=1", null);
+        var result = await validator.ValidateAsync("HTTPS://Example.COM:443/a?b=1");
 
         result.NormalizedHost.ShouldBe("example.com");
         result.NormalizedUrl.ShouldBe("https://example.com/a?b=1");
@@ -45,7 +45,7 @@ public class TargetUrlValidatorTests
         var validator = CreateValidator();
 
         var exception = await Should.ThrowAsync<BusinessException>(
-            () => validator.ValidateAsync(target, null));
+            () => validator.ValidateAsync(target));
 
         exception.Code.ShouldBe(ShortLinkErrorCodes.UnsafeTargetUrl);
     }
@@ -59,7 +59,7 @@ public class TargetUrlValidatorTests
         var validator = CreateValidator();
 
         var exception = await Should.ThrowAsync<BusinessException>(
-            () => validator.ValidateAsync("https://example.com", null));
+            () => validator.ValidateAsync("https://example.com"));
 
         exception.Code.ShouldBe(ShortLinkErrorCodes.UnsafeTargetUrl);
     }
@@ -68,12 +68,12 @@ public class TargetUrlValidatorTests
     public async Task ValidateAsync_Should_Reject_Blocked_Domain_And_Subdomains()
     {
         _blockedDomains
-            .IsBlockedAsync("sub.example.com", null, Arg.Any<CancellationToken>())
+            .IsBlockedAsync("sub.example.com", Arg.Any<CancellationToken>())
             .Returns(true);
         var validator = CreateValidator();
 
         var exception = await Should.ThrowAsync<BusinessException>(
-            () => validator.ValidateAsync("https://sub.example.com", null));
+            () => validator.ValidateAsync("https://sub.example.com"));
 
         exception.Code.ShouldBe(ShortLinkErrorCodes.BlockedTargetDomain);
     }
@@ -86,7 +86,7 @@ public class TargetUrlValidatorTests
         var validator = CreateValidator(options);
 
         var exception = await Should.ThrowAsync<BusinessException>(
-            () => validator.ValidateAsync("https://go.example.com/another-code", null));
+            () => validator.ValidateAsync("https://go.example.com/another-code"));
 
         exception.Code.ShouldBe(ShortLinkErrorCodes.UnsafeTargetUrl);
     }

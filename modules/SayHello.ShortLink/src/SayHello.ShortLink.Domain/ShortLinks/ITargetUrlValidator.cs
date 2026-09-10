@@ -1,4 +1,3 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,6 +7,5 @@ public interface ITargetUrlValidator
 {
     Task<TargetUrlValidationResult> ValidateAsync(
         string targetUrl,
-        Guid? tenantId,
         CancellationToken cancellationToken = default);
 }

@@ -8,7 +8,6 @@ using SayHello.Subscription.Definitions;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Domain.Entities;
-using Volo.Abp.MultiTenancy;
 using Volo.Abp.Threading;
 
 namespace SayHello.Subscription.Admin.Catalog;
@@ -20,19 +19,18 @@ public class AdminCatalogReader : ITransientDependency
     private readonly ISubscriptionBundleRepository _bundles;
     private readonly ISubscriptionDefinitionRegistry _definitions;
     private readonly IStringLocalizerFactory _localizers;
-    private readonly ICurrentTenant _tenant;
     private readonly ICancellationTokenProvider _cancellation;
 
     public AdminCatalogReader(ISubscriptionProductRepository products, ISubscriptionPlanRepository plans,
         ISubscriptionBundleRepository bundles, ISubscriptionDefinitionRegistry definitions,
-        IStringLocalizerFactory localizers, ICurrentTenant tenant, ICancellationTokenProvider cancellation)
+        IStringLocalizerFactory localizers, ICancellationTokenProvider cancellation)
     {
         _products = products; _plans = plans; _bundles = bundles; _definitions = definitions;
-        _localizers = localizers; _tenant = tenant; _cancellation = cancellation;
+        _localizers = localizers; _cancellation = cancellation;
     }
 
     public SubscriptionCatalogQuery Query(AdminCatalogQueryDto input, bool publishedOnly = false) =>
-        new(_tenant.Id, input.Filter, input.State, publishedOnly, input.ProductId,
+        new(input.Filter, input.State, publishedOnly, input.ProductId,
             input.Sorting, input.SkipCount, input.MaxResultCount);
 
     public async Task<PagedResultDto<AdminProductDto>> ProductsAsync(AdminCatalogQueryDto input)
@@ -50,7 +48,7 @@ public class AdminCatalogReader : ITransientDependency
             .Select(product => product.DefaultPlanId!.Value).Distinct().ToArray();
         var defaults = ids.Length == 0
             ? new Dictionary<Guid, SubscriptionPlan>()
-            : (await _plans.GetByIdsAsync(_tenant.Id, ids, _cancellation.Token)).ToDictionary(plan => plan.Id);
+            : (await _plans.GetByIdsAsync(ids, _cancellation.Token)).ToDictionary(plan => plan.Id);
         return products.Select(product => AdminDtoMapper.ToDto(product,
             product.DefaultPlanId.HasValue && defaults.TryGetValue(product.DefaultPlanId.Value, out var plan) &&
             plan.ProductId == product.Id ? plan.Name : null)).ToList();
@@ -71,15 +69,15 @@ public class AdminCatalogReader : ITransientDependency
     }
 
     public async Task<SubscriptionProduct> ProductAsync(Guid id) =>
-        (await _products.GetByIdsAsync(_tenant.Id, new[] { id }, _cancellation.Token)).SingleOrDefault()
+        (await _products.GetByIdsAsync(new[] { id }, _cancellation.Token)).SingleOrDefault()
         ?? throw new EntityNotFoundException(typeof(SubscriptionProduct), id);
 
     public async Task<SubscriptionPlan> PlanAsync(Guid id) =>
-        (await _plans.GetByIdsAsync(_tenant.Id, new[] { id }, _cancellation.Token)).SingleOrDefault()
+        (await _plans.GetByIdsAsync(new[] { id }, _cancellation.Token)).SingleOrDefault()
         ?? throw new EntityNotFoundException(typeof(SubscriptionPlan), id);
 
     public async Task<SubscriptionBundle> BundleAsync(Guid id) =>
-        (await _bundles.GetByIdsAsync(_tenant.Id, new[] { id }, _cancellation.Token)).SingleOrDefault()
+        (await _bundles.GetByIdsAsync(new[] { id }, _cancellation.Token)).SingleOrDefault()
         ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), id);
 
     public RegisteredProductDto Definition(string code)
@@ -105,7 +103,7 @@ public class AdminCatalogReader : ITransientDependency
 
     private async Task<List<AdminPlanDto>> MapPlansAsync(IReadOnlyCollection<SubscriptionPlan> plans)
     {
-        var products = (await _products.GetByIdsAsync(_tenant.Id,
+        var products = (await _products.GetByIdsAsync(
             plans.Select(plan => plan.ProductId).Distinct().ToArray(), _cancellation.Token)).ToDictionary(p => p.Id);
         return plans.Select(plan =>
         {
@@ -126,7 +124,7 @@ public class AdminCatalogReader : ITransientDependency
 
     private async Task<List<AdminBundleDto>> MapBundlesAsync(IReadOnlyCollection<SubscriptionBundle> bundles)
     {
-        var plans = await _plans.GetByIdsAsync(_tenant.Id,
+        var plans = await _plans.GetByIdsAsync(
             bundles.SelectMany(bundle => bundle.Items).Select(item => item.PlanId).Distinct().ToArray(), _cancellation.Token);
         var mapped = (await MapPlansAsync(plans.ToArray())).ToDictionary(p => p.Id, p => (SubscriptionPlanDto)p);
         return bundles.Select(bundle => AdminDtoMapper.ToDto(bundle, SubscriptionDtoMapper.ToDto(bundle, mapped))).ToList();

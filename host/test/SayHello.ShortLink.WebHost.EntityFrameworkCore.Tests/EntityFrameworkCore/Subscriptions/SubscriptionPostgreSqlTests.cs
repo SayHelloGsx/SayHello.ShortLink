@@ -402,7 +402,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             var catalog = services.GetRequiredService<ISubscriptionCatalogManager>();
             await seed.SeedAsync(new DataSeedContext(tenantId));
             await seed.SeedAsync(new DataSeedContext(tenantId));
-            var product = (await products.FindByCodeAsync(tenantId, ShortLinkSubscriptionDefinitions.ProductCode))!;
+            var product = (await products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode))!;
             Assert.Equal(SubscriptionCatalogState.Draft, product.State);
             var plans = new List<SubscriptionPlan>();
             foreach (var code in new[] { ShortLinkSubscriptionDefinitions.ProductCode, "postgres-beta", "postgres-gamma" })
@@ -421,11 +421,11 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
                 plans.Add(await catalog.SetPlanStateAsync(tenantId, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published));
             }
 
-            var shortLink = (await products.FindByCodeAsync(tenantId, ShortLinkSubscriptionDefinitions.ProductCode))!;
+            var shortLink = (await products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode))!;
             shortLink = await catalog.UpdateProductAsync(tenantId, shortLink.Id, shortLink.ConcurrencyStamp, new CatalogDetails("Administrator name"));
             var stamp = shortLink.ConcurrencyStamp;
             await seed.SeedAsync(new DataSeedContext(tenantId));
-            shortLink = (await products.FindByCodeAsync(tenantId, ShortLinkSubscriptionDefinitions.ProductCode))!;
+            shortLink = (await products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode))!;
             Assert.Equal("Administrator name", shortLink.Name);
             Assert.Equal(SubscriptionCatalogState.Published, shortLink.State);
             Assert.Equal(stamp, shortLink.ConcurrencyStamp);
@@ -458,7 +458,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
     private Task<IReadOnlyList<UserSubscription>> ReadSubscriptionsAsync(CatalogData data) =>
         InUnitAsync<IReadOnlyList<UserSubscription>>(data.TenantId, async services =>
             (await services.GetRequiredService<IUserSubscriptionRepository>().GetPageAsync(
-                new UserSubscriptionQuery(data.TenantId, services.GetRequiredService<SubscriptionPostgreSqlClock>().Now.ToUniversalTime(),
+                new UserSubscriptionQuery(services.GetRequiredService<SubscriptionPostgreSqlClock>().Now.ToUniversalTime(),
                     data.UserId))).Items);
 
     private async Task<T> InUnitAsync<T>(Guid? tenantId, Func<IServiceProvider, Task<T>> action)

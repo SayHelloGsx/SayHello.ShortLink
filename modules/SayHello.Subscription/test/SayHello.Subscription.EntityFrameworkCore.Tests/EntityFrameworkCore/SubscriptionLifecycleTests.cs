@@ -37,18 +37,18 @@ public class SubscriptionLifecycleTests : SubscriptionPersistenceTestBase
         Assert.NotEqual(a.Id, replacement.Id);
         await InTransactionAsync(async () =>
         {
-            var current = await Subscriptions.GetCurrentListAsync(null, data.UserId);
+            var current = await Subscriptions.GetCurrentListAsync(data.UserId);
             var retained = current.Single(x => x.ProductCode == "beta");
             Assert.Equal(b.Id, retained.Id);
             Assert.Equal(b.ConcurrencyStamp, retained.ConcurrencyStamp);
             Assert.Equal(b.ExpiresAt, retained.ExpiresAt);
             Assert.Equal(10, retained.Entitlements.Single(x => x.FeatureKey == "limit").NumericValue);
             Assert.Equal(99, current.Single(x => x.ProductCode == "alpha").Entitlements.Single(x => x.FeatureKey == "limit").NumericValue);
-            var history = await Subscriptions.GetAsync(null, a.Id);
+            var history = await Subscriptions.GetAsync(a.Id);
             Assert.False(history.IsCurrent);
             Assert.Equal(SubscriptionEndReason.Replaced, history.EndReason);
             Assert.Equal(10, history.Entitlements.Single(x => x.FeatureKey == "limit").NumericValue);
-            Assert.Equal(3, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(null, TestClock.Now, data.UserId))).TotalCount);
+            Assert.Equal(3, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
             return true;
         });
     }
@@ -69,8 +69,8 @@ public class SubscriptionLifecycleTests : SubscriptionPersistenceTestBase
             Assert.Null(await checker.FindEffectiveSubscriptionAsync(null, data.UserId, "alpha"));
             Assert.NotNull(await checker.FindEffectiveSubscriptionAsync(null, data.UserId, "gamma"));
             Assert.Equal(b.Id, (await checker.FindEffectiveSubscriptionAsync(null, data.UserId, "beta"))!.Id);
-            Assert.Equal(3, (await Subscriptions.GetCurrentListAsync(null, data.UserId)).Count);
-            var expired = await Subscriptions.GetPageAsync(new UserSubscriptionQuery(null, TestClock.Now,
+            Assert.Equal(3, (await Subscriptions.GetCurrentListAsync(data.UserId)).Count);
+            var expired = await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now,
                 data.UserId, Status: UserSubscriptionStatus.Expired));
             Assert.Single(expired.Items);
             Assert.Equal("alpha", expired.Items[0].ProductCode);
@@ -156,7 +156,7 @@ public class SubscriptionLifecycleTests : SubscriptionPersistenceTestBase
             InTransactionAsync(() => Manager.AssignPlanAsync(new AssignSubscriptionPlan(null, data.UserId, Target(preview.Items[0])))))).Code);
         await InTransactionAsync(async () =>
         {
-            Assert.Equal(assigned.Id, (await Subscriptions.FindCurrentAsync(null, data.UserId, data.Products[0].Id))!.Id);
+            Assert.Equal(assigned.Id, (await Subscriptions.FindCurrentAsync(data.UserId, data.Products[0].Id))!.Id);
             return true;
         });
     }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using SayHello.ShortLink.EntityFrameworkCore;
 using Shouldly;
 using Volo.Abp.Guids;
+using Volo.Abp.MultiTenancy;
 using Xunit;
 
 namespace SayHello.ShortLink.ShortLinks;
@@ -12,11 +13,13 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
 {
     private readonly IShortLinkRepository _repository;
     private readonly IGuidGenerator _guidGenerator;
+    private readonly ICurrentTenant _currentTenant;
 
     public ShortLinkRepositoryTests()
     {
         _repository = GetRequiredService<IShortLinkRepository>();
         _guidGenerator = GetRequiredService<IGuidGenerator>();
+        _currentTenant = GetRequiredService<ICurrentTenant>();
     }
 
     [Fact]
@@ -97,13 +100,12 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
         });
 
         var ownerCount = await WithUnitOfWorkAsync(() =>
-            _repository.GetCountAsync(firstOwnerId, null, null, null));
+            _repository.GetCountAsync(firstOwnerId, null, null));
         ownerCount.ShouldBe(2);
 
         var activeOwnerLinks = await WithUnitOfWorkAsync(() =>
             _repository.GetListAsync(
                 firstOwnerId,
-                null,
                 null,
                 ShortLinkStatus.Active,
                 "code",
@@ -112,10 +114,9 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
         activeOwnerLinks.Select(x => x.Code).ShouldBe(["Alpha01"]);
 
         var filterCount = await WithUnitOfWorkAsync(() =>
-            _repository.GetCountAsync(null, null, "Alpha", null));
+            _repository.GetCountAsync(null, "Alpha", null));
         var filteredPage = await WithUnitOfWorkAsync(() =>
             _repository.GetListAsync(
-                null,
                 null,
                 "Alpha",
                 null,
@@ -129,7 +130,6 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
         var targetMatches = await WithUnitOfWorkAsync(() =>
             _repository.GetListAsync(
                 firstOwnerId,
-                null,
                 "target-match",
                 null,
                 null,
@@ -138,15 +138,42 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
         targetMatches.Select(x => x.Code).ShouldBe(["Alpha01"]);
     }
 
+    [Fact]
+    public async Task ABP_Tenant_Filter_Should_Isolate_List_And_Count()
+    {
+        var ownerId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        var hostLink = Create(ownerId, "Host001");
+        var tenantLink = Create(ownerId, "Tenant01", tenantId: tenantId);
+
+        await WithUnitOfWorkAsync(() => _repository.InsertAsync(hostLink, autoSave: true));
+        using (_currentTenant.Change(tenantId))
+        {
+            await WithUnitOfWorkAsync(() => _repository.InsertAsync(tenantLink, autoSave: true));
+        }
+
+        (await WithUnitOfWorkAsync(() => _repository.GetCountByOwnerAsync(ownerId))).ShouldBe(1);
+        (await WithUnitOfWorkAsync(() => _repository.GetListAsync(
+            ownerId, null, null, "code", 0, 10))).Single().Id.ShouldBe(hostLink.Id);
+
+        using (_currentTenant.Change(tenantId))
+        {
+            (await WithUnitOfWorkAsync(() => _repository.GetCountByOwnerAsync(ownerId))).ShouldBe(1);
+            (await WithUnitOfWorkAsync(() => _repository.GetListAsync(
+                ownerId, null, null, "code", 0, 10))).Single().Id.ShouldBe(tenantLink.Id);
+        }
+    }
+
     private ShortLink Create(
         Guid ownerId,
         string code,
         string targetUrl = "https://example.com/",
-        string? title = null)
+        string? title = null,
+        Guid? tenantId = null)
     {
         return new ShortLink(
             _guidGenerator.Create(),
-            null,
+            tenantId,
             ownerId,
             code,
             targetUrl,

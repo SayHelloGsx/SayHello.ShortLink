@@ -152,7 +152,7 @@ public class CurrentUserEntitlementAppServiceTests
         });
         var subscription = _context.Assign(product, plan);
         var repository = Substitute.For<IUserSubscriptionRepository>();
-        repository.FindEffectiveAsync(_context.TenantId, _context.UserId, product.Code, _context.Now,
+        repository.FindEffectiveAsync(_context.UserId, product.Code, _context.Now,
             Arg.Any<CancellationToken>()).Returns(subscription);
         var definitions = Substitute.For<ISubscriptionDefinitionRegistry>();
         definitions.GetProduct(product.Code).Returns(definition);
@@ -270,8 +270,8 @@ public class CurrentUserEntitlementAppServiceTests
         item.ProductId.ShouldBe(product.Id);
         item.Entitlements.Single(e => e.FeatureKey == "limit").Value.NumericValue.ShouldBe(20);
         await _checker.Received(1).GetDefaultPlansAsync(_context.TenantId, _context.UserId,
-            Arg.Is<SubscriptionCatalogQuery>(query => query.TenantId == _context.TenantId &&
-                query.ProductId == product.Id && query.PublishedOnly && query.State == null &&
+            Arg.Is<SubscriptionCatalogQuery>(query => query.ProductId == product.Id &&
+                query.PublishedOnly && query.State == null &&
                 query.Filter == input.Filter && query.Sorting == input.Sorting &&
                 query.SkipCount == 3 && query.MaxResultCount == 2), Arg.Any<CancellationToken>());
     }
@@ -312,7 +312,7 @@ public class CurrentUserEntitlementAppServiceTests
         var subscriptions = Substitute.For<IUserSubscriptionRepository>();
         var defaults = Substitute.For<IDefaultSubscriptionPlanRepository>();
         var defaultPlan = new DefaultSubscriptionPlan(product, plan);
-        defaults.FindAsync(_context.TenantId, product.Code, Arg.Any<CancellationToken>()).Returns(defaultPlan);
+        defaults.FindAsync(product.Code, Arg.Any<CancellationToken>()).Returns(defaultPlan);
         defaults.GetPageAsync(Arg.Any<SubscriptionCatalogQuery>(), _context.UserId, _context.Now,
             Arg.Any<CancellationToken>()).Returns(new SubscriptionPage<DefaultSubscriptionPlan>(1, new[] { defaultPlan }));
         var service = CreateService(new SubscriptionEntitlementChecker(_definitions, subscriptions,
@@ -364,7 +364,7 @@ public class CurrentUserEntitlementAppServiceTests
             ["limit"] = EntitlementValue.Numeric(30)
         });
         var subscriptions = Substitute.For<IUserSubscriptionRepository>();
-        subscriptions.FindEffectiveAsync(_context.TenantId, _context.UserId, product.Code, _context.Now,
+        subscriptions.FindEffectiveAsync(_context.UserId, product.Code, _context.Now,
             Arg.Any<CancellationToken>()).Returns(subscription);
         var defaults = Substitute.For<IDefaultSubscriptionPlanRepository>();
         var service = CreateService(new SubscriptionEntitlementChecker(_definitions, subscriptions,

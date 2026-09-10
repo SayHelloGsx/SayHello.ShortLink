@@ -36,7 +36,7 @@ public class SubscriptionTransactionTests : SubscriptionPersistenceTestBase
         Assert.Equal(0, GetRequiredService<SubscriptionTestDistributedLock>().HeldCount);
         await InTransactionAsync(async () =>
         {
-            Assert.Equal(assigned.Id, (await Subscriptions.FindCurrentAsync(null, data.UserId, data.Products[0].Id))!.Id);
+            Assert.Equal(assigned.Id, (await Subscriptions.FindCurrentAsync(data.UserId, data.Products[0].Id))!.Id);
             return true;
         });
     }
@@ -77,10 +77,10 @@ public class SubscriptionTransactionTests : SubscriptionPersistenceTestBase
         Assert.Contains("forced second component failure", exception.InnerException!.Message);
         await InTransactionAsync(async () =>
         {
-            var current = await Subscriptions.GetCurrentListAsync(null, data.UserId);
+            var current = await Subscriptions.GetCurrentListAsync(data.UserId);
             Assert.Equal(originals.Select(x => x.Id).Order(), current.Select(x => x.Id).Order());
             Assert.All(current, x => { Assert.True(x.IsCurrent); Assert.Null(x.EndedAt); });
-            Assert.Equal(2, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(null, TestClock.Now, data.UserId))).TotalCount);
+            Assert.Equal(2, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
             return true;
         });
         Assert.Equal(0, GetRequiredService<SubscriptionTestDistributedLock>().HeldCount);
@@ -154,8 +154,8 @@ public class SubscriptionTransactionTests : SubscriptionPersistenceTestBase
         Assert.Single(outcomes, x => x == SubscriptionErrorCodes.ConcurrencyConflict);
         await InTransactionAsync(async () =>
         {
-            Assert.Single(await Subscriptions.GetCurrentListAsync(null, data.UserId));
-            Assert.Equal(1, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(null, TestClock.Now, data.UserId))).TotalCount);
+            Assert.Single(await Subscriptions.GetCurrentListAsync(data.UserId));
+            Assert.Equal(1, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
             return true;
         });
         Assert.Equal(0, GetRequiredService<SubscriptionTestDistributedLock>().HeldCount);

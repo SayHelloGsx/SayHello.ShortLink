@@ -53,7 +53,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         var cancellationToken = CancellationTokenProvider.Token;
         var quota = await _capabilityProvider.GetQuotaAsync(tenantId, ownerUserId, cancellationToken);
         var usedLinks = await _shortLinkRepository.GetCountByOwnerAsync(
-            ownerUserId, tenantId, cancellationToken);
+            ownerUserId, cancellationToken);
 
         return new ShortLinkCapabilitiesDto
         {
@@ -81,13 +81,11 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
 
         var totalCount = await _shortLinkRepository.GetCountAsync(
             ownerUserId,
-            CurrentTenant.Id,
             input.Filter,
             input.Status,
             cancellationToken);
         var entities = await _shortLinkRepository.GetListAsync(
             ownerUserId,
-            CurrentTenant.Id,
             input.Filter,
             input.Status,
             input.Sorting,

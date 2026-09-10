@@ -111,7 +111,6 @@ public class ShortLinkManager : DomainService
 
         var currentCount = await _shortLinkRepository.GetCountByOwnerAsync(
             ownerUserId,
-            tenantId,
             cancellationToken);
 
         if (quota.Limit is { } limit && currentCount >= limit)
@@ -122,7 +121,6 @@ public class ShortLinkManager : DomainService
 
         var validatedTarget = await _targetUrlValidator.ValidateAsync(
             targetUrl,
-            tenantId,
             cancellationToken);
         var code = customCode.IsNullOrWhiteSpace()
             ? await GenerateAvailableCodeAsync(cancellationToken)
@@ -147,7 +145,6 @@ public class ShortLinkManager : DomainService
     {
         var validatedTarget = await _targetUrlValidator.ValidateAsync(
             targetUrl,
-            shortLink.TenantId,
             cancellationToken);
 
         shortLink.Update(validatedTarget.NormalizedUrl, title, expiresAt);

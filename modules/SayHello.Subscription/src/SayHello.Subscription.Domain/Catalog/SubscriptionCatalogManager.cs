@@ -43,7 +43,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         {
             await LockCatalogAsync(unit, tenantId, cancellationToken);
             var definition = _definitions.GetProduct(registeredProductCode);
-            if (await _products.FindByCodeAsync(tenantId, definition.Code, cancellationToken) != null)
+            if (await _products.FindByCodeAsync(definition.Code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
             return await _products.InsertAsync(new SubscriptionProduct(_guids.Create(), tenantId, definition,
                 details.Name, details.Description, details.DisplayOrder), true, cancellationToken);
@@ -99,7 +99,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             await LockCatalogAsync(unit, tenantId, cancellationToken);
             var product = await GetProductAsync(tenantId, id, concurrencyStamp, cancellationToken);
             product.EnsureNoDefaultPlan();
-            if (await _products.IsReferencedAsync(tenantId, id, cancellationToken))
+            if (await _products.IsReferencedAsync(id, cancellationToken))
                 throw new BusinessException(SubscriptionErrorCodes.CatalogReferenced);
             await _products.DeleteAsync(product, true, cancellationToken);
             return product;
@@ -112,7 +112,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             await LockCatalogAsync(unit, tenantId, cancellationToken);
             var product = await _products.GetAsync(productId, cancellationToken: cancellationToken);
             code = SubscriptionCode.Normalize(code);
-            if (await _plans.FindByCodeAsync(tenantId, productId, code, cancellationToken) != null)
+            if (await _plans.FindByCodeAsync(productId, code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
             var plan = new SubscriptionPlan(_guids.Create(), product, code, details.Name, details.Description, details.DisplayOrder);
             plan.ReplaceEntitlements(_definitions.GetProduct(product.Code), entitlements);
@@ -157,7 +157,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             await LockCatalogAsync(unit, tenantId, cancellationToken);
             var plan = await GetPlanAsync(tenantId, id, concurrencyStamp, cancellationToken);
             await EnsureNotDefaultAsync(plan, cancellationToken);
-            if (await _plans.IsReferencedAsync(tenantId, id, cancellationToken))
+            if (await _plans.IsReferencedAsync(id, cancellationToken))
                 throw new BusinessException(SubscriptionErrorCodes.CatalogReferenced);
             await _plans.DeleteAsync(plan, true, cancellationToken);
             return plan;
@@ -169,7 +169,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         {
             await LockCatalogAsync(unit, tenantId, cancellationToken);
             code = SubscriptionCode.Normalize(code);
-            if (await _bundles.FindByCodeAsync(tenantId, code, cancellationToken) != null)
+            if (await _bundles.FindByCodeAsync(code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
             var plans = await GetBundlePlansAsync(tenantId, planIds, cancellationToken);
             return await _bundles.InsertAsync(new SubscriptionBundle(_guids.Create(), tenantId, code,
@@ -196,8 +196,8 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             switch (state)
             {
                 case SubscriptionCatalogState.Published:
-                    var plans = await _plans.GetByIdsAsync(tenantId, bundle.Items.Select(x => x.PlanId).ToArray(), cancellationToken);
-                    var products = await _products.GetByIdsAsync(tenantId, bundle.Items.Select(x => x.ProductId).ToArray(), cancellationToken);
+                    var plans = await _plans.GetByIdsAsync(bundle.Items.Select(x => x.PlanId).ToArray(), cancellationToken);
+                    var products = await _products.GetByIdsAsync(bundle.Items.Select(x => x.ProductId).ToArray(), cancellationToken);
                     foreach (var plan in plans)
                         foreach (var value in plan.Entitlements)
                             _definitions.GetFeature(plan.ProductCode, value.FeatureKey).Validate(value.ToValue());
@@ -214,7 +214,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         {
             await LockCatalogAsync(unit, tenantId, cancellationToken);
             var bundle = await GetBundleAsync(tenantId, id, concurrencyStamp, cancellationToken);
-            if (await _bundles.IsReferencedAsync(tenantId, id, cancellationToken))
+            if (await _bundles.IsReferencedAsync(id, cancellationToken))
                 throw new BusinessException(SubscriptionErrorCodes.CatalogReferenced);
             await _bundles.DeleteAsync(bundle, true, cancellationToken);
             return bundle;
@@ -262,7 +262,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
     {
         if (ids.Count < 2 || ids.Distinct().Count() != ids.Count)
             throw new BusinessException(SubscriptionErrorCodes.InvalidBundle);
-        var plans = await _plans.GetByIdsAsync(tenantId, ids, token);
+        var plans = await _plans.GetByIdsAsync(ids, token);
         if (plans.Count != ids.Count)
             throw new BusinessException(SubscriptionErrorCodes.InvalidBundle);
         return plans;

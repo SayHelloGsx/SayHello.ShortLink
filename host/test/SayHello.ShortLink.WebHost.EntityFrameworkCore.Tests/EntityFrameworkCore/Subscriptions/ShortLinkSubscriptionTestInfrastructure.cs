@@ -86,7 +86,7 @@ public static class ShortLinkSubscriptionTestData
         var tenantId = services.GetRequiredService<ICurrentTenant>().Id;
         var definition = Definition(services);
         var products = services.GetRequiredService<ISubscriptionProductRepository>();
-        var product = await products.FindByCodeAsync(tenantId, definition.Code);
+        var product = await products.FindByCodeAsync(definition.Code);
         if (product is null)
         {
             product = new SubscriptionProduct(Guid.NewGuid(), tenantId, definition, "Short-link integration");
@@ -115,7 +115,7 @@ public static class ShortLinkSubscriptionTestData
     {
         var tenantId = services.GetRequiredService<ICurrentTenant>().Id;
         var products = services.GetRequiredService<ISubscriptionProductRepository>();
-        var product = (await products.FindByCodeAsync(tenantId, ShortLinkSubscriptionDefinitions.ProductCode))!;
+        var product = (await products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode))!;
         var plan = planId.HasValue
             ? await services.GetRequiredService<ISubscriptionPlanRepository>().GetAsync(planId.Value)
             : null;

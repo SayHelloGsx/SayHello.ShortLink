@@ -28,20 +28,41 @@ public class SubscriptionCatalogTests : SubscriptionPersistenceTestBase
     }
 
     [Fact]
-    public async Task Explicit_repository_tenant_filters_remain_effective_when_ABP_filter_is_disabled()
+    public async Task ABP_tenant_filter_scopes_repositories_and_can_be_disabled()
     {
         var host = await SeedAsync();
         var tenantId = Guid.NewGuid();
         var tenant = await SeedAsync(tenantId);
+
+        await InTransactionAsync(async () =>
+        {
+            var repository = GetRequiredService<ISubscriptionProductRepository>();
+            Assert.Equal(3, (await repository.GetPageAsync(new SubscriptionCatalogQuery())).TotalCount);
+            Assert.Empty(await repository.GetByIdsAsync(new[] { tenant.Products[0].Id }));
+            await Assert.ThrowsAsync<EntityNotFoundException>(() => repository.GetAsync(tenant.Products[0].Id));
+            Assert.Equal(host.Products[0].Id, (await repository.FindByCodeAsync("alpha"))!.Id);
+            return true;
+        });
+
+        await InTransactionAsync(async () =>
+        {
+            var repository = GetRequiredService<ISubscriptionProductRepository>();
+            Assert.Equal(3, (await repository.GetPageAsync(new SubscriptionCatalogQuery())).TotalCount);
+            Assert.Empty(await repository.GetByIdsAsync(new[] { host.Products[0].Id }));
+            Assert.Equal(tenant.Products[0].Id, (await repository.GetAsync(tenant.Products[0].Id)).Id);
+            Assert.Equal(tenant.Products[0].Id, (await repository.FindByCodeAsync("alpha"))!.Id);
+            return true;
+        }, tenantId);
+
         using (GetRequiredService<IDataFilter<IMultiTenant>>().Disable())
         {
             await InTransactionAsync(async () =>
             {
                 var repository = GetRequiredService<ISubscriptionProductRepository>();
-                Assert.Equal(3, (await repository.GetPageAsync(new SubscriptionCatalogQuery(null))).TotalCount);
-                Assert.Empty(await repository.GetByIdsAsync(null, new[] { tenant.Products[0].Id }));
-                await Assert.ThrowsAsync<EntityNotFoundException>(() => repository.GetAsync(tenant.Products[0].Id));
-                Assert.Equal(host.Products[0].Id, (await repository.FindByCodeAsync(null, "alpha"))!.Id);
+                Assert.Equal(6, (await repository.GetPageAsync(new SubscriptionCatalogQuery())).TotalCount);
+                Assert.Equal(2, (await repository.GetByIdsAsync(
+                    new[] { host.Products[0].Id, tenant.Products[0].Id })).Count);
+                Assert.Equal(tenant.Products[0].Id, (await repository.GetAsync(tenant.Products[0].Id)).Id);
                 return true;
             });
         }
@@ -54,24 +75,24 @@ public class SubscriptionCatalogTests : SubscriptionPersistenceTestBase
         await InTransactionAsync(async () =>
         {
             var plans = await GetRequiredService<ISubscriptionPlanRepository>().GetPageAsync(
-                new SubscriptionCatalogQuery(null, PublishedOnly: true, Sorting: SubscriptionCatalogSort.NameDescending, MaxResultCount: 2));
+                new SubscriptionCatalogQuery(PublishedOnly: true, Sorting: SubscriptionCatalogSort.NameDescending, MaxResultCount: 2));
             Assert.Equal(3, plans.TotalCount);
             Assert.Equal(2, plans.Items.Count);
             Assert.All(plans.Items, plan => Assert.Equal(2, plan.Entitlements.Count));
             Assert.Equal("gamma", plans.Items[0].ProductCode);
             await Catalog.SetProductStateAsync(null, data.Products[0].Id, data.Products[0].ConcurrencyStamp, SubscriptionCatalogState.Withdrawn);
             Assert.Equal(2, (await GetRequiredService<ISubscriptionPlanRepository>().GetPageAsync(
-                new SubscriptionCatalogQuery(null, PublishedOnly: true))).TotalCount);
+                new SubscriptionCatalogQuery(PublishedOnly: true))).TotalCount);
             Assert.Equal(0, (await GetRequiredService<ISubscriptionBundleRepository>().GetPageAsync(
-                new SubscriptionCatalogQuery(null, PublishedOnly: true))).TotalCount);
+                new SubscriptionCatalogQuery(PublishedOnly: true))).TotalCount);
             return true;
         });
         Assert.Equal(SubscriptionErrorCodes.InvalidPaging, (await Assert.ThrowsAsync<BusinessException>(() =>
             InTransactionAsync(() => GetRequiredService<ISubscriptionProductRepository>().GetPageAsync(
-                new SubscriptionCatalogQuery(null, Sorting: (SubscriptionCatalogSort)99))))).Code);
+                new SubscriptionCatalogQuery(Sorting: (SubscriptionCatalogSort)99))))).Code);
         Assert.Equal(SubscriptionErrorCodes.InvalidPaging, (await Assert.ThrowsAsync<BusinessException>(() =>
             InTransactionAsync(() => GetRequiredService<ISubscriptionProductRepository>().GetPageAsync(
-                new SubscriptionCatalogQuery(null, MaxResultCount: 101))))).Code);
+                new SubscriptionCatalogQuery(MaxResultCount: 101))))).Code);
     }
 
     [Fact]

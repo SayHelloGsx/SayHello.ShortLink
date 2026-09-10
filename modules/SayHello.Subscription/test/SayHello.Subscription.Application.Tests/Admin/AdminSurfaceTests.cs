@@ -92,7 +92,7 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
             page.Items.Single().ConcurrencyStamp.ShouldBe(product.ConcurrencyStamp);
         }
         await repository.Received(1).GetPageAsync(Arg.Is<SubscriptionCatalogQuery>(q =>
-            q.TenantId == tenantId && q.Filter == "alpha" && q.SkipCount == 20 && q.MaxResultCount == 10 &&
+            q.Filter == "alpha" && q.SkipCount == 20 && q.MaxResultCount == 10 &&
             q.State == SubscriptionCatalogState.Draft && q.Sorting == SubscriptionCatalogSort.NameDescending && !q.PublishedOnly),
             Arg.Any<CancellationToken>());
     }
@@ -434,7 +434,7 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
         });
         var product = new SubscriptionProduct(Guid.NewGuid(), null, definition, "Alpha");
         var plan = new SubscriptionPlan(Guid.NewGuid(), product, "basic", "Basic");
-        GetRequiredService<ISubscriptionProductRepository>().GetByIdsAsync(null, Arg.Any<IReadOnlyCollection<Guid>>(),
+        GetRequiredService<ISubscriptionProductRepository>().GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(),
             Arg.Any<CancellationToken>()).Returns(new[] { product });
         _catalog.CreatePlanAsync(null, product.Id, "basic", Arg.Any<CatalogDetails>(),
             Arg.Any<IReadOnlyDictionary<string, EntitlementValue>>(), Arg.Any<CancellationToken>()).Returns(plan);
