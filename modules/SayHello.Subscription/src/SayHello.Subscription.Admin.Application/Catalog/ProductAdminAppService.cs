@@ -22,36 +22,36 @@ public class ProductAdminAppService : SubscriptionApplicationService, IProductAd
 
     public virtual Task<PagedResultDto<AdminProductDto>> GetListAsync(AdminCatalogQueryDto input) => _reader.ProductsAsync(input);
     public virtual async Task<AdminProductDto> GetAsync(Guid id) => await _reader.MapAsync(await _reader.ProductAsync(id));
-    public virtual Task<ListResultDto<RegisteredProductDto>> GetDefinitionsAsync() => Task.FromResult(_reader.Definitions());
+    public virtual Task<ListResultDto<RegisteredProductDto>> GetDefinitionsAsync() => _reader.DefinitionsAsync();
     public virtual Task<PagedResultDto<AdminPlanDto>> GetDefaultPlanOptionsAsync(Guid id, AdminCatalogQueryDto input) =>
         _reader.DefaultPlanOptionsAsync(id, input);
 
     [Authorize(SubscriptionAdminPermissions.Products.Create)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminProductDto> CreateAsync(CreateProductDto input) =>
-        await _reader.MapAsync(await _manager.CreateProductAsync(CurrentTenant.Id, input.Code,
+        await _reader.MapAsync(await _manager.CreateProductAsync(input.Code,
             new CatalogDetails(input.Name, input.Description, input.DisplayOrder), CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Products.Update)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminProductDto> UpdateAsync(Guid id, UpdateProductDto input) =>
-        await _reader.MapAsync(await _manager.UpdateProductAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        await _reader.MapAsync(await _manager.UpdateProductAsync(id, input.ConcurrencyStamp,
             new CatalogDetails(input.Name, input.Description, input.DisplayOrder), CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Products.Update)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminProductDto> SetDefaultPlanAsync(Guid id, SetDefaultPlanInputDto input) =>
-        await _reader.MapAsync(await _manager.SetDefaultPlanAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        await _reader.MapAsync(await _manager.SetDefaultPlanAsync(id, input.ConcurrencyStamp,
             input.PlanId, CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Products.Publish)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminProductDto> SetStateAsync(Guid id, CatalogStateInputDto input) =>
-        await _reader.MapAsync(await _manager.SetProductStateAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        await _reader.MapAsync(await _manager.SetProductStateAsync(id, input.ConcurrencyStamp,
             input.State, CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Products.Delete)]
     [UnitOfWork(isTransactional: true)]
     public virtual Task DeleteAsync(Guid id, VersionInputDto input) =>
-        _manager.DeleteProductAsync(CurrentTenant.Id, id, input.ConcurrencyStamp, CancellationTokenProvider.Token);
+        _manager.DeleteProductAsync(id, input.ConcurrencyStamp, CancellationTokenProvider.Token);
 }

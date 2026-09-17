@@ -45,4 +45,14 @@ public interface ICurrentUserEntitlementAppService : IApplicationService
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
         [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
         CancellationToken cancellationToken = default);
+
+    Task<EnumEntitlementResultDto> GetEnumAsync(
+        [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default);
+
+    Task<StringSetEntitlementResultDto> GetStringSetAsync(
+        [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default);
 }

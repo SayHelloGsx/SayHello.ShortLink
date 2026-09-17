@@ -57,10 +57,23 @@
                 <h2 class="h5">@L["CreateShortLink"]</h2>
                 <form method="post" asp-page-handler="Create" class="row g-3">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                    <div class="col-lg-6">
+                    <div class="col-lg-4">
                         <label asp-for="NewLink.TargetUrl" class="form-label">@L["TargetUrl"]</label>
                         <input asp-for="NewLink.TargetUrl" class="form-control" placeholder="https://example.com/path" />
                         <span asp-validation-for="NewLink.TargetUrl" class="text-danger"></span>
+                    </div>
+                    <div class="col-lg-2">
+                        <label asp-for="NewLink.Origin" class="form-label">@L["Origin"]</label>
+                        <select asp-for="NewLink.Origin" class="form-select">
+                            <option value="">@L["SelectDomain"]</option>
+                            @foreach (var domain in Model.Capabilities.Domains)
+                            {
+                                <option value="@domain.Origin">
+                                    @domain.Origin@(domain.IsDefault ? $" ({L["Default"]})" : string.Empty)
+                                </option>
+                            }
+                        </select>
+                        <span asp-validation-for="NewLink.Origin" class="text-danger"></span>
                     </div>
                     <div class="col-lg-2">
                         <label asp-for="NewLink.CustomCode" class="form-label">@L["CustomCode"]</label>

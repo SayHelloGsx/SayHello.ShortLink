@@ -15,7 +15,10 @@ public class ShortLinkRedirectControllerTests
     public async Task ResolveAsync_Should_Return_451_View_For_A_Blocked_Destination()
     {
         var appService = Substitute.For<IShortLinkRedirectAppService>();
-        appService.ResolveAsync("Blocked1", Arg.Any<RecordShortLinkVisitDto?>())
+        appService.ResolveAsync(
+                "https://short.example.test",
+                "Blocked1",
+                Arg.Any<RecordShortLinkVisitDto?>())
             .Returns(
                 new ShortLinkResolutionDto
                 {
@@ -25,6 +28,8 @@ public class ShortLinkRedirectControllerTests
                 });
         var httpContext = new DefaultHttpContext();
         httpContext.Request.Method = HttpMethods.Get;
+        httpContext.Request.Scheme = "https";
+        httpContext.Request.Host = new HostString("short.example.test");
         var controller = new ShortLinkRedirectController(appService)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }

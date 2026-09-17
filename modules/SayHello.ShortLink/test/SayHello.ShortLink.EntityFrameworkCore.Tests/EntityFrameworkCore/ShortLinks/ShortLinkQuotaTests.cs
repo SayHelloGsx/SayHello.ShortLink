@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SayHello.ShortLink.EntityFrameworkCore;
+using SayHello.ShortLink.ShortLinkDomains;
 using Shouldly;
 using Volo.Abp;
 using Volo.Abp.Data;
@@ -17,7 +18,9 @@ using Xunit;
 
 namespace SayHello.ShortLink.ShortLinks;
 
-public class ShortLinkQuotaTests : ShortLinkTestBase<ShortLinkQuotaTestModule>
+public class ShortLinkQuotaTests :
+    ShortLinkTestBase<ShortLinkQuotaTestModule>,
+    IAsyncLifetime
 {
     private readonly Guid _owner = Guid.NewGuid();
     private readonly QuotaCapabilityProvider _capabilities;
@@ -25,6 +28,7 @@ public class ShortLinkQuotaTests : ShortLinkTestBase<ShortLinkQuotaTestModule>
     private readonly IUnitOfWorkManager _units;
     private readonly IShortLinkRepository _repository;
     private readonly ShortLinkManager _manager;
+    private readonly ShortLinkDomainManager _domainManager;
 
     public ShortLinkQuotaTests()
     {
@@ -33,7 +37,15 @@ public class ShortLinkQuotaTests : ShortLinkTestBase<ShortLinkQuotaTestModule>
         _units = GetRequiredService<IUnitOfWorkManager>();
         _repository = GetRequiredService<IShortLinkRepository>();
         _manager = GetRequiredService<ShortLinkManager>();
+        _domainManager = GetRequiredService<ShortLinkDomainManager>();
     }
+    public async Task InitializeAsync()
+    {
+        await CreateDomainAsync();
+        _locks.ResetAcquisitions();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Theory]
     [InlineData(20)]
@@ -163,10 +175,10 @@ public class ShortLinkQuotaTests : ShortLinkTestBase<ShortLinkQuotaTestModule>
         _capabilities.Quota = ShortLinkQuota.Limited(2);
         var link = await CreateAsync();
         (await Should.ThrowAsync<BusinessException>(() => _manager.CreateAndSaveAsync(
-            Guid.NewGuid(), null, _owner, link.TargetUrl, link.Code, null, null))).Code
+            Guid.NewGuid(), _owner, link.Origin!, link.TargetUrl, link.Code, null, null))).Code
             .ShouldBe(ShortLinkErrorCodes.CodeAlreadyExists);
         await Should.ThrowAsync<OperationCanceledException>(() => _manager.CreateAndSaveAsync(
-            Guid.NewGuid(), null, _owner, link.TargetUrl, null, null, null,
+            Guid.NewGuid(), _owner, link.Origin!, link.TargetUrl, null, null, null,
             new CancellationToken(true)));
         _locks.ActiveCount.ShouldBe(0);
         (await CountAsync()).ShouldBe(1);
@@ -206,7 +218,7 @@ public class ShortLinkQuotaTests : ShortLinkTestBase<ShortLinkQuotaTestModule>
             var manager = scope.ServiceProvider.GetRequiredService<ShortLinkManager>();
             try
             {
-                await CreateWithAsync(manager, _owner, null);
+                await CreateWithAsync(manager, _owner);
                 return true;
             }
             catch (BusinessException exception) when (exception.Code == ShortLinkErrorCodes.LinkQuotaExceeded)
@@ -226,23 +238,34 @@ public class ShortLinkQuotaTests : ShortLinkTestBase<ShortLinkQuotaTestModule>
     {
         _capabilities.Quota = ShortLinkQuota.Limited(1);
         await CreateAsync();
-        await CreateWithAsync(_manager, Guid.NewGuid(), null);
+        await CreateWithAsync(_manager, Guid.NewGuid());
         var tenantId = Guid.NewGuid();
         using (GetRequiredService<ICurrentTenant>().Change(tenantId))
         {
-            await CreateWithAsync(_manager, _owner, tenantId);
-            await Should.ThrowAsync<BusinessException>(() => CreateWithAsync(_manager, _owner, tenantId));
+            await CreateDomainAsync();
+            await CreateWithAsync(_manager, _owner);
+            await Should.ThrowAsync<BusinessException>(() => CreateWithAsync(_manager, _owner));
         }
         (await CountAsync()).ShouldBe(1);
-        await Should.ThrowAsync<BusinessException>(() => CreateWithAsync(_manager, _owner, tenantId));
+        await Should.ThrowAsync<BusinessException>(() => CreateWithAsync(_manager, _owner));
     }
 
     private Task<ShortLink> CreateAsync(DateTime? expiresAt = null, string target = "https://example.com/path") =>
-        _manager.CreateAndSaveAsync(Guid.NewGuid(), null, _owner, target,
+        _manager.CreateAndSaveAsync(Guid.NewGuid(), _owner, "https://go.example.test", target,
             "Q" + Guid.NewGuid().ToString("N"), null, expiresAt);
 
-    private static Task<ShortLink> CreateWithAsync(ShortLinkManager manager, Guid owner, Guid? tenantId) =>
-        manager.CreateAndSaveAsync(Guid.NewGuid(), tenantId, owner, "https://example.com/path",
+    private Task CreateDomainAsync()
+    {
+        return WithUnitOfWorkAsync(async () =>
+        {
+            var domain = await _domainManager.CreateAsync("https://go.example.test");
+            await GetRequiredService<IShortLinkDomainRepository>()
+                .InsertAsync(domain, autoSave: true);
+        });
+    }
+
+    private static Task<ShortLink> CreateWithAsync(ShortLinkManager manager, Guid owner) =>
+        manager.CreateAndSaveAsync(Guid.NewGuid(), owner, "https://go.example.test", "https://example.com/path",
             "Q" + Guid.NewGuid().ToString("N"), null, null);
 
     private Task<long> CountAsync() =>
@@ -267,10 +290,16 @@ public class QuotaCapabilityProvider : IShortLinkCapabilityProvider
 {
     public ShortLinkQuota Quota { get; set; } = ShortLinkQuota.Unlimited;
     public bool IsQuotaExternallyManaged => true;
-    public Task<ShortLinkQuota> GetQuotaAsync(Guid? tenantId, Guid userId, CancellationToken cancellationToken = default) =>
+    public Task<ShortLinkQuota> GetQuotaAsync(Guid userId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Quota);
-    public Task<bool> IsStatisticsEnabledAsync(Guid? tenantId, Guid userId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
+    public Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(ShortLinkStatisticsLevel.Advanced);
+    public Task<ShortLinkDomainAccess> GetDomainAccessAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(ShortLinkDomainAccess.Unrestricted);
 }
 
 public class QuotaTrackingLock : IAbpDistributedLock
@@ -281,6 +310,11 @@ public class QuotaTrackingLock : IAbpDistributedLock
     public int ActiveCount => _activeCount;
     public int Acquisitions => _acquisitions;
     public bool FailAcquisition { get; set; }
+
+    public void ResetAcquisitions()
+    {
+        Interlocked.Exchange(ref _acquisitions, 0);
+    }
 
     public async Task<IAbpDistributedLockHandle?> TryAcquireAsync(
         string name, TimeSpan timeout = default, CancellationToken cancellationToken = default)

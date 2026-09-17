@@ -38,11 +38,14 @@ public class ShortLinkCapabilityTests
         var settings = Substitute.For<ISettingProvider>();
         settings.GetOrNullAsync(ShortLinkSettings.MaxLinksPerUser).Returns(value);
         var provider = new SettingShortLinkCapabilityProvider(settings);
-        var quota = await provider.GetQuotaAsync(null, Guid.NewGuid());
+        var quota = await provider.GetQuotaAsync(Guid.NewGuid());
 
         provider.IsQuotaExternallyManaged.ShouldBeFalse();
         quota.Limit.ShouldBe(value is null ? ShortLinkDefaults.MaxLinksPerUser : 20);
-        (await provider.IsStatisticsEnabledAsync(null, Guid.NewGuid())).ShouldBeTrue();
+        (await provider.GetStatisticsLevelAsync(Guid.NewGuid()))
+            .ShouldBe(ShortLinkStatisticsLevel.Advanced);
+        (await provider.GetDomainAccessAsync(Guid.NewGuid()))
+            .ShouldBeSameAs(ShortLinkDomainAccess.Unrestricted);
     }
 
     [Theory]
@@ -56,7 +59,7 @@ public class ShortLinkCapabilityTests
         settings.GetOrNullAsync(ShortLinkSettings.MaxLinksPerUser).Returns(value);
         var provider = new SettingShortLinkCapabilityProvider(settings);
 
-        await Should.ThrowAsync<AbpException>(() => provider.GetQuotaAsync(null, Guid.NewGuid()));
+        await Should.ThrowAsync<AbpException>(() => provider.GetQuotaAsync(Guid.NewGuid()));
     }
 
     [Fact]
@@ -64,6 +67,8 @@ public class ShortLinkCapabilityTests
     {
         var provider = new SettingShortLinkCapabilityProvider(Substitute.For<ISettingProvider>());
         await Should.ThrowAsync<OperationCanceledException>(() =>
-            provider.GetQuotaAsync(null, Guid.NewGuid(), new CancellationToken(true)));
+            provider.GetQuotaAsync(Guid.NewGuid(), new CancellationToken(true)));
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            provider.GetDomainAccessAsync(Guid.NewGuid(), new CancellationToken(true)));
     }
 }

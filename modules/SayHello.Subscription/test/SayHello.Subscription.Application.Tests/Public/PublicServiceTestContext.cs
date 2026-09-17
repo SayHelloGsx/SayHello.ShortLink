@@ -49,7 +49,11 @@ internal sealed class PublicServiceTestContext
             new FeatureDefinition("enabled", new FixedLocalizableString("Enabled feature"),
                 SubscriptionEntitlementType.Boolean, description: new FixedLocalizableString("Feature description")),
             new FeatureDefinition("limit", new FixedLocalizableString("Numeric limit"),
-                SubscriptionEntitlementType.Numeric, allowUnlimited: true)
+                SubscriptionEntitlementType.Numeric, allowUnlimited: true),
+            new FeatureDefinition("tier", new FixedLocalizableString("Tier"),
+                SubscriptionEntitlementType.Enum),
+            new FeatureDefinition("regions", new FixedLocalizableString("Regions"),
+                SubscriptionEntitlementType.StringSet)
         });
         var product = new SubscriptionProduct(Guid.NewGuid(), TenantId, definition, code + " product");
         product.Publish();

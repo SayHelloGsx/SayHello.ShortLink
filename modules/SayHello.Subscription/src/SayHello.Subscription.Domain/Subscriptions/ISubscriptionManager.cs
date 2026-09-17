@@ -14,15 +14,15 @@ namespace SayHello.Subscription.Subscriptions;
 /// </summary>
 public interface ISubscriptionManager
 {
-    Task<SubscriptionAssignmentPreview> PreviewPlanAsync(Guid? tenantId, Guid userId, Guid planId,
+    Task<SubscriptionAssignmentPreview> PreviewPlanAsync(Guid userId, Guid planId,
         CancellationToken cancellationToken = default);
-    Task<SubscriptionAssignmentPreview> PreviewBundleAsync(Guid? tenantId, Guid userId, Guid bundleId,
+    Task<SubscriptionAssignmentPreview> PreviewBundleAsync(Guid userId, Guid bundleId,
         CancellationToken cancellationToken = default);
     Task<UserSubscription> AssignPlanAsync(AssignSubscriptionPlan input, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UserSubscription>> AssignBundleAsync(AssignSubscriptionBundle input,
         CancellationToken cancellationToken = default);
-    Task<UserSubscription> RevokeAsync(Guid? tenantId, Guid subscriptionId, string concurrencyStamp,
+    Task<UserSubscription> RevokeAsync(Guid subscriptionId, string concurrencyStamp,
         string? reason = null, CancellationToken cancellationToken = default);
-    Task<UserSubscription> AdjustExpirationAsync(Guid? tenantId, Guid subscriptionId, string concurrencyStamp,
+    Task<UserSubscription> AdjustExpirationAsync(Guid subscriptionId, string concurrencyStamp,
         DateTime? expiresAt, CancellationToken cancellationToken = default);
 }

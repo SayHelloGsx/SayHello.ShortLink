@@ -11,7 +11,18 @@ public enum SubscriptionCatalogState
 public enum SubscriptionEntitlementType
 {
     Boolean = 0,
-    Numeric = 1
+    Numeric = 1,
+    Enum = 2,
+    StringSet = 3
+}
+
+public enum SubscriptionEntitlementInputMode
+{
+    Boolean = 0,
+    Numeric = 1,
+    Select = 2,
+    MultiSelect = 3,
+    MultiText = 4
 }
 
 public enum SubscriptionEndReason

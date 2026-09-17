@@ -5,5 +5,8 @@ namespace SayHello.ShortLink.Common.ShortLinks;
 
 public interface IShortLinkCacheInvalidator
 {
-    Task RemoveAsync(string code, CancellationToken cancellationToken = default);
+    Task RemoveAsync(
+        string? origin,
+        string code,
+        CancellationToken cancellationToken = default);
 }

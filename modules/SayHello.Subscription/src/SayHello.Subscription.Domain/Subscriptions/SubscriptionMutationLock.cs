@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.DistributedLocking;
+using Volo.Abp.MultiTenancy;
 using Volo.Abp.Threading;
 using Volo.Abp.Uow;
 
@@ -12,16 +13,29 @@ namespace SayHello.Subscription.Subscriptions;
 public class SubscriptionMutationLock : ITransientDependency
 {
     private readonly IAbpDistributedLock _distributedLock;
+    private readonly ICurrentTenant _currentTenant;
 
-    public SubscriptionMutationLock(IAbpDistributedLock distributedLock) => _distributedLock = distributedLock;
+    public SubscriptionMutationLock(
+        IAbpDistributedLock distributedLock,
+        ICurrentTenant currentTenant)
+    {
+        _distributedLock = distributedLock;
+        _currentTenant = currentTenant;
+    }
 
-    public Task AcquireAsync(IUnitOfWork unitOfWork, Guid? tenantId, Guid userId, CancellationToken cancellationToken) =>
-        AcquireKeyAsync(unitOfWork, $"Subscription:Mutation:{tenantId?.ToString("N") ?? "host"}:{userId:N}", cancellationToken);
+    public Task AcquireAsync(IUnitOfWork unitOfWork, Guid userId, CancellationToken cancellationToken) =>
+        AcquireKeyAsync(
+            unitOfWork,
+            $"Subscription:Mutation:{_currentTenant.Id?.ToString("N") ?? "host"}:{userId:N}",
+            cancellationToken);
 
     // Catalog commands may change several aggregate roots in one transaction.
     // Lock the tenant catalog before database access to keep their lock ordering consistent.
-    public Task AcquireCatalogAsync(IUnitOfWork unitOfWork, Guid? tenantId, CancellationToken cancellationToken) =>
-        AcquireKeyAsync(unitOfWork, $"Subscription:Catalog:{tenantId?.ToString("N") ?? "host"}", cancellationToken);
+    public Task AcquireCatalogAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        AcquireKeyAsync(
+            unitOfWork,
+            $"Subscription:Catalog:{_currentTenant.Id?.ToString("N") ?? "host"}",
+            cancellationToken);
 
     private async Task AcquireKeyAsync(IUnitOfWork unitOfWork, string key, CancellationToken cancellationToken)
     {

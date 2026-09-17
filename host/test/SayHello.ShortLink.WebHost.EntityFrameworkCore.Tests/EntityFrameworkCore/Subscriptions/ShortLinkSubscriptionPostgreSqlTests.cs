@@ -87,7 +87,7 @@ public class ShortLinkSubscriptionPostgreSqlTests : IAsyncLifetime
         {
             var input = ShortLinkSubscriptionTestData.NewLink();
             await services.GetRequiredService<ShortLinkManager>().CreateAndSaveAsync(
-                Guid.NewGuid(), tenantId, owner, input.TargetUrl, input.CustomCode, input.Title, null);
+                Guid.NewGuid(), owner, input.Origin, input.TargetUrl, input.CustomCode, input.Title, null);
         }, commit);
 
     private Task<T> RunAsync<T>(Guid? tenantId, Guid owner, Func<IServiceProvider, Task<T>> action) =>

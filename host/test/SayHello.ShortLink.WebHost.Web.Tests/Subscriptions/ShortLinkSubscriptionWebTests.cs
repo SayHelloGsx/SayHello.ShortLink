@@ -237,7 +237,8 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
         var id = created.RootElement.GetProperty("id").GetGuid();
         var code = created.RootElement.GetProperty("code").GetString();
         using var visitor = Client(null);
-        using var redirect = await visitor.GetAsync("/" + code);
+        using var redirect = await visitor.GetAsync(
+            ShortLinkSubscriptionTestData.DefaultOrigin + "/" + code);
         redirect.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         redirect.Headers.Location!.AbsoluteUri.ShouldBe("https://destination.example.test/path");
         using var denied = await client.GetAsync($"{Links}/{id}/statistics");

@@ -12,6 +12,7 @@ using Shouldly;
 using Volo.Abp;
 using Volo.Abp.Content;
 using Volo.Abp.Guids;
+using Volo.Abp.MultiTenancy;
 using Xunit;
 
 namespace SayHello.ShortLink.BlockedDomains;
@@ -29,7 +30,8 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
         _importer = new BlockedDomainCsvImporter(
             _repository,
             _guidGenerator,
-            GetRequiredService<IStringLocalizer<ShortLinkResource>>());
+            GetRequiredService<IStringLocalizer<ShortLinkResource>>(),
+            GetRequiredService<ICurrentTenant>());
     }
 
     [Fact]
@@ -55,7 +57,7 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
             """;
 
         var execution = await WithUnitOfWorkAsync(() =>
-            _importer.ImportAsync(CreateFile(csv), null));
+            _importer.ImportAsync(CreateFile(csv)));
 
         execution.Result.TotalRows.ShouldBe(5);
         execution.Result.ImportedCount.ShouldBe(2);
@@ -83,7 +85,7 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
     public async Task ImportAsync_Should_Require_Domain_Header()
     {
         var exception = await Should.ThrowAsync<BusinessException>(() =>
-            _importer.ImportAsync(CreateFile("Host,Reason\nexample.com,Test"), null));
+            _importer.ImportAsync(CreateFile("Host,Reason\nexample.com,Test")));
 
         exception.Code.ShouldBe(ShortLinkErrorCodes.BlockedDomainImportMissingDomainHeader);
     }
@@ -95,7 +97,7 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
         using var file = CreateFile(content);
 
         var exception = await Should.ThrowAsync<BusinessException>(() =>
-            _importer.ImportAsync(file, null));
+            _importer.ImportAsync(file));
 
         exception.Code.ShouldBe(ShortLinkErrorCodes.BlockedDomainImportTooLarge);
     }
@@ -112,7 +114,7 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
         }
 
         var exception = await Should.ThrowAsync<BusinessException>(() =>
-            _importer.ImportAsync(CreateFile(csv.ToString()), null));
+            _importer.ImportAsync(CreateFile(csv.ToString())));
 
         exception.Code.ShouldBe(ShortLinkErrorCodes.BlockedDomainImportTooManyRows);
     }

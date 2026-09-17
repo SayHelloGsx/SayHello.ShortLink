@@ -28,19 +28,19 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
     {
         var data = await SeedAsync();
         var free = await ConfigureFreeAsync(data);
-        var result = await Checker.RequireNumericAsync(null, data.UserId, "ALPHA", "LIMIT", 20);
+        var result = await Checker.RequireNumericAsync(data.UserId, "ALPHA", "LIMIT", 20);
         Assert.Equal(20, result.Limit);
         Assert.Equal(EntitlementSource.DefaultPlan, result.Source);
         Assert.Equal(free.Id, result.PlanId);
         Assert.Null(result.SubscriptionId);
         Assert.Equal(SubscriptionErrorCodes.EntitlementNotGranted,
-            (await Assert.ThrowsAsync<BusinessException>(() => Checker.RequireNumericAsync(null, data.UserId, "alpha", "limit", 21))).Code);
-        Assert.True((await Checker.GetBooleanAsync(null, data.UserId, "alpha", "enabled")).IsGranted);
-        var context = await Checker.ResolveAsync(null, data.UserId, "alpha");
+            (await Assert.ThrowsAsync<BusinessException>(() => Checker.RequireNumericAsync(data.UserId, "alpha", "limit", 21))).Code);
+        Assert.True((await Checker.GetBooleanAsync(data.UserId, "alpha", "enabled")).IsGranted);
+        var context = await Checker.ResolveAsync(data.UserId, "alpha");
         Assert.Equal(EntitlementSource.DefaultPlan, context.Source);
         Assert.Equal(free.Id, context.DefaultPlan!.Plan.Id);
         Assert.Null(context.Subscription);
-        Assert.Null(await Checker.FindEffectiveSubscriptionAsync(null, data.UserId, "alpha"));
+        Assert.Null(await Checker.FindEffectiveSubscriptionAsync(data.UserId, "alpha"));
         Assert.Equal(0, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
         Assert.Null(GetRequiredService<IUnitOfWorkManager>().Current);
     }
@@ -53,30 +53,30 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var data = await SeedAsync();
         var free = await ConfigureFreeAsync(data);
         var subscription = await AssignProAsync(data, TestClock.Now.AddHours(1));
-        var pro = await Checker.RequireNumericAsync(null, data.UserId, "alpha", "limit", 100);
+        var pro = await Checker.RequireNumericAsync(data.UserId, "alpha", "limit", 100);
         Assert.Equal(100, pro.Limit);
         Assert.Equal(subscription.Id, pro.SubscriptionId);
         Assert.Equal(subscription.SourcePlanId, pro.PlanId);
         Assert.Equal(EntitlementSource.Subscription, pro.Source);
         Assert.Equal(SubscriptionErrorCodes.EntitlementNotGranted,
-            (await Assert.ThrowsAsync<BusinessException>(() => Checker.RequireNumericAsync(null, data.UserId, "alpha", "limit", 101))).Code);
+            (await Assert.ThrowsAsync<BusinessException>(() => Checker.RequireNumericAsync(data.UserId, "alpha", "limit", 101))).Code);
 
         await InTransactionAsync(async () =>
         {
-            await Catalog.UpdatePlanAsync(null, free.Id, free.ConcurrencyStamp, new CatalogDetails("Free updated"),
+            await Catalog.UpdatePlanAsync(free.Id, free.ConcurrencyStamp, new CatalogDetails("Free updated"),
                 SubscriptionTestDefinitions.Values(25));
             var plan = await GetRequiredService<ISubscriptionPlanRepository>().GetAsync(subscription.SourcePlanId);
-            await Catalog.UpdatePlanAsync(null, plan.Id, plan.ConcurrencyStamp, new CatalogDetails("Pro updated"),
+            await Catalog.UpdatePlanAsync(plan.Id, plan.ConcurrencyStamp, new CatalogDetails("Pro updated"),
                 SubscriptionTestDefinitions.Values(200));
             return true;
         });
-        Assert.Equal(100, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
+        Assert.Equal(100, (await Checker.GetNumericAsync(data.UserId, "alpha", "limit")).Limit);
         if (revoke)
-            await Manager.RevokeAsync(null, subscription.Id, subscription.ConcurrencyStamp, "test");
+            await Manager.RevokeAsync(subscription.Id, subscription.ConcurrencyStamp, "test");
         else
             TestClock.Now = subscription.ExpiresAt!.Value;
 
-        var fallback = await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit");
+        var fallback = await Checker.GetNumericAsync(data.UserId, "alpha", "limit");
         Assert.Equal(25, fallback.Limit);
         Assert.Equal(EntitlementSource.DefaultPlan, fallback.Source);
         Assert.Null(fallback.SubscriptionId);
@@ -95,18 +95,18 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
             var values = SubscriptionTestDefinitions.Values(0);
             values["enabled"] = EntitlementValue.Boolean(false);
             if (omitLimit) values.Remove("limit");
-            var plan = await Catalog.CreatePlanAsync(null, data.Products[0].Id, "restricted", new CatalogDetails("Restricted"), values);
-            plan = await Catalog.SetPlanStateAsync(null, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
-            var preview = await Manager.PreviewPlanAsync(null, data.UserId, plan.Id);
-            return await Manager.AssignPlanAsync(new AssignSubscriptionPlan(null, data.UserId, Target(preview.Items[0])));
+            var plan = await Catalog.CreatePlanAsync(data.Products[0].Id, "restricted", new CatalogDetails("Restricted"), values);
+            plan = await Catalog.SetPlanStateAsync(plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
+            var preview = await Manager.PreviewPlanAsync(data.UserId, plan.Id);
+            return await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.UserId, Target(preview.Items[0])));
         });
-        var numeric = await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit");
+        var numeric = await Checker.GetNumericAsync(data.UserId, "alpha", "limit");
         Assert.Equal(subscription.Id, numeric.SubscriptionId);
         Assert.Equal(EntitlementSource.Subscription, numeric.Source);
         Assert.Equal(omitLimit ? EntitlementGrantStatus.NotGranted : EntitlementGrantStatus.Granted, numeric.Status);
         Assert.Equal(omitLimit ? (long?)null : 0, numeric.Limit);
-        Assert.False((await Checker.GetBooleanAsync(null, data.UserId, "alpha", "enabled")).IsGranted);
-        Assert.False((await Checker.GetBooleanAsync(null, data.UserId, "alpha", "future")).IsGranted);
+        Assert.False((await Checker.GetBooleanAsync(data.UserId, "alpha", "enabled")).IsGranted);
+        Assert.False((await Checker.GetBooleanAsync(data.UserId, "alpha", "future")).IsGranted);
     }
 
     [Theory]
@@ -121,18 +121,18 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         values["enabled"] = EntitlementValue.Boolean(false);
         if (kind == "missing") values.Remove("limit");
         if (kind == "unlimited") values["limit"] = EntitlementValue.Unlimited();
-        await Catalog.UpdatePlanAsync(null, free.Id, free.ConcurrencyStamp, new CatalogDetails("Free"), values);
-        var result = await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit");
+        await Catalog.UpdatePlanAsync(free.Id, free.ConcurrencyStamp, new CatalogDetails("Free"), values);
+        var result = await Checker.GetNumericAsync(data.UserId, "alpha", "limit");
         Assert.Equal(EntitlementSource.DefaultPlan, result.Source);
         Assert.Equal(kind != "missing", result.Allows(0));
         Assert.Equal(kind == "unlimited", result.Allows(long.MaxValue));
         Assert.Equal(kind == "zero" ? 0 : (long?)null, result.Limit);
         Assert.Equal(kind == "unlimited", result.IsUnlimited);
-        Assert.Equal(EntitlementGrantStatus.NotGranted, (await Checker.GetBooleanAsync(null, data.UserId, "alpha", "enabled")).Status);
+        Assert.Equal(EntitlementGrantStatus.NotGranted, (await Checker.GetBooleanAsync(data.UserId, "alpha", "enabled")).Status);
         Assert.Equal(SubscriptionErrorCodes.UnknownFeature,
-            (await Assert.ThrowsAsync<BusinessException>(() => Checker.GetNumericAsync(null, data.UserId, "alpha", "unknown"))).Code);
+            (await Assert.ThrowsAsync<BusinessException>(() => Checker.GetNumericAsync(data.UserId, "alpha", "unknown"))).Code);
         Assert.Equal(SubscriptionErrorCodes.EntitlementTypeMismatch,
-            (await Assert.ThrowsAsync<BusinessException>(() => Checker.GetBooleanAsync(null, data.UserId, "alpha", "limit"))).Code);
+            (await Assert.ThrowsAsync<BusinessException>(() => Checker.GetBooleanAsync(data.UserId, "alpha", "limit"))).Code);
     }
 
     [Fact]
@@ -142,15 +142,15 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         for (var index = 0; index < 3; index++) await ConfigureFreeAsync(data, index);
         await AssignPlanAsync(data, 0);
         var query = new SubscriptionCatalogQuery(Sorting: SubscriptionCatalogSort.Name, MaxResultCount: 1);
-        var first = await Checker.GetDefaultPlansAsync(null, data.UserId, query);
+        var first = await Checker.GetDefaultPlansAsync(data.UserId, query);
         Assert.Equal(2, first.TotalCount);
         Assert.Equal("beta", Assert.Single(first.Items).Product.Code);
-        var second = await Checker.GetDefaultPlansAsync(null, data.UserId, query with { SkipCount = 1 });
+        var second = await Checker.GetDefaultPlansAsync(data.UserId, query with { SkipCount = 1 });
         Assert.Equal(2, second.TotalCount);
         Assert.Equal("gamma", Assert.Single(second.Items).Product.Code);
-        var filtered = await Checker.GetDefaultPlansAsync(null, data.UserId, query with { ProductId = data.Products[0].Id });
+        var filtered = await Checker.GetDefaultPlansAsync(data.UserId, query with { ProductId = data.Products[0].Id });
         Assert.Empty(filtered.Items);
-        var searched = await Checker.GetDefaultPlansAsync(null, data.UserId, query with { Filter = "GAMMA" });
+        var searched = await Checker.GetDefaultPlansAsync(data.UserId, query with { Filter = "GAMMA" });
         Assert.Equal(1, searched.TotalCount);
         Assert.Equal("gamma", Assert.Single(searched.Items).Product.Code);
         Assert.Equal(1, (await Subscriptions.GetPageAsync(new UserSubscriptionQuery(TestClock.Now, data.UserId))).TotalCount);
@@ -164,20 +164,18 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var tenant = await SeedAsync(tenantId);
         await ConfigureFreeAsync(host);
         var tenantPlan = await ConfigureFreeAsync(tenant, 1);
-        Assert.Equal(EntitlementSource.DefaultPlan, (await Checker.ResolveAsync(null, host.UserId, "alpha")).Source);
-        Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(null, host.UserId, "beta")).Source);
+        Assert.Equal(EntitlementSource.DefaultPlan, (await Checker.ResolveAsync(host.UserId, "alpha")).Source);
+        Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(host.UserId, "beta")).Source);
         using (GetRequiredService<ICurrentTenant>().Change(tenantId))
         {
-            Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(tenantId, tenant.UserId, "alpha")).Source);
-            Assert.Equal(tenantPlan.Id, (await Checker.ResolveAsync(tenantId, tenant.UserId, "beta")).PlanId);
-            var page = await Checker.GetDefaultPlansAsync(tenantId, tenant.UserId, new SubscriptionCatalogQuery());
+            Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(tenant.UserId, "alpha")).Source);
+            Assert.Equal(tenantPlan.Id, (await Checker.ResolveAsync(tenant.UserId, "beta")).PlanId);
+            var page = await Checker.GetDefaultPlansAsync(tenant.UserId, new SubscriptionCatalogQuery());
             Assert.Equal(tenantPlan.Id, Assert.Single(page.Items).Plan.Id);
-            Assert.Equal(SubscriptionErrorCodes.TenantMismatch,
-                (await Assert.ThrowsAsync<BusinessException>(() => Checker.ResolveAsync(null, host.UserId, "alpha"))).Code);
         }
         var product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(host.Products[0].Id);
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, tenantPlan.Id));
+            Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, tenantPlan.Id));
     }
 
     [Fact]
@@ -186,21 +184,21 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var data = await SeedAsync();
         var product = data.Products[0];
         Assert.Equal(SubscriptionErrorCodes.InvalidDefaultPlan, (await Assert.ThrowsAsync<BusinessException>(() =>
-            Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, data.Plans[1].Id))).Code);
-        var draft = await Catalog.CreatePlanAsync(null, product.Id, "draft", new CatalogDetails("Draft"), SubscriptionTestDefinitions.Values());
+            Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, data.Plans[1].Id))).Code);
+        var draft = await Catalog.CreatePlanAsync(product.Id, "draft", new CatalogDetails("Draft"), SubscriptionTestDefinitions.Values());
         product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(product.Id);
         Assert.Equal(SubscriptionErrorCodes.InvalidDefaultPlan, (await Assert.ThrowsAsync<BusinessException>(() =>
-            Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, draft.Id))).Code);
-        var updated = await Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, data.Plans[0].Id);
+            Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, draft.Id))).Code);
+        var updated = await Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, data.Plans[0].Id);
         Assert.Equal(SubscriptionErrorCodes.ConcurrencyConflict, (await Assert.ThrowsAsync<BusinessException>(() =>
-            Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, null))).Code);
+            Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, null))).Code);
         Assert.Equal(data.Plans[0].Id, (await GetRequiredService<ISubscriptionProductRepository>().GetAsync(updated.Id)).DefaultPlanId);
-        await Catalog.SetDefaultPlanAsync(null, updated.Id, updated.ConcurrencyStamp, null);
-        var result = await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit");
+        await Catalog.SetDefaultPlanAsync(updated.Id, updated.ConcurrencyStamp, null);
+        var result = await Checker.GetNumericAsync(data.UserId, "alpha", "limit");
         Assert.Equal(EntitlementGrantStatus.NoSubscription, result.Status);
         Assert.Equal(EntitlementSource.None, result.Source);
         Assert.Equal(SubscriptionErrorCodes.NoEffectiveSubscription,
-            (await Assert.ThrowsAsync<BusinessException>(() => Checker.RequireNumericAsync(null, data.UserId, "alpha", "limit", 0))).Code);
+            (await Assert.ThrowsAsync<BusinessException>(() => Checker.RequireNumericAsync(data.UserId, "alpha", "limit", 0))).Code);
     }
 
     [Theory]
@@ -212,18 +210,18 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var free = await ConfigureFreeAsync(data);
         var product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(data.Products[0].Id);
         Assert.Equal(SubscriptionErrorCodes.DefaultPlanInUse, (await Assert.ThrowsAsync<BusinessException>(() =>
-            Catalog.SetProductStateAsync(null, product.Id, product.ConcurrencyStamp, state))).Code);
+            Catalog.SetProductStateAsync(product.Id, product.ConcurrencyStamp, state))).Code);
         Assert.Equal(SubscriptionErrorCodes.DefaultPlanInUse, (await Assert.ThrowsAsync<BusinessException>(() =>
-            Catalog.SetPlanStateAsync(null, free.Id, free.ConcurrencyStamp, state))).Code);
+            Catalog.SetPlanStateAsync(free.Id, free.ConcurrencyStamp, state))).Code);
         Assert.Equal(SubscriptionErrorCodes.DefaultPlanInUse, (await Assert.ThrowsAsync<BusinessException>(() =>
-            Catalog.DeletePlanAsync(null, free.Id, free.ConcurrencyStamp))).Code);
+            Catalog.DeletePlanAsync(free.Id, free.ConcurrencyStamp))).Code);
         Assert.Equal(SubscriptionErrorCodes.DefaultPlanInUse, (await Assert.ThrowsAsync<BusinessException>(() =>
-            Catalog.DeleteProductAsync(null, product.Id, product.ConcurrencyStamp))).Code);
-        product = await Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, null);
-        await Catalog.SetPlanStateAsync(null, free.Id, free.ConcurrencyStamp, state);
+            Catalog.DeleteProductAsync(product.Id, product.ConcurrencyStamp))).Code);
+        product = await Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, null);
+        await Catalog.SetPlanStateAsync(free.Id, free.ConcurrencyStamp, state);
         product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(product.Id);
-        await Catalog.SetProductStateAsync(null, product.Id, product.ConcurrencyStamp, state);
-        Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(null, data.UserId, "alpha")).Source);
+        await Catalog.SetProductStateAsync(product.Id, product.ConcurrencyStamp, state);
+        Assert.Equal(EntitlementSource.None, (await Checker.ResolveAsync(data.UserId, "alpha")).Source);
         Assert.Equal(0, GetRequiredService<SubscriptionTestDistributedLock>().HeldCount);
     }
 
@@ -251,8 +249,8 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         {
             try
             {
-                if (select) await Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, plan.Id);
-                else await Catalog.SetPlanStateAsync(null, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Withdrawn);
+                if (select) await Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, plan.Id);
+                else await Catalog.SetPlanStateAsync(plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Withdrawn);
                 return "success";
             }
             catch (BusinessException error)
@@ -277,7 +275,7 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var locks = GetRequiredService<SubscriptionTestDistributedLock>();
         using (var unit = GetRequiredService<IUnitOfWorkManager>().Begin(requiresNew: true, isTransactional: true))
         {
-            await Catalog.SetDefaultPlanAsync(null, data.Products[0].Id, data.Products[0].ConcurrencyStamp, data.Plans[0].Id);
+            await Catalog.SetDefaultPlanAsync(data.Products[0].Id, data.Products[0].ConcurrencyStamp, data.Plans[0].Id);
             Assert.Equal(1, locks.HeldCount);
             await unit.RollbackAsync();
             Assert.Equal(1, locks.HeldCount);
@@ -286,7 +284,7 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         Assert.Null((await GetRequiredService<ISubscriptionProductRepository>().GetAsync(data.Products[0].Id)).DefaultPlanId);
         await InTransactionAsync(async () =>
         {
-            await Catalog.SetDefaultPlanAsync(null, data.Products[0].Id, data.Products[0].ConcurrencyStamp, data.Plans[0].Id);
+            await Catalog.SetDefaultPlanAsync(data.Products[0].Id, data.Products[0].ConcurrencyStamp, data.Plans[0].Id);
             Assert.Equal(1, locks.HeldCount);
             return true;
         });
@@ -300,17 +298,17 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var locks = GetRequiredService<SubscriptionTestDistributedLock>();
         await InTransactionAsync(async () =>
         {
-            var plan = await Catalog.CreatePlanAsync(null, data.Products[0].Id, "new-free",
+            var plan = await Catalog.CreatePlanAsync(data.Products[0].Id, "new-free",
                 new CatalogDetails("New Free"), SubscriptionTestDefinitions.Values(30));
             Assert.Equal(1, locks.HeldCount);
-            plan = await Catalog.SetPlanStateAsync(null, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
+            plan = await Catalog.SetPlanStateAsync(plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
             var product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(plan.ProductId);
-            await Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, plan.Id);
+            await Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, plan.Id);
             Assert.Equal(1, locks.HeldCount);
             return true;
         });
         Assert.Equal(0, locks.HeldCount);
-        Assert.Equal(30, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
+        Assert.Equal(30, (await Checker.GetNumericAsync(data.UserId, "alpha", "limit")).Limit);
     }
 
     [Fact]
@@ -320,16 +318,16 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         var old = await ConfigureFreeAsync(data);
         await InTransactionAsync(async () =>
         {
-            var replacement = await Catalog.CreatePlanAsync(null, old.ProductId, "new-free",
+            var replacement = await Catalog.CreatePlanAsync(old.ProductId, "new-free",
                 new CatalogDetails("New Free"), SubscriptionTestDefinitions.Values(30));
-            await Catalog.SetPlanStateAsync(null, replacement.Id, replacement.ConcurrencyStamp, SubscriptionCatalogState.Published);
+            await Catalog.SetPlanStateAsync(replacement.Id, replacement.ConcurrencyStamp, SubscriptionCatalogState.Published);
             var product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(old.ProductId);
-            await Catalog.SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, replacement.Id);
-            await Catalog.SetPlanStateAsync(null, old.Id, old.ConcurrencyStamp, SubscriptionCatalogState.Withdrawn);
+            await Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, replacement.Id);
+            await Catalog.SetPlanStateAsync(old.Id, old.ConcurrencyStamp, SubscriptionCatalogState.Withdrawn);
             return true;
         });
-        Assert.Equal(30, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
-        Assert.Equal("new-free", Assert.Single((await Checker.GetDefaultPlansAsync(null, data.UserId,
+        Assert.Equal(30, (await Checker.GetNumericAsync(data.UserId, "alpha", "limit")).Limit);
+        Assert.Equal("new-free", Assert.Single((await Checker.GetDefaultPlansAsync(data.UserId,
             new SubscriptionCatalogQuery())).Items).Plan.Code);
         Assert.Empty(await Subscriptions.GetCurrentListAsync(data.UserId));
     }
@@ -343,11 +341,11 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         TestClock.Now = now.AddDays(1);
         var subscription = await AssignProAsync(data, TestClock.Now.AddHours(1));
         TestClock.Now = now;
-        Assert.Equal(20, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
-        Assert.Single((await Checker.GetDefaultPlansAsync(null, data.UserId, new SubscriptionCatalogQuery())).Items);
+        Assert.Equal(20, (await Checker.GetNumericAsync(data.UserId, "alpha", "limit")).Limit);
+        Assert.Single((await Checker.GetDefaultPlansAsync(data.UserId, new SubscriptionCatalogQuery())).Items);
         TestClock.Now = subscription.StartsAt;
-        Assert.Equal(100, (await Checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
-        Assert.Empty((await Checker.GetDefaultPlansAsync(null, data.UserId, new SubscriptionCatalogQuery())).Items);
+        Assert.Equal(100, (await Checker.GetNumericAsync(data.UserId, "alpha", "limit")).Limit);
+        Assert.Empty((await Checker.GetDefaultPlansAsync(data.UserId, new SubscriptionCatalogQuery())).Items);
     }
 
     [Fact]
@@ -407,20 +405,20 @@ public class SubscriptionDefaultPlanTests : SubscriptionPersistenceTestBase
         InTransactionAsync(async () =>
         {
             var plan = await GetRequiredService<ISubscriptionPlanRepository>().GetAsync(data.Plans[index].Id);
-            plan = await Catalog.UpdatePlanAsync(data.TenantId, plan.Id, plan.ConcurrencyStamp,
+            plan = await Catalog.UpdatePlanAsync(plan.Id, plan.ConcurrencyStamp,
                 new CatalogDetails("Free " + plan.ProductCode), SubscriptionTestDefinitions.Values(20));
             var product = await GetRequiredService<ISubscriptionProductRepository>().GetAsync(plan.ProductId);
-            await Catalog.SetDefaultPlanAsync(data.TenantId, product.Id, product.ConcurrencyStamp, plan.Id);
+            await Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, plan.Id);
             return plan;
         }, data.TenantId);
 
     private Task<UserSubscription> AssignProAsync(CatalogData data, DateTime expiresAt) =>
         InTransactionAsync(async () =>
         {
-            var plan = await Catalog.CreatePlanAsync(data.TenantId, data.Products[0].Id, "pro", new CatalogDetails("Pro"),
+            var plan = await Catalog.CreatePlanAsync(data.Products[0].Id, "pro", new CatalogDetails("Pro"),
                 SubscriptionTestDefinitions.Values(100));
-            await Catalog.SetPlanStateAsync(data.TenantId, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
-            var preview = await Manager.PreviewPlanAsync(data.TenantId, data.UserId, plan.Id);
-            return await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.TenantId, data.UserId, Target(preview.Items[0], expiresAt)));
+            await Catalog.SetPlanStateAsync(plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
+            var preview = await Manager.PreviewPlanAsync(data.UserId, plan.Id);
+            return await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.UserId, Target(preview.Items[0], expiresAt)));
         }, data.TenantId);
 }

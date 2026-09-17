@@ -28,7 +28,7 @@ public class CurrentUserEntitlementAppServiceTests
     public CurrentUserEntitlementAppServiceTests()
     {
         _service = CreateService(_checker);
-        _checker.ResolveAsync(Arg.Any<Guid?>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _checker.ResolveAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(EffectiveEntitlementContext.None());
     }
 
@@ -47,7 +47,7 @@ public class CurrentUserEntitlementAppServiceTests
             "zero" => NumericEntitlementResult.Finite(id, 0),
             _ => NumericEntitlementResult.Unlimited(id)
         };
-        _checker.GetNumericAsync(_context.TenantId, _context.UserId, "one", "limit", Arg.Any<CancellationToken>())
+        _checker.GetNumericAsync(_context.UserId, "one", "limit", Arg.Any<CancellationToken>())
             .Returns(result);
         var actual = await _service.GetNumericAsync("one", "limit");
         actual.Status.ShouldBe(result.Status);
@@ -65,7 +65,7 @@ public class CurrentUserEntitlementAppServiceTests
     public async Task Boolean_queries_use_current_owner_and_preserve_grants(bool granted)
     {
         var id = System.Guid.NewGuid();
-        _checker.GetBooleanAsync(_context.TenantId, _context.UserId, "one", "enabled", Arg.Any<CancellationToken>())
+        _checker.GetBooleanAsync(_context.UserId, "one", "enabled", Arg.Any<CancellationToken>())
             .Returns(BooleanEntitlementResult.FromSubscription(id, granted));
         var actual = await _service.GetBooleanAsync("one", "enabled");
         actual.IsGranted.ShouldBe(granted);
@@ -75,23 +75,57 @@ public class CurrentUserEntitlementAppServiceTests
     }
 
     [Fact]
+    public async Task Enum_and_string_set_queries_use_current_owner_and_preserve_values()
+    {
+        var subscriptionId = Guid.NewGuid();
+        _checker.GetEnumAsync(
+                _context.UserId, "one", "tier", Arg.Any<CancellationToken>())
+            .Returns(EnumEntitlementResult.FromSubscription(subscriptionId, "pro"));
+        _checker.GetStringSetAsync(
+                _context.UserId, "one", "regions", Arg.Any<CancellationToken>())
+            .Returns(StringSetEntitlementResult.FromSubscription(
+                subscriptionId, new[] { "us", "apac" }));
+
+        var enumResult = await _service.GetEnumAsync("one", "tier");
+        enumResult.IsGranted.ShouldBeTrue();
+        enumResult.Value.ShouldBe("pro");
+        enumResult.SubscriptionId.ShouldBe(subscriptionId);
+        var setResult = await _service.GetStringSetAsync("one", "regions");
+        setResult.IsGranted.ShouldBeTrue();
+        setResult.Values.ShouldBe(new[] { "apac", "us" });
+        setResult.SubscriptionId.ShouldBe(subscriptionId);
+    }
+
+    [Fact]
     public async Task Typed_queries_forward_explicit_cancellation_tokens()
     {
         using var cancellation = new CancellationTokenSource();
         _checker.GetNumericAsync(
-                _context.TenantId, _context.UserId, "one", "limit", cancellation.Token)
+                _context.UserId, "one", "limit", cancellation.Token)
             .Returns(NumericEntitlementResult.Finite(Guid.NewGuid(), 20));
         _checker.GetBooleanAsync(
-                _context.TenantId, _context.UserId, "one", "enabled", cancellation.Token)
+                _context.UserId, "one", "enabled", cancellation.Token)
             .Returns(BooleanEntitlementResult.FromSubscription(Guid.NewGuid(), true));
+        _checker.GetEnumAsync(
+                _context.UserId, "one", "tier", cancellation.Token)
+            .Returns(EnumEntitlementResult.FromSubscription(Guid.NewGuid(), "pro"));
+        _checker.GetStringSetAsync(
+                _context.UserId, "one", "regions", cancellation.Token)
+            .Returns(StringSetEntitlementResult.FromSubscription(Guid.NewGuid(), new[] { "us" }));
 
         await _service.GetNumericAsync("one", "limit", cancellation.Token);
         await _service.GetBooleanAsync("one", "enabled", cancellation.Token);
+        await _service.GetEnumAsync("one", "tier", cancellation.Token);
+        await _service.GetStringSetAsync("one", "regions", cancellation.Token);
 
         await _checker.Received(1).GetNumericAsync(
-            _context.TenantId, _context.UserId, "one", "limit", cancellation.Token);
+            _context.UserId, "one", "limit", cancellation.Token);
         await _checker.Received(1).GetBooleanAsync(
-            _context.TenantId, _context.UserId, "one", "enabled", cancellation.Token);
+            _context.UserId, "one", "enabled", cancellation.Token);
+        await _checker.Received(1).GetEnumAsync(
+            _context.UserId, "one", "tier", cancellation.Token);
+        await _checker.Received(1).GetStringSetAsync(
+            _context.UserId, "one", "regions", cancellation.Token);
     }
 
     [Fact]
@@ -101,7 +135,7 @@ public class CurrentUserEntitlementAppServiceTests
         var subscription = _context.Assign(product, plan);
         plan.Archive();
         product.Archive();
-        _checker.ResolveAsync(_context.TenantId, _context.UserId, "one", Arg.Any<CancellationToken>())
+        _checker.ResolveAsync(_context.UserId, "one", Arg.Any<CancellationToken>())
             .Returns(EffectiveEntitlementContext.FromSubscription(subscription));
         var actual = await _service.GetAsync("one");
         actual.HasEffectiveSubscription.ShouldBeTrue();
@@ -133,13 +167,13 @@ public class CurrentUserEntitlementAppServiceTests
     {
         var (_, product, plan) = _context.Catalog("one");
         var subscription = _context.Assign(product, plan, _context.Now);
-        _checker.ResolveAsync(_context.TenantId, _context.UserId, "one", Arg.Any<CancellationToken>())
+        _checker.ResolveAsync(_context.UserId, "one", Arg.Any<CancellationToken>())
             .Returns(EffectiveEntitlementContext.FromSubscription(subscription), EffectiveEntitlementContext.None());
         var result = await _service.GetAsync("one");
         result.HasEffectiveSubscription.ShouldBeFalse();
         result.Subscription.ShouldBeNull();
         result.Source.ShouldBe(EntitlementSource.None);
-        await _checker.Received(2).ResolveAsync(_context.TenantId, _context.UserId, "one", Arg.Any<CancellationToken>());
+        await _checker.Received(2).ResolveAsync(_context.UserId, "one", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -190,8 +224,8 @@ public class CurrentUserEntitlementAppServiceTests
             ["limit"] = EntitlementValue.Numeric(30)
         });
         (await _service.GetAsync(product.Code)).Entitlements.Single().Value.NumericValue.ShouldBe(30);
-        await _checker.DidNotReceive().FindEffectiveSubscriptionAsync(Arg.Any<Guid?>(), Arg.Any<Guid>(),
-            Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _checker.DidNotReceive().FindEffectiveSubscriptionAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -199,7 +233,7 @@ public class CurrentUserEntitlementAppServiceTests
     {
         var (_, product, plan) = SeedDefault();
         var subscription = _context.Assign(product, plan, _context.Now);
-        _checker.ResolveAsync(_context.TenantId, _context.UserId, product.Code, Arg.Any<CancellationToken>())
+        _checker.ResolveAsync(_context.UserId, product.Code, Arg.Any<CancellationToken>())
             .Returns(EffectiveEntitlementContext.FromSubscription(subscription),
                 EffectiveEntitlementContext.FromDefaultPlan(new DefaultSubscriptionPlan(product, plan)));
 
@@ -226,9 +260,9 @@ public class CurrentUserEntitlementAppServiceTests
             "finite" => NumericEntitlementResult.FiniteDefaultPlan(planId, 20),
             _ => NumericEntitlementResult.UnlimitedDefaultPlan(planId)
         };
-        _checker.GetNumericAsync(_context.TenantId, _context.UserId, "one", "limit", Arg.Any<CancellationToken>())
+        _checker.GetNumericAsync(_context.UserId, "one", "limit", Arg.Any<CancellationToken>())
             .Returns(numeric);
-        _checker.GetBooleanAsync(_context.TenantId, _context.UserId, "one", "enabled", Arg.Any<CancellationToken>())
+        _checker.GetBooleanAsync(_context.UserId, "one", "enabled", Arg.Any<CancellationToken>())
             .Returns(BooleanEntitlementResult.FromDefaultPlan(planId, kind != "ungranted"));
 
         var actual = await _service.GetNumericAsync("one", "limit");
@@ -250,7 +284,7 @@ public class CurrentUserEntitlementAppServiceTests
     public async Task Default_listing_forwards_current_owner_and_independent_bounded_filters_without_repaging()
     {
         var (_, product, plan) = SeedDefault();
-        _checker.GetDefaultPlansAsync(_context.TenantId, _context.UserId, Arg.Any<SubscriptionCatalogQuery>(),
+        _checker.GetDefaultPlansAsync(_context.UserId, Arg.Any<SubscriptionCatalogQuery>(),
             Arg.Any<CancellationToken>()).Returns(new SubscriptionPage<DefaultSubscriptionPlan>(7,
                 new[] { new DefaultSubscriptionPlan(product, plan) }));
         var input = new GetPublicCatalogInput
@@ -269,7 +303,7 @@ public class CurrentUserEntitlementAppServiceTests
         item.Id.ShouldBe(plan.Id);
         item.ProductId.ShouldBe(product.Id);
         item.Entitlements.Single(e => e.FeatureKey == "limit").Value.NumericValue.ShouldBe(20);
-        await _checker.Received(1).GetDefaultPlansAsync(_context.TenantId, _context.UserId,
+        await _checker.Received(1).GetDefaultPlansAsync(_context.UserId,
             Arg.Is<SubscriptionCatalogQuery>(query => query.ProductId == product.Id &&
                 query.PublishedOnly && query.State == null &&
                 query.Filter == input.Filter && query.Sorting == input.Sorting &&
@@ -284,7 +318,7 @@ public class CurrentUserEntitlementAppServiceTests
     public async Task Default_summary_and_listing_never_disclose_unavailable_catalog(string unavailable)
     {
         var (_, product, plan) = SeedDefault();
-        _checker.GetDefaultPlansAsync(Arg.Any<Guid?>(), _context.UserId, Arg.Any<SubscriptionCatalogQuery>(),
+        _checker.GetDefaultPlansAsync(_context.UserId, Arg.Any<SubscriptionCatalogQuery>(),
             Arg.Any<CancellationToken>()).Returns(new SubscriptionPage<DefaultSubscriptionPlan>(1,
                 new[] { new DefaultSubscriptionPlan(product, plan) }));
         if (unavailable == "plan-withdrawn") plan.Withdraw();
@@ -297,7 +331,7 @@ public class CurrentUserEntitlementAppServiceTests
         if (unavailable == "different-tenant")
         {
             _context.CurrentTenant.Id.Returns(Guid.NewGuid());
-            _checker.ResolveAsync(Arg.Any<Guid?>(), _context.UserId, product.Code, Arg.Any<CancellationToken>())
+            _checker.ResolveAsync(_context.UserId, product.Code, Arg.Any<CancellationToken>())
                 .Returns(EffectiveEntitlementContext.FromDefaultPlan(new DefaultSubscriptionPlan(product, plan)));
         }
 
@@ -405,7 +439,7 @@ public class CurrentUserEntitlementAppServiceTests
         _definitions.GetProduct(product.Code).Returns(definition);
         _definitions.GetFeature(product.Code, Arg.Any<string>())
             .Returns(call => definition.GetFeature(call.ArgAt<string>(1)));
-        _checker.ResolveAsync(_context.TenantId, _context.UserId, product.Code, Arg.Any<CancellationToken>())
+        _checker.ResolveAsync(_context.UserId, product.Code, Arg.Any<CancellationToken>())
             .Returns(EffectiveEntitlementContext.FromDefaultPlan(new DefaultSubscriptionPlan(product, plan)));
         return (definition, product, plan);
     }

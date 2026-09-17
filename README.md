@@ -13,7 +13,8 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
 - Link editing, activation, expiration, soft deletion, and a 180-day code cooldown.
 - Root-path redirects with 302, 404, and 410 behavior.
 - Privacy-friendly visit analytics without persisted raw IP addresses or user agents.
-- QR codes, per-user quotas, distributed creation rate limits, and domain blocking.
+- QR codes, per-user quotas, distributed creation rate limits, configurable short-link
+  Origins, and target-domain blocking.
 - Redirect-time blocked-domain enforcement with cached parent-domain matching and HTTP 451 pages.
 - Admin CSV import for up to 10,000 blocked domains per 1 MB file.
 - English and Simplified Chinese module UI.
@@ -88,8 +89,11 @@ Optional product integrations supply their own product entitlement definitions.
   serialized per tenant until transaction completion; default configuration remains
   per product, and assignment locking remains separate.
 - Entitlements are registered in code and configured on plans by administrators.
-  Values are Boolean switches or non-negative integer limits with an explicit
-  unlimited state. An absent entitlement is not unlimited access.
+  Values can be Boolean switches, non-negative integer limits with an explicit
+  unlimited state, one value from a business-provided Enum, or a normalized
+  `Set<string>`. Business integrations can provide Enum/Set choices asynchronously.
+  A Set with no choices uses repeatable free-text inputs. An absent entitlement is
+  not unlimited access.
 - Assignments take effect immediately. Each product can have a different expiration,
   or remain valid indefinitely. Expiration is evaluated at query time, without a
   background worker. Revocation and expiration changes apply per product.
@@ -122,6 +126,12 @@ Identity repository, or `AbpIdentityHttpApiClientModule` and configure the Ident
 service for distributed deployment. No Subscription-specific Host adapter or local user table
 is required. Register a `SubscriptionDefinitionProvider` through
 `SubscriptionDefinitionOptions.DefinitionProviders`.
+Business integrations that own Enum or String-Set features register an
+`ISubscriptionEntitlementOptionProvider`. `CanProvide` identifies the exact product and
+feature owned by that provider; `GetOptionsAsync` returns its current values. Providers
+compose across integrations, while registering more than one provider for the same feature
+is rejected explicitly. Returning an empty list for a String-Set feature enables free-text
+values; Enum features must return at least one value.
 The standalone connection-string name is `Subscription` (falling back to `Default`);
 table prefix and schema are configurable through `SubscriptionDbProperties`.
 Code inside the Subscription domain can inject `ISubscriptionEntitlementChecker`.
@@ -130,9 +140,11 @@ package, allowing the composing Host to supply either a local application servic
 HTTP client proxy. Numeric checks do not reserve or consume quota.
 
 The ShortLink Subscription shared integration package registers product `short-link`,
-Boolean feature `statistics`, and numeric feature `max-links` (including unlimited
-values). This host's database seeding creates only missing draft product metadata and
-preserves administrative edits. Publish the product and configure/publish its plans in
+Enum feature `statistics`, String-Set feature `domains`, and numeric feature `max-links`
+(including unlimited values). `statistics` accepts `none`, `basic`, or `advanced`;
+the domain choices come from the current tenant's configured Origin pool. This host's
+database seeding creates only missing draft product metadata and preserves
+administrative edits. Publish the product and configure/publish its plans in
 administration before selecting a default or assigning subscriptions. Free
 `max-links = 20` and Pro `max-links = 100` are administrator-configured examples, not
 hard-coded values; seeding does not publish sample plans, select a default, or assign
@@ -181,25 +193,37 @@ for another subject requires a separate, explicitly authorized integration contr
   Nontransactional, read-uncommitted, repeatable-read, and snapshot UOWs are rejected
   by the atomic entry point; use read-committed or serializable transactions.
   A lock acquisition failure never falls back to an unlocked write.
-- `statistics` gates ordinary-user statistics, including total visits in list/get
-  and mutation responses and ordering by visit count. `ShortLinkDto.TotalVisitCount`
-  is now nullable: `null` means not disclosed, not zero visits. Update typed clients
-  accordingly. Administrative responses still return actual counts under their
+- `statistics=none` (and a missing value) hides ordinary-user statistics and rejects
+  ordering by visit count. `basic` discloses only total visits, including list/get,
+  mutation responses, ordering, and the statistics endpoint. `advanced` additionally
+  exposes unique visitors, daily trends, referrers, browsers, and devices.
+  `ShortLinkDto.TotalVisitCount` remains nullable: `null` means not disclosed, not
+  zero visits. Administrative responses still return actual counts under their
   existing permissions.
+- Each tenant manages its own HTTP/HTTPS Origin pool and must have one enabled default
+  Origin. The default is available to every otherwise eligible creator. The `domains`
+  Set grants additional enabled Origins; stale or disabled values do not authorize
+  new links. Creation requires an explicit Origin, and a link's Origin is immutable.
+  Codes are unique per Origin, so the same code can be reused on another Origin.
+  Disabling an Origin blocks new links but leaves existing redirects working. Any
+  Origin referenced by a link, including a soft-deleted link, can only be disabled
+  and cannot be deleted.
 - Redirects continue collecting visits without consulting subscriptions. Restored
   statistics access includes history that remains within the original retention policy.
 - `GET /api/short-link/public/links/capabilities` returns the authenticated user's
-  current usage, quota state, finite limit/remaining capacity or unlimited flag, and
-  statistics availability. The ShortLink page displays these values; the Subscription
-  UI stays generic. A displayed capability is not a reservation or a substitute for
-  server-side authorization and quota checks.
+  current usage, quota state, finite limit/remaining capacity or unlimited flag,
+  statistics level, and currently selectable Origins. The ShortLink page displays
+  these values; the Subscription UI stays generic. A displayed capability is not a
+  reservation or a substitute for server-side authorization and quota checks.
 - Each server-side entitlement check uses then-effective rights. Later checks see
   expired/revoked assignments or changed defaults; already-checked in-flight operations
   may finish. Subscription administration is not globally locked against link creation.
 
 Before enabling the bridge, publish the product and configure an appropriate default
-plan or assign explicit subscriptions. Seeding does **not** grant rights automatically.
-Without a usable grant, creation and statistics are denied; existing links remain.
+plan or assign explicit subscriptions. Seeding does **not** grant quota or statistics
+rights automatically. Without a usable quota grant, creation is denied; without a
+statistics value, statistics are denied. The tenant's default Origin remains available
+without a `domains` grant, while existing links continue to resolve.
 Removing `ShortLinkSubscriptionApplicationModule` from a Host restores ShortLink's
 setting-backed quota and normal statistics behavior without a database migration. Both
 modules remain usable on their own. Multi-instance ShortLink deployments must configure
@@ -207,7 +231,9 @@ a shared ABP lock provider; this host uses Redis. Process-local locks cannot enf
 cross-instance quota.
 
 No payments, checkout, automatic renewal, or subscription purchase/upgrade flow is
-implemented by this integration. No tables or usage backfill are required.
+implemented by this integration. The upgrade migration adds typed entitlement storage
+and the tenant Origin catalog, converts legacy statistics values (`false` to `basic`,
+`true` to `advanced`), and attaches legacy links to the seeded default Origin.
 
 ## Development prerequisites
 
@@ -236,7 +262,9 @@ test instance**, using an account allowed to create databases. Never use a produ
 connection string. The tests create uniquely named databases, apply the real host
 migrations, and delete only the databases they created.
 Coverage includes fresh schemas, upgrading existing `AddSubscriptions` data with
-nullable defaults, restrictive same-product references, and catalog lock leases.
+nullable defaults, Boolean-to-Enum statistics conversion, typed entitlement constraints,
+Origin/domain indexes and restrictive references, same-product subscription references,
+and catalog lock leases.
 
 ```powershell
 $env:SUBSCRIPTION_TEST_POSTGRES_CONNECTION_STRING = '<isolated PostgreSQL test connection string>'
@@ -269,7 +297,9 @@ SMTP credentials, database passwords, Redis passwords, visitor-hash keys, or cer
 
 - `ConnectionStrings__Default`: PostgreSQL connection string.
 - `Redis__Configuration`: StackExchange.Redis configuration.
-- `ShortLink__Urls__BaseUrl`: public URL used to generate short links and QR codes.
+- `ShortLink__Urls__BaseUrl`: bootstrap/default Origin used by data seeding and as a
+  diagnostic legacy fallback during migration. New links and QR codes use the
+  immutable Origin stored on each link.
 - `ShortLink__Security__OwnHosts__0`: public short-link host, blocked as a recursive target.
 - `ShortLink__Privacy__VisitorHashKey`: at least 32 random UTF-8 bytes.
 - `Settings__Abp.Mailing.*`: SMTP and sender settings.

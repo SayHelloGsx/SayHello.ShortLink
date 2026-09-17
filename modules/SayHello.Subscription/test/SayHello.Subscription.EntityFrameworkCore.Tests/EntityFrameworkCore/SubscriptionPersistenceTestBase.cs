@@ -34,21 +34,21 @@ public abstract class SubscriptionPersistenceTestBase : SubscriptionTestBase<Sub
             var plans = new List<SubscriptionPlan>();
             foreach (var code in new[] { "alpha", "beta", "gamma" })
             {
-                var product = await Catalog.CreateProductAsync(tenantId, code, new CatalogDetails(code));
-                product = await Catalog.SetProductStateAsync(tenantId, product.Id, product.ConcurrencyStamp, SubscriptionCatalogState.Published);
-                var plan = await Catalog.CreatePlanAsync(tenantId, product.Id, "basic", new CatalogDetails("Basic " + code),
+                var product = await Catalog.CreateProductAsync(code, new CatalogDetails(code));
+                product = await Catalog.SetProductStateAsync(product.Id, product.ConcurrencyStamp, SubscriptionCatalogState.Published);
+                var plan = await Catalog.CreatePlanAsync(product.Id, "basic", new CatalogDetails("Basic " + code),
                     SubscriptionTestDefinitions.Values());
-                plan = await Catalog.SetPlanStateAsync(tenantId, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
+                plan = await Catalog.SetPlanStateAsync(plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published);
                 products.Add(product);
                 plans.Add(plan);
             }
 
-            var ab = await Catalog.CreateBundleAsync(tenantId, "ab", new CatalogDetails("Alpha and Beta"),
+            var ab = await Catalog.CreateBundleAsync("ab", new CatalogDetails("Alpha and Beta"),
                 new[] { plans[0].Id, plans[1].Id });
-            ab = await Catalog.SetBundleStateAsync(tenantId, ab.Id, ab.ConcurrencyStamp, SubscriptionCatalogState.Published);
-            var ac = await Catalog.CreateBundleAsync(tenantId, "ac", new CatalogDetails("Alpha and Gamma"),
+            ab = await Catalog.SetBundleStateAsync(ab.Id, ab.ConcurrencyStamp, SubscriptionCatalogState.Published);
+            var ac = await Catalog.CreateBundleAsync("ac", new CatalogDetails("Alpha and Gamma"),
                 new[] { plans[0].Id, plans[2].Id });
-            ac = await Catalog.SetBundleStateAsync(tenantId, ac.Id, ac.ConcurrencyStamp, SubscriptionCatalogState.Published);
+            ac = await Catalog.SetBundleStateAsync(ac.Id, ac.ConcurrencyStamp, SubscriptionCatalogState.Published);
             return new CatalogData(tenantId, userId, products.ToArray(), plans.ToArray(), ab, ac);
         }, tenantId);
     }
@@ -56,16 +56,16 @@ public abstract class SubscriptionPersistenceTestBase : SubscriptionTestBase<Sub
     protected Task<UserSubscription> AssignPlanAsync(CatalogData data, int planIndex, DateTime? expiresAt = null) =>
         InTransactionAsync(async () =>
         {
-            var preview = await Manager.PreviewPlanAsync(data.TenantId, data.UserId, data.Plans[planIndex].Id);
-            return await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.TenantId, data.UserId, Target(preview.Items[0], expiresAt)));
+            var preview = await Manager.PreviewPlanAsync(data.UserId, data.Plans[planIndex].Id);
+            return await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.UserId, Target(preview.Items[0], expiresAt)));
         }, data.TenantId);
 
     protected Task<IReadOnlyList<UserSubscription>> AssignBundleAsync(CatalogData data, SubscriptionBundle bundle,
         Func<SubscriptionAssignmentPreviewItem, DateTime?>? expiration = null) =>
         InTransactionAsync(async () =>
         {
-            var preview = await Manager.PreviewBundleAsync(data.TenantId, data.UserId, bundle.Id);
-            return await Manager.AssignBundleAsync(new AssignSubscriptionBundle(data.TenantId, data.UserId, bundle.Id,
+            var preview = await Manager.PreviewBundleAsync(data.UserId, bundle.Id);
+            return await Manager.AssignBundleAsync(new AssignSubscriptionBundle(data.UserId, bundle.Id,
                 preview.BundleConcurrencyStamp!, preview.Items.Select(item => Target(item, expiration?.Invoke(item)))));
         }, data.TenantId);
 

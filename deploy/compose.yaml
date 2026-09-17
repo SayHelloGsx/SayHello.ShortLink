@@ -61,6 +61,7 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Production
       App__SelfUrl: https://${DOMAIN}
+      ShortLink__Urls__BaseUrl: https://${DOMAIN}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Redis__Configuration: redis:6379,password=${REDIS_PASSWORD}
       StringEncryption__DefaultPassPhrase: ${STRING_ENCRYPTION_PASSPHRASE}

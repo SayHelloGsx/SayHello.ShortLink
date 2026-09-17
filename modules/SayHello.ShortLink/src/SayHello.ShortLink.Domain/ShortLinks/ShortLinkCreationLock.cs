@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.DistributedLocking;
+using Volo.Abp.MultiTenancy;
 using Volo.Abp.Threading;
 using Volo.Abp.Uow;
 
@@ -12,18 +13,22 @@ namespace SayHello.ShortLink.ShortLinks;
 public class ShortLinkCreationLock : ITransientDependency
 {
     private readonly IAbpDistributedLock _distributedLock;
+    private readonly ICurrentTenant _currentTenant;
 
-    public ShortLinkCreationLock(IAbpDistributedLock distributedLock)
+    public ShortLinkCreationLock(
+        IAbpDistributedLock distributedLock,
+        ICurrentTenant currentTenant)
     {
         _distributedLock = distributedLock;
+        _currentTenant = currentTenant;
     }
 
     public async Task AcquireAsync(
         IUnitOfWork unitOfWork,
-        Guid? tenantId,
         Guid userId,
         CancellationToken cancellationToken)
     {
+        var tenantId = _currentTenant.Id;
         var key = $"ShortLink:Creation:{tenantId?.ToString("N") ?? "host"}:{userId:N}";
         if (unitOfWork.Items.ContainsKey(key))
         {

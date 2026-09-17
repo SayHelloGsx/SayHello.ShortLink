@@ -10,7 +10,6 @@ using Volo.Abp;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Services;
 using Volo.Abp.Guids;
-using Volo.Abp.MultiTenancy;
 using Volo.Abp.Timing;
 
 namespace SayHello.Subscription.Subscriptions;
@@ -22,7 +21,6 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
     private readonly ISubscriptionBundleRepository _bundles;
     private readonly IUserSubscriptionRepository _subscriptions;
     private readonly ISubscriptionDefinitionRegistry _definitions;
-    private readonly ICurrentTenant _tenant;
     private readonly IClock _clock;
     private readonly IGuidGenerator _guids;
     private readonly IStringLocalizerFactory _localizers;
@@ -31,7 +29,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
 
     public SubscriptionManager(ISubscriptionProductRepository products, ISubscriptionPlanRepository plans,
         ISubscriptionBundleRepository bundles, IUserSubscriptionRepository subscriptions,
-        ISubscriptionDefinitionRegistry definitions, ICurrentTenant tenant,
+        ISubscriptionDefinitionRegistry definitions,
         IClock clock, IGuidGenerator guids, IStringLocalizerFactory localizers,
         SubscriptionTransactionRunner transactions, SubscriptionMutationLock mutationLock)
     {
@@ -40,7 +38,6 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         _bundles = bundles;
         _subscriptions = subscriptions;
         _definitions = definitions;
-        _tenant = tenant;
         _clock = clock;
         _guids = guids;
         _localizers = localizers;
@@ -48,23 +45,23 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         _mutationLock = mutationLock;
     }
 
-    public virtual async Task<SubscriptionAssignmentPreview> PreviewPlanAsync(Guid? tenantId, Guid userId, Guid planId,
+    public virtual async Task<SubscriptionAssignmentPreview> PreviewPlanAsync(Guid userId, Guid planId,
         CancellationToken cancellationToken = default)
     {
-        ValidateUserReference(tenantId, userId);
+        ValidateUserReference(userId);
         var plan = (await _plans.GetByIdsAsync(new[] { planId }, cancellationToken)).SingleOrDefault()
             ?? throw new EntityNotFoundException(typeof(SubscriptionPlan), planId);
         var product = (await _products.GetByIdsAsync(new[] { plan.ProductId }, cancellationToken)).Single();
         ValidatePlan(product, plan);
         var current = await _subscriptions.FindCurrentAsync(userId, product.Id, cancellationToken);
-        return new SubscriptionAssignmentPreview(tenantId, userId, null, null,
+        return new SubscriptionAssignmentPreview(userId, null, null,
             new[] { PreviewItem(product, plan, current) });
     }
 
-    public virtual async Task<SubscriptionAssignmentPreview> PreviewBundleAsync(Guid? tenantId, Guid userId, Guid bundleId,
+    public virtual async Task<SubscriptionAssignmentPreview> PreviewBundleAsync(Guid userId, Guid bundleId,
         CancellationToken cancellationToken = default)
     {
-        ValidateUserReference(tenantId, userId);
+        ValidateUserReference(userId);
         var bundle = (await _bundles.GetByIdsAsync(new[] { bundleId }, cancellationToken)).SingleOrDefault()
             ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), bundleId);
         var plans = await _plans.GetByIdsAsync(bundle.Items.Select(x => x.PlanId).ToArray(), cancellationToken);
@@ -77,26 +74,26 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             ValidatePlan(product, plan);
             return PreviewItem(product, plan, current.SingleOrDefault(x => x.ProductId == product.Id));
         }).ToArray();
-        return new SubscriptionAssignmentPreview(tenantId, userId, bundle.Id, bundle.ConcurrencyStamp, items);
+        return new SubscriptionAssignmentPreview(userId, bundle.Id, bundle.ConcurrencyStamp, items);
     }
 
     public virtual async Task<UserSubscription> AssignPlanAsync(AssignSubscriptionPlan input,
         CancellationToken cancellationToken = default)
     {
-        var result = await AssignAsync(input.TenantId, input.UserId, new[] { input.Target }, null, null, cancellationToken);
+        var result = await AssignAsync(input.UserId, new[] { input.Target }, null, null, cancellationToken);
         return result[0];
     }
 
     public virtual Task<IReadOnlyList<UserSubscription>> AssignBundleAsync(AssignSubscriptionBundle input,
         CancellationToken cancellationToken = default) =>
-        AssignAsync(input.TenantId, input.UserId, input.Targets, input.BundleId, input.BundleConcurrencyStamp, cancellationToken);
+        AssignAsync(input.UserId, input.Targets, input.BundleId, input.BundleConcurrencyStamp, cancellationToken);
 
-    private Task<IReadOnlyList<UserSubscription>> AssignAsync(Guid? tenantId, Guid userId,
+    private Task<IReadOnlyList<UserSubscription>> AssignAsync(Guid userId,
         IReadOnlyList<SubscriptionAssignmentTarget> targets, Guid? bundleId, string? bundleStamp, CancellationToken token) =>
         _transactions.RunAsync<IReadOnlyList<UserSubscription>>(async unitOfWork =>
         {
-            ValidateUserReference(tenantId, userId);
-            await _mutationLock.AcquireAsync(unitOfWork, tenantId, userId, token);
+            ValidateUserReference(userId);
+            await _mutationLock.AcquireAsync(unitOfWork, userId, token);
             SubscriptionBundle? bundle = null;
             if (bundleId.HasValue)
             {
@@ -146,13 +143,13 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             return replacements.AsReadOnly();
         }, token);
 
-    public virtual async Task<UserSubscription> RevokeAsync(Guid? tenantId, Guid subscriptionId, string concurrencyStamp,
+    public virtual async Task<UserSubscription> RevokeAsync(Guid subscriptionId, string concurrencyStamp,
         string? reason = null, CancellationToken cancellationToken = default)
     {
-        var userId = await GetMutationUserIdAsync(tenantId, subscriptionId, cancellationToken);
+        var userId = await GetMutationUserIdAsync(subscriptionId, cancellationToken);
         return await _transactions.RunAsync(async unitOfWork =>
         {
-            await _mutationLock.AcquireAsync(unitOfWork, tenantId, userId, cancellationToken);
+            await _mutationLock.AcquireAsync(unitOfWork, userId, cancellationToken);
             var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
             SubscriptionCatalogManager.CheckStamp(subscription.ConcurrencyStamp, concurrencyStamp);
@@ -161,13 +158,13 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         }, cancellationToken);
     }
 
-    public virtual async Task<UserSubscription> AdjustExpirationAsync(Guid? tenantId, Guid subscriptionId, string concurrencyStamp,
+    public virtual async Task<UserSubscription> AdjustExpirationAsync(Guid subscriptionId, string concurrencyStamp,
         DateTime? expiresAt, CancellationToken cancellationToken = default)
     {
-        var userId = await GetMutationUserIdAsync(tenantId, subscriptionId, cancellationToken);
+        var userId = await GetMutationUserIdAsync(subscriptionId, cancellationToken);
         return await _transactions.RunAsync(async unitOfWork =>
         {
-            await _mutationLock.AcquireAsync(unitOfWork, tenantId, userId, cancellationToken);
+            await _mutationLock.AcquireAsync(unitOfWork, userId, cancellationToken);
             var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
             SubscriptionCatalogManager.CheckStamp(subscription.ConcurrencyStamp, concurrencyStamp);
@@ -176,9 +173,8 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         }, cancellationToken);
     }
 
-    private Task<Guid> GetMutationUserIdAsync(Guid? tenantId, Guid subscriptionId, CancellationToken token)
+    private Task<Guid> GetMutationUserIdAsync(Guid subscriptionId, CancellationToken token)
     {
-        EnsureTenant(tenantId);
         if (_transactions.Current?.Items.TryGetValue(OwnerKey(subscriptionId), out var owner) == true)
         {
             return Task.FromResult((Guid)owner);
@@ -190,9 +186,8 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
 
     private static string OwnerKey(Guid id) => $"Subscription:Owner:{id:N}";
 
-    private void ValidateUserReference(Guid? tenantId, Guid userId)
+    private static void ValidateUserReference(Guid userId)
     {
-        EnsureTenant(tenantId);
         SubscriptionGuard.Id(userId, nameof(userId));
     }
 
@@ -232,6 +227,4 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             throw new BusinessException(SubscriptionErrorCodes.ConcurrencyConflict);
         SubscriptionCatalogManager.CheckStamp(current.ConcurrencyStamp, expected.ConcurrencyStamp);
     }
-
-    private void EnsureTenant(Guid? tenantId) => SubscriptionGuard.SameTenant(_tenant.Id, tenantId);
 }

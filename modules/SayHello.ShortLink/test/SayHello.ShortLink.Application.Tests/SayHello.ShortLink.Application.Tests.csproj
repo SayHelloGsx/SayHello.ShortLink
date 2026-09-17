@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SayHello.ShortLink.Application\SayHello.ShortLink.Application.csproj" />
+    <ProjectReference Include="..\..\src\SayHello.ShortLink.Admin.Web\SayHello.ShortLink.Admin.Web.csproj" />
     <ProjectReference Include="..\SayHello.ShortLink.Domain.Tests\SayHello.ShortLink.Domain.Tests.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
   </ItemGroup>

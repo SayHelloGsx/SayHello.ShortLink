@@ -9,4 +9,8 @@ public static class SubscriptionConsts
     public const int MaxReasonLength = 1024;
     public const int MaxConcurrencyStampLength = 40;
     public const int MaxPageSize = 100;
+    public const int MaxEntitlementStringLength = 512;
+    public const int MaxEntitlementStringSetCount = 100;
+    public const int MaxEntitlementStringSetStorageLength =
+        (MaxEntitlementStringLength * 6 + 3) * MaxEntitlementStringSetCount + 1;
 }

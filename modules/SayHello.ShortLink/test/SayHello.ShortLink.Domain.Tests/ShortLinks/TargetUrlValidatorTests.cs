@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using SayHello.ShortLink.BlockedDomains;
+using SayHello.ShortLink.ShortLinkDomains;
 using Shouldly;
 using Volo.Abp;
 using Xunit;
@@ -19,6 +20,9 @@ public class TargetUrlValidatorTests
 
     private readonly IHostAddressResolver _resolver =
         Substitute.For<IHostAddressResolver>();
+
+    private readonly IShortLinkDomainRepository _shortLinkDomains =
+        Substitute.For<IShortLinkDomainRepository>();
 
     [Fact]
     public async Task ValidateAsync_Should_Normalize_Public_Http_Url()
@@ -91,10 +95,29 @@ public class TargetUrlValidatorTests
         exception.Code.ShouldBe(ShortLinkErrorCodes.UnsafeTargetUrl);
     }
 
+    [Fact]
+    public async Task ValidateAsync_Should_Reject_A_Configured_Origin()
+    {
+        _shortLinkDomains
+            .IsHostConfiguredAsync(
+                "xn--bcher-kva.example",
+                Arg.Any<CancellationToken>())
+            .Returns(true);
+        var validator = CreateValidator();
+
+        var exception = await Should.ThrowAsync<BusinessException>(
+            () => validator.ValidateAsync("http://BÜCHER.example:8080/another-code"));
+
+        exception.Code.ShouldBe(ShortLinkErrorCodes.UnsafeTargetUrl);
+        await _resolver.DidNotReceiveWithAnyArgs()
+            .ResolveAsync(default!, default);
+    }
+
     private TargetUrlValidator CreateValidator(ShortLinkSecurityOptions? options = null)
     {
         return new TargetUrlValidator(
             _blockedDomains,
+            _shortLinkDomains,
             _resolver,
             Options.Create(options ?? new ShortLinkSecurityOptions()));
     }

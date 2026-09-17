@@ -15,6 +15,8 @@ public class UserSubscriptionEntitlement : Entity, IMultiTenant
     public bool? BooleanValue { get; private set; }
     public long? NumericValue { get; private set; }
     public bool IsUnlimited { get; private set; }
+    public string? StringValue { get; private set; }
+    public string? StringSetValue { get; private set; }
 
     protected UserSubscriptionEntitlement()
     {
@@ -30,10 +32,12 @@ public class UserSubscriptionEntitlement : Entity, IMultiTenant
         BooleanValue = snapshot.Value.BooleanValue;
         NumericValue = snapshot.Value.NumericValue;
         IsUnlimited = snapshot.Value.IsUnlimited;
+        StringValue = snapshot.Value.StringValue;
+        StringSetValue = snapshot.Value.ToStorageStringSet();
     }
 
     public EntitlementValue ToValue() =>
-        EntitlementValue.FromStorage(ValueType, BooleanValue, NumericValue, IsUnlimited);
+        EntitlementValue.FromStorage(ValueType, BooleanValue, NumericValue, IsUnlimited, StringValue, StringSetValue);
 
     public EntitlementSnapshotData ToSnapshot() => new(FeatureKey, DisplayName, ToValue());
 

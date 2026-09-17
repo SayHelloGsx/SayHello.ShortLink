@@ -7,6 +7,7 @@ using SayHello.ShortLink.Settings;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.DependencyInjection;
+using Volo.Abp.MultiTenancy;
 using Volo.Abp.Settings;
 using Volo.Abp.Timing;
 
@@ -19,21 +20,24 @@ public class InMemoryShortLinkCreationRateLimiter :
     private readonly ConcurrentDictionary<string, WindowState> _windows = new();
     private readonly ISettingProvider _settingProvider;
     private readonly IClock _clock;
+    private readonly ICurrentTenant _currentTenant;
 
     public InMemoryShortLinkCreationRateLimiter(
         ISettingProvider settingProvider,
-        IClock clock)
+        IClock clock,
+        ICurrentTenant currentTenant)
     {
         _settingProvider = settingProvider;
         _clock = clock;
+        _currentTenant = currentTenant;
     }
 
     public async Task EnsureAllowedAsync(
         Guid userId,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
         var limit = await GetLimitAsync();
+        var tenantId = _currentTenant.Id;
         var key = $"{tenantId?.ToString("N") ?? "host"}:{userId:N}";
         var state = _windows.GetOrAdd(key, _ => new WindowState(_clock.Now));
 

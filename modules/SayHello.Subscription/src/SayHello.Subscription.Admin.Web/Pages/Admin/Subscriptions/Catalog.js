@@ -83,10 +83,12 @@ $(function () {
             const definition = definitions.items.find(x => x.code === item.code);
             if (definition) {
                 const list = $('<ul>');
+                const typeNames = ['Boolean', 'Finite', 'Enum', 'StringSet'];
                 definition.features.forEach(feature => list.append($('<li>').text(
-                    feature.displayName + ' (' + feature.key + ') — ' + l(feature.type === 0 ? 'Boolean' : 'Finite') +
+                    feature.displayName + ' (' + feature.key + ') — ' + l(typeNames[feature.type]) +
                     (feature.type === 1 ? '; ' + l('Maximum', feature.maximum || '9223372036854775807') : '') +
                     (feature.allowUnlimited ? '; ' + l('Unlimited') : '') +
+                    (feature.options && feature.options.length ? '; ' + l('Options', feature.options.join(', ')) : '') +
                     (feature.description ? ': ' + feature.description : ''))));
                 section.append($('<h3 class="h5">').text(l('Entitlements')), definition.features.length ? list : s.text(l('NoFeatures')));
             }
@@ -178,7 +180,7 @@ $(function () {
                 row.append($('<select class="form-select feature-boolean">').attr('id', id).append(
                     $('<option value="false">').text(l('Disabled')), $('<option value="true">').text(l('Enabled')))
                     .val(value && value.booleanValue ? 'true' : 'false'));
-            } else {
+            } else if (feature.type === 1) {
                 const mode = $('<select class="form-select feature-mode mb-2">').attr('id', id).append(
                     $('<option value="finite">').text(l('Finite')));
                 if (feature.allowUnlimited) mode.append($('<option value="unlimited">').text(l('Unlimited')));
@@ -192,11 +194,66 @@ $(function () {
                 }
                 mode.on('change', updateMode); configuredInput.on('change', updateMode); updateMode();
                 row.append(mode, number, $('<small>').text(l('Maximum', feature.maximum || '9223372036854775807')));
+            } else if (feature.type === 2) {
+                const select = $('<select class="form-select feature-enum">').attr('id', id)
+                    .append($('<option value="">').text(l('Select')));
+                (feature.options || []).forEach(option =>
+                    select.append($('<option>').val(option).text(option)));
+                if (value && value.stringValue && !(feature.options || []).includes(value.stringValue)) {
+                    select.append($('<option>').val(value.stringValue).text(l('StaleOption', value.stringValue)));
+                }
+                select.val(value && value.stringValue || '');
+                function updateEnum() {
+                    const enabled = configuredInput.prop('checked');
+                    select.prop('disabled', !enabled).prop('required', enabled);
+                }
+                configuredInput.on('change', updateEnum); updateEnum();
+                row.append(select);
+            } else {
+                const values = value && value.stringValues || [];
+                if (feature.inputMode === 3 || (feature.options || []).length) {
+                    const select = $('<select multiple class="form-select feature-string-set-options">')
+                        .attr({ id: id, size: Math.min(10, Math.max(3, (feature.options || []).length)) });
+                    (feature.options || []).forEach(option =>
+                        select.append($('<option>').val(option).text(option)));
+                    values.filter(option => !(feature.options || []).includes(option)).forEach(option =>
+                        select.append($('<option>').val(option).text(l('StaleOption', option))));
+                    select.val(values);
+                    function updateSetOptions() { select.prop('disabled', !configuredInput.prop('checked')); }
+                    configuredInput.on('change', updateSetOptions); updateSetOptions();
+                    row.append(select);
+                } else {
+                    const inputs = $('<div class="feature-string-values">').attr('id', id);
+                    const add = s.button(l('AddValue'), () => {
+                        appendStringInput(inputs, '', configuredInput);
+                        inputs.find('input').last().trigger('focus');
+                    }).addClass('mt-2');
+                    (values.length ? values : ['']).forEach(item =>
+                        appendStringInput(inputs, item, configuredInput));
+                    function updateSetInputs() {
+                        const enabled = configuredInput.prop('checked');
+                        inputs.find('input, button').prop('disabled', !enabled);
+                        add.prop('disabled', !enabled);
+                    }
+                    configuredInput.on('change', updateSetInputs); updateSetInputs();
+                    row.append($('<p class="small mb-1">').text(l('FreeFormValues')), inputs, add);
+                }
             }
             function updateBoolean() { row.find('.feature-boolean').prop('disabled', !configuredInput.prop('checked')); }
             configuredInput.on('change', updateBoolean); updateBoolean();
             container.append(row);
         });
+    }
+
+    function appendStringInput(container, value, configuredInput) {
+        const input = $('<input class="form-control feature-string-value" maxlength="512">').val(value);
+        const remove = s.button(l('Remove'), () => {
+            const group = remove.closest('.input-group');
+            group.remove();
+        }, 'btn-outline-danger');
+        const group = $('<div class="input-group mb-2">').append(input, remove);
+        input.add(remove).prop('disabled', !configuredInput.prop('checked'));
+        container.append(group);
     }
 
     async function edit(id) {
@@ -263,13 +320,37 @@ $(function () {
             const row = $('[data-feature="' + index + '"]');
             if (!row.find('.feature-configured').prop('checked')) return [];
             if (feature.type === 0) return { featureKey: feature.key, value: {
-                type: 0, booleanValue: row.find('.feature-boolean').val() === 'true', numericValue: null, isUnlimited: false } };
-            const unlimited = row.find('.feature-mode').val() === 'unlimited';
-            const number = row.find('.feature-number').val();
-            if (!unlimited && (!/^\d+$/.test(number) || BigInt(number) > BigInt(feature.maximum || '9223372036854775807')))
-                throw new Error(l('InvalidNumeric', feature.displayName));
+                type: 0, booleanValue: row.find('.feature-boolean').val() === 'true', numericValue: null,
+                isUnlimited: false, stringValue: null, stringValues: null } };
+            if (feature.type === 1) {
+                const unlimited = row.find('.feature-mode').val() === 'unlimited';
+                const number = row.find('.feature-number').val();
+                if (!unlimited && (!/^\d+$/.test(number) ||
+                    BigInt(number) > BigInt(feature.maximum || '9223372036854775807')))
+                    throw new Error(l('InvalidNumeric', feature.displayName));
+                return { featureKey: feature.key, value: {
+                    type: 1, booleanValue: null, numericValue: unlimited ? null : BigInt(number).toString(),
+                    isUnlimited: unlimited, stringValue: null, stringValues: null } };
+            }
+            if (feature.type === 2) {
+                const selectedValue = row.find('.feature-enum').val();
+                if (!selectedValue || selectedValue.length > 512)
+                    throw new Error(l('InvalidEnum', feature.displayName));
+                return { featureKey: feature.key, value: {
+                    type: 2, booleanValue: null, numericValue: null, isUnlimited: false,
+                    stringValue: selectedValue, stringValues: null } };
+            }
+            const values = row.find('.feature-string-set-options').length
+                ? row.find('.feature-string-set-options').val() || []
+                : row.find('.feature-string-value').map((_, input) => $(input).val().trim()).get()
+                    .filter(item => item.length);
+            if (values.length > 100 || values.some(item => item.length > 512) ||
+                new Set(values).size !== values.length)
+                throw new Error(l('InvalidStringSet', feature.displayName));
+            values.sort();
             return { featureKey: feature.key, value: {
-                type: 1, booleanValue: null, numericValue: unlimited ? null : BigInt(number).toString(), isUnlimited: unlimited } };
+                type: 3, booleanValue: null, numericValue: null, isUnlimited: false,
+                stringValue: null, stringValues: values } };
         });
     }
 

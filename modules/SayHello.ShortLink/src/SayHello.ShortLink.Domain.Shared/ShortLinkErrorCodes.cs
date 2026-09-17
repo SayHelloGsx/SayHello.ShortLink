@@ -26,4 +26,12 @@ public static class ShortLinkErrorCodes
     public const string LinkQuotaNotGranted = "ShortLink:010022";
     public const string StatisticsNotGranted = "ShortLink:010023";
     public const string CreationLockUnavailable = "ShortLink:010024";
+    public const string InvalidDomainOrigin = "ShortLink:010025";
+    public const string DomainAlreadyExists = "ShortLink:010026";
+    public const string DefaultDomainCannotBeDisabled = "ShortLink:010027";
+    public const string DefaultDomainCannotBeDeleted = "ShortLink:010028";
+    public const string DomainInUse = "ShortLink:010029";
+    public const string DomainConfigurationLockUnavailable = "ShortLink:010030";
+    public const string DomainAccessDenied = "ShortLink:010031";
+    public const string DefaultDomainRequired = "ShortLink:010032";
 }

@@ -8,6 +8,7 @@ namespace SayHello.ShortLink.Public.ShortLinks;
 public interface IShortLinkRedirectAppService : IApplicationService
 {
     Task<ShortLinkResolutionDto> ResolveAsync(
+        string origin,
         string code,
         RecordShortLinkVisitDto? visit = null);
 }

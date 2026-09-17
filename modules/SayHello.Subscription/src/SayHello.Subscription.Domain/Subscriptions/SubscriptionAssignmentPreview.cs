@@ -38,16 +38,14 @@ public sealed class SubscriptionAssignmentPreviewItem
 
 public sealed class SubscriptionAssignmentPreview
 {
-    public Guid? TenantId { get; }
     public Guid UserId { get; }
     public Guid? BundleId { get; }
     public string? BundleConcurrencyStamp { get; }
     public IReadOnlyList<SubscriptionAssignmentPreviewItem> Items { get; }
 
-    public SubscriptionAssignmentPreview(Guid? tenantId, Guid userId, Guid? bundleId, string? bundleConcurrencyStamp,
+    public SubscriptionAssignmentPreview(Guid userId, Guid? bundleId, string? bundleConcurrencyStamp,
         IEnumerable<SubscriptionAssignmentPreviewItem> items)
     {
-        TenantId = tenantId;
         UserId = userId;
         BundleId = bundleId;
         BundleConcurrencyStamp = bundleConcurrencyStamp;

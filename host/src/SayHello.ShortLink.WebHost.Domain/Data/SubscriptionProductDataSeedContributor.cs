@@ -34,7 +34,6 @@ public class SubscriptionProductDataSeedContributor : IDataSeedContributor, ITra
             if (product is null)
             {
                 await _catalog.CreateProductAsync(
-                    context.TenantId,
                     ShortLinkSubscriptionDefinitions.ProductCode,
                     new CatalogDetails("ShortLink"));
             }

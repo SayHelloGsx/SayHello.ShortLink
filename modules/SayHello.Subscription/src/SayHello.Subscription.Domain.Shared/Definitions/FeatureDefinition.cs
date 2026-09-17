@@ -19,7 +19,7 @@ public sealed class FeatureDefinition
         Key = SubscriptionCode.Normalize(key, SubscriptionConsts.MaxFeatureKeyLength);
         DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
         if (!Enum.IsDefined(type) || maximum < 0 ||
-            (type == SubscriptionEntitlementType.Boolean && (maximum.HasValue || allowUnlimited)))
+            (type != SubscriptionEntitlementType.Numeric && (maximum.HasValue || allowUnlimited)))
         {
             throw new AbpException($"Invalid subscription feature definition: {Key}.");
         }
@@ -39,8 +39,9 @@ public sealed class FeatureDefinition
                 .WithData("FeatureKey", Key);
         }
 
-        if ((value.IsUnlimited && !AllowUnlimited) ||
-            (value.NumericValue.HasValue && Maximum.HasValue && value.NumericValue.Value > Maximum.Value))
+        if (Type == SubscriptionEntitlementType.Numeric &&
+            ((value.IsUnlimited && !AllowUnlimited) ||
+             (value.NumericValue.HasValue && Maximum.HasValue && value.NumericValue.Value > Maximum.Value)))
         {
             throw new BusinessException(SubscriptionErrorCodes.InvalidEntitlementValue)
                 .WithData("FeatureKey", Key);

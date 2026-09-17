@@ -73,6 +73,7 @@ public class ShortLinkAdministrationAppService :
             autoSave: true,
             cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
+            shortLink.Origin!,
             shortLink.Code,
             CancellationTokenProvider.Token);
         return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
@@ -88,6 +89,7 @@ public class ShortLinkAdministrationAppService :
             autoSave: true,
             cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
+            shortLink.Origin!,
             shortLink.Code,
             CancellationTokenProvider.Token);
     }

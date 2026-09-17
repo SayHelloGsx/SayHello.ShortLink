@@ -16,7 +16,11 @@ public class ShortLinkSubscriptionDefinitionProvider : SubscriptionDefinitionPro
                 new FeatureDefinition(
                     ShortLinkSubscriptionDefinitions.Statistics,
                     LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:Statistics"),
-                    SubscriptionEntitlementType.Boolean),
+                    SubscriptionEntitlementType.Enum),
+                new FeatureDefinition(
+                    ShortLinkSubscriptionDefinitions.Domains,
+                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:Domains"),
+                    SubscriptionEntitlementType.StringSet),
                 new FeatureDefinition(
                     ShortLinkSubscriptionDefinitions.MaxLinks,
                     LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxLinks"),

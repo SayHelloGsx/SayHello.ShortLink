@@ -8,6 +8,5 @@ public interface IShortLinkCreationRateLimiter
 {
     Task EnsureAllowedAsync(
         Guid userId,
-        Guid? tenantId,
         CancellationToken cancellationToken = default);
 }

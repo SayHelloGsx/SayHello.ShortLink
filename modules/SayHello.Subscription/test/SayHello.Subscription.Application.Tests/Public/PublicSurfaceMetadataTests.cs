@@ -59,6 +59,15 @@ public class PublicSurfaceMetadataTests
         input.IsDefined(typeof(FromQueryAttribute)).ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData(nameof(CurrentUserEntitlementController.GetBooleanAsync), "boolean/{featureKey}")]
+    [InlineData(nameof(CurrentUserEntitlementController.GetNumericAsync), "numeric/{featureKey}")]
+    [InlineData(nameof(CurrentUserEntitlementController.GetEnumAsync), "enum/{featureKey}")]
+    [InlineData(nameof(CurrentUserEntitlementController.GetStringSetAsync), "string-set/{featureKey}")]
+    public void Typed_entitlement_actions_have_stable_routes(string action, string template) =>
+        typeof(CurrentUserEntitlementController).GetMethod(action)!.GetCustomAttribute<HttpGetAttribute>()!
+            .Template.ShouldBe(template);
+
     [Fact]
     public void Razor_pages_and_application_services_have_real_authorization()
     {

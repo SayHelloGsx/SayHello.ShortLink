@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SayHello.ShortLink.BlockedDomains;
+using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp.Data;
 using Volo.Abp.EntityFrameworkCore;
@@ -18,4 +19,6 @@ public interface IShortLinkDbContext : IEfCoreDbContext
     DbSet<ShortLinkDailyDimensionStatistic> ShortLinkDailyDimensionStatistics { get; }
 
     DbSet<BlockedDomain> BlockedDomains { get; }
+
+    DbSet<ShortLinkDomain> ShortLinkDomains { get; }
 }

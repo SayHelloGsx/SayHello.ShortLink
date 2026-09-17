@@ -28,7 +28,7 @@ public class SubscriptionTimestampTests : SubscriptionPersistenceTestBase
         Assert.Null(stored.EndedAt);
 
         TestClock.Now = TestClock.Now.AddMinutes(15);
-        await InTransactionAsync(() => Manager.RevokeAsync(null, stored.Id, stored.ConcurrencyStamp, "history"));
+        await InTransactionAsync(() => Manager.RevokeAsync(stored.Id, stored.ConcurrencyStamp, "history"));
         var history = await InTransactionAsync(() => Subscriptions.GetAsync(assigned.Id));
         Assert.Equal(DateTimeKind.Utc, history.StartsAt.Kind);
         Assert.Equal(expiresAt, history.ExpiresAt);

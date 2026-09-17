@@ -94,7 +94,7 @@ public class ShortLinkSubscriptionWebFactory : WebApplicationFactory<Program>, I
                 "BridgeWebSeed")));
         var input = ShortLinkSubscriptionTestData.NewLink();
         var entity = await services.GetRequiredService<ShortLinkManager>().CreateAndSaveAsync(
-            Guid.NewGuid(), null, owner, input.TargetUrl, input.CustomCode, input.Title, null);
+            Guid.NewGuid(), owner, input.Origin, input.TargetUrl, input.CustomCode, input.Title, null);
         for (var i = 0; i < 7; i++) entity.IncreaseVisitCount();
         await services.GetRequiredService<IShortLinkRepository>().UpdateAsync(entity, autoSave: true);
         return entity;

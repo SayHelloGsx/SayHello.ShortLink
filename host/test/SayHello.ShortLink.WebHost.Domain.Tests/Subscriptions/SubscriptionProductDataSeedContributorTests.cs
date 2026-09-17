@@ -25,7 +25,6 @@ public class SubscriptionProductDataSeedContributorTests
         await contributor.SeedAsync(new DataSeedContext());
 
         await catalog.Received(1).CreateProductAsync(
-            null,
             ShortLinkSubscriptionDefinitions.ProductCode,
             Arg.Is<CatalogDetails>(details => details.Name == "ShortLink"));
     }
@@ -46,7 +45,7 @@ public class SubscriptionProductDataSeedContributorTests
         await new SubscriptionProductDataSeedContributor(products, catalog, tenant)
             .SeedAsync(new DataSeedContext(tenantId));
 
-        await catalog.DidNotReceiveWithAnyArgs().CreateProductAsync(default, default!, default!);
+        await catalog.DidNotReceiveWithAnyArgs().CreateProductAsync(default!, default!, default);
         tenant.Received(1).Change(tenantId);
     }
 }

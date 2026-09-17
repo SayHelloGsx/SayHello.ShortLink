@@ -38,7 +38,11 @@ public class AdminPresentationTests : SubscriptionTestBase<AdminSurfaceTestModul
                          "DefaultPlanUnconfigured", "DefaultPlanHelp", "DefaultPlanRightsWarning",
                          "DefaultPlanPublishedOnly", "ConfirmDefaultPlan", "ConfirmClearDefaultPlan",
                          "DefaultPlanSaveFailed", "Select a valid default plan or explicitly clear it.",
-                         SubscriptionErrorCodes.InvalidDefaultPlan, SubscriptionErrorCodes.DefaultPlanInUse })
+                         "Enum", "StringSet", "AddValue", "InvalidEnum", "InvalidStringSet",
+                         SubscriptionErrorCodes.InvalidDefaultPlan, SubscriptionErrorCodes.DefaultPlanInUse,
+                         SubscriptionErrorCodes.InvalidEntitlementOptions,
+                         SubscriptionErrorCodes.EntitlementOptionsRequired,
+                         SubscriptionErrorCodes.EntitlementOptionNotAllowed })
                 localizer[key].ResourceNotFound.ShouldBeFalse(key);
         }
         finally
@@ -94,6 +98,25 @@ public class AdminPresentationTests : SubscriptionTestBase<AdminSurfaceTestModul
         chinese.GetProperty("ConfirmClearDefaultPlan").GetString()!.ShouldContain("失去兜底权益");
         english.GetProperty("DefaultPlanRightsWarning").GetString()!.ShouldContain("immediately");
         chinese.GetProperty("DefaultPlanRightsWarning").GetString()!.ShouldContain("立即");
+    }
+
+    [Fact]
+    public void Catalog_editor_supports_select_multi_select_and_free_form_string_values()
+    {
+        var directory = Path.Combine(FindRepository(), "modules", "SayHello.Subscription", "src",
+            "SayHello.Subscription.Admin.Web", "Pages", "Admin", "Subscriptions");
+        var catalog = File.ReadAllText(Path.Combine(directory, "Catalog.js"));
+        var shared = File.ReadAllText(Path.Combine(directory, "Shared.js"));
+
+        catalog.ShouldContain("feature-enum");
+        catalog.ShouldContain("feature-string-set-options");
+        catalog.ShouldContain("feature-string-values");
+        catalog.ShouldContain("feature.inputMode === 3");
+        catalog.ShouldContain("new Set(values).size !== values.length");
+        catalog.ShouldContain("values.sort()");
+        catalog.ShouldContain("l('StaleOption'");
+        shared.ShouldContain("item.value.stringValue");
+        shared.ShouldContain("item.value.stringValues.join(', ')");
     }
 
     [Theory]

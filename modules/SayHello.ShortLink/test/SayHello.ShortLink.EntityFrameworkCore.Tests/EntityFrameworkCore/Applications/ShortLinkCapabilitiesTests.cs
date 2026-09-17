@@ -10,9 +10,12 @@ using SayHello.ShortLink.Admin.Settings;
 using SayHello.ShortLink.Admin.ShortLinks;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.EntityFrameworkCore;
+using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.Public.ShortLinks;
+using SayHello.ShortLink.ShortLinkDomains;
 using Shouldly;
 using Volo.Abp;
+using Volo.Abp.Authorization.Permissions;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.EntityFrameworkCore;
 using Volo.Abp.Json;
@@ -23,11 +26,15 @@ using Xunit;
 
 namespace SayHello.ShortLink.ShortLinks;
 
-public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitiesTestModule>
+public class ShortLinkCapabilitiesTests :
+    ShortLinkTestBase<ShortLinkCapabilitiesTestModule>,
+    IAsyncLifetime
 {
     private IShortLinkCapabilityProvider _capabilities = null!;
+    private IPermissionChecker _permissions = null!;
     private StatisticsReads _statisticsReads = null!;
     private bool _seedCreatedCounters;
+    private bool _statisticsPermissionGranted = true;
     private readonly IShortLinkAppService _appService;
     private readonly IShortLinkRepository _repository;
     private readonly ICurrentUser _currentUser;
@@ -43,14 +50,34 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
         _serializer = GetRequiredService<IJsonSerializer>();
     }
 
+    public async Task InitializeAsync()
+    {
+        await CreateDomainAsync("https://go.example.test");
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
+
     protected override void AfterAddApplication(IServiceCollection services)
     {
         base.AfterAddApplication(services);
         _capabilities = Substitute.For<IShortLinkCapabilityProvider>();
-        _capabilities.GetQuotaAsync(Arg.Any<Guid?>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _capabilities.GetQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(ShortLinkQuota.Unlimited);
+        _capabilities.GetDomainAccessAsync(
+                Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ShortLinkDomainAccess.Unrestricted);
+        _permissions = Substitute.For<IPermissionChecker>();
+        _permissions.IsGrantedAsync(Arg.Any<string>())
+            .Returns(call =>
+                call.Arg<string>() != ShortLinkPublicPermissions.ViewStatistics ||
+                _statisticsPermissionGranted);
+        _permissions.IsGrantedAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<string>())
+            .Returns(call =>
+                call.ArgAt<string>(1) != ShortLinkPublicPermissions.ViewStatistics ||
+                _statisticsPermissionGranted);
         SetStatisticsEnabled(true);
         services.AddSingleton(_capabilities);
+        services.AddSingleton(_permissions);
         _statisticsReads = new StatisticsReads();
         services.AddTransient<IShortLinkStatisticsRepository>(provider =>
             new TrackingStatisticsRepository(
@@ -109,8 +136,8 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
             AssertJsonCounter(item.GetProperty("totalVisitCount"), enabled ? 2 : null);
         }
 
-        await _capabilities.Received(1).IsStatisticsEnabledAsync(
-            _currentTenant.Id, _currentUser.GetId(), Arg.Any<CancellationToken>());
+        await _capabilities.Received(1).GetStatisticsLevelAsync(
+            _currentUser.GetId(), Arg.Any<CancellationToken>());
         (await WithUnitOfWorkAsync(() => _repository.GetAsync(created.Id))).TotalVisitCount.ShouldBe(2);
     }
 
@@ -145,8 +172,8 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
             exception = await Should.ThrowAsync<BusinessException>(() =>
                 _appService.GetStatisticsAsync(created.Id));
             exception.Code.ShouldBe(ShortLinkErrorCodes.LinkAccessDenied);
-            await _capabilities.DidNotReceive().IsStatisticsEnabledAsync(
-                Arg.Any<Guid?>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            await _capabilities.DidNotReceive().GetStatisticsLevelAsync(
+                Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         }
 
         using (_currentTenant.Change(Guid.NewGuid()))
@@ -168,7 +195,7 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
         var redirect = GetRequiredService<IShortLinkRedirectAppService>();
         foreach (var code in new[] { first.Code, first.Code, second.Code })
         {
-            (await redirect.ResolveAsync(code, new RecordShortLinkVisitDto
+            (await redirect.ResolveAsync(first.Origin!, code, new RecordShortLinkVisitDto
             {
                 IpAddress = "203.0.113.10",
                 UserAgent = "Mozilla/5.0 Chrome/120.0"
@@ -190,6 +217,7 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
 
         SetStatisticsEnabled(true);
         var statistics = await _appService.GetStatisticsAsync(first.Id);
+        statistics.StatisticsLevel.ShouldBe(ShortLinkStatisticsLevel.Advanced);
         statistics.TotalVisitCount.ShouldBe(2);
         statistics.UniqueVisitorCount.ShouldBe(1);
         statistics.Daily.Sum(x => x.VisitCount).ShouldBe(2);
@@ -197,6 +225,74 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
         var publicList = await _appService.GetListAsync(new GetShortLinksInput { Sorting = "totalvisitcount desc" });
         publicList.Items.First().Id.ShouldBe(first.Id);
         AssertSerializedCounter(publicList.Items.First(), 2);
+    }
+
+    [Fact]
+    public async Task Basic_Statistics_Should_Return_Only_Total_Without_Reading_Advanced_Data()
+    {
+        var created = await CreateAsync();
+        var redirect = GetRequiredService<IShortLinkRedirectAppService>();
+        await redirect.ResolveAsync(created.Origin!, created.Code, new RecordShortLinkVisitDto
+        {
+            IpAddress = "203.0.113.10",
+            UserAgent = "Mozilla/5.0 Chrome/120.0"
+        });
+        SetStatisticsLevel(ShortLinkStatisticsLevel.Basic);
+
+        var statistics = await _appService.GetStatisticsAsync(created.Id);
+
+        statistics.StatisticsLevel.ShouldBe(ShortLinkStatisticsLevel.Basic);
+        statistics.TotalVisitCount.ShouldBe(1);
+        statistics.UniqueVisitorCount.ShouldBeNull();
+        statistics.Daily.ShouldBeEmpty();
+        statistics.Referrers.ShouldBeEmpty();
+        statistics.Browsers.ShouldBeEmpty();
+        statistics.Devices.ShouldBeEmpty();
+        _statisticsReads.Count.ShouldBe(0);
+
+        var list = await _appService.GetListAsync(
+            new GetShortLinksInput { Sorting = "totalvisitcount desc" });
+        AssertSerializedCounter(list.Items.Single(), 1);
+    }
+
+    [Fact]
+    public async Task Advanced_Statistics_Without_Permission_Should_Mask_Summaries_And_Reject_Sorting()
+    {
+        SetStatisticsLevel(ShortLinkStatisticsLevel.Advanced);
+        _statisticsPermissionGranted = false;
+        _seedCreatedCounters = true;
+
+        var created = await CreateAsync();
+        AssertSerializedCounter(created, null);
+        (await WithUnitOfWorkAsync(() => _repository.GetAsync(created.Id)))
+            .TotalVisitCount.ShouldBe(2);
+
+        var found = await _appService.GetAsync(created.Id);
+        AssertSerializedCounter(found, null);
+
+        var updated = await _appService.UpdateAsync(created.Id, new UpdateShortLinkDto
+        {
+            TargetUrl = "https://example.com/updated",
+            Title = "Changed",
+            ConcurrencyStamp = found.ConcurrencyStamp
+        });
+        AssertSerializedCounter(updated, null);
+
+        var disabled = await _appService.SetStatusAsync(created.Id, new SetShortLinkStatusDto
+        {
+            Status = ShortLinkStatus.Disabled,
+            ConcurrencyStamp = updated.ConcurrencyStamp
+        });
+        AssertSerializedCounter(disabled, null);
+
+        var list = await _appService.GetListAsync(new GetShortLinksInput());
+        AssertSerializedCounter(list.Items.Single(), null);
+
+        var exception = await Should.ThrowAsync<BusinessException>(() =>
+            _appService.GetListAsync(
+                new GetShortLinksInput { Sorting = "totalvisitcount desc" }));
+        exception.Code.ShouldBe(ShortLinkErrorCodes.StatisticsNotGranted);
+        _statisticsReads.Count.ShouldBe(0);
     }
 
     [Fact]
@@ -219,6 +315,7 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
             result.IsUnlimited.ShouldBeFalse();
             result.MaxLinks.ShouldBe(limit);
             result.RemainingLinks.ShouldBe(Math.Max(0, limit - 2));
+            result.StatisticsLevel.ShouldBe(ShortLinkStatisticsLevel.Advanced);
             result.StatisticsEnabled.ShouldBeTrue();
         }
 
@@ -230,6 +327,7 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
         denied.IsUnlimited.ShouldBeFalse();
         denied.MaxLinks.ShouldBeNull();
         denied.RemainingLinks.ShouldBe(0);
+        denied.StatisticsLevel.ShouldBe(ShortLinkStatisticsLevel.None);
         denied.StatisticsEnabled.ShouldBeFalse();
 
         SetQuota(ShortLinkQuota.Unlimited);
@@ -264,13 +362,108 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
             (await _appService.GetCapabilitiesAsync()).UsedLinks.ShouldBe(0);
         }
 
-        using (_currentTenant.Change(Guid.NewGuid()))
+        var otherTenantId = Guid.NewGuid();
+        using (_currentTenant.Change(otherTenantId))
         {
+            await CreateDomainAsync("https://go.example.test");
             (await _appService.GetCapabilitiesAsync()).UsedLinks.ShouldBe(0);
         }
 
         await GetRequiredService<IShortLinkAdministrationAppService>().DeleteAsync(first.Id);
         (await _appService.GetCapabilitiesAsync()).RemainingLinks.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task Domain_Access_Should_Keep_Default_Open_And_Isolate_Resolution_By_Origin()
+    {
+        var domainManager = GetRequiredService<ShortLinkDomainManager>();
+        var domainRepository = GetRequiredService<IShortLinkDomainRepository>();
+        var extra = await CreateDomainAsync("HTTPS://ALT.EXAMPLE.TEST:443/");
+        _capabilities.GetDomainAccessAsync(
+                Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ShortLinkDomainAccess.Restricted([]));
+
+        var restricted = await _appService.GetCapabilitiesAsync();
+        restricted.Domains.ShouldHaveSingleItem().Origin
+            .ShouldBe("https://go.example.test");
+
+        const string sharedCode = "Shared01";
+        var defaultLink = await _appService.CreateAsync(new CreateShortLinkDto
+        {
+            Origin = "https://go.example.test",
+            TargetUrl = "https://example.com/default",
+            CustomCode = sharedCode
+        });
+        var denied = await Should.ThrowAsync<BusinessException>(() =>
+            _appService.CreateAsync(new CreateShortLinkDto
+            {
+                Origin = extra.Origin,
+                TargetUrl = "https://example.org/denied",
+                CustomCode = sharedCode
+            }));
+        denied.Code.ShouldBe(ShortLinkErrorCodes.DomainAccessDenied);
+
+        _capabilities.GetDomainAccessAsync(
+                Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ShortLinkDomainAccess.Restricted([extra.Origin]));
+        var available = await _appService.GetCapabilitiesAsync();
+        available.Domains.Select(x => x.Origin).ShouldBe(
+            ["https://go.example.test", extra.Origin],
+            ignoreOrder: true);
+
+        var extraLink = await _appService.CreateAsync(new CreateShortLinkDto
+        {
+            Origin = extra.Origin,
+            TargetUrl = "https://example.org/extra",
+            CustomCode = sharedCode
+        });
+        var redirect = GetRequiredService<IShortLinkRedirectAppService>();
+        (await redirect.ResolveAsync(defaultLink.Origin!, sharedCode)).TargetUrl
+            .ShouldBe("https://example.com/default");
+        (await redirect.ResolveAsync(extraLink.Origin!, sharedCode)).TargetUrl
+            .ShouldBe("https://example.org/extra");
+        (await redirect.ResolveAsync("https://wrong.example.test", sharedCode)).Status
+            .ShouldBe(ShortLinkResolutionStatus.NotFound);
+
+        await WithUnitOfWorkAsync(async () =>
+        {
+            var currentExtra = await domainRepository.GetAsync(extra.Id);
+            currentExtra.Disable();
+            await domainRepository.UpdateAsync(currentExtra, autoSave: true);
+        });
+        (await _appService.GetCapabilitiesAsync()).Domains
+            .ShouldHaveSingleItem().IsDefault.ShouldBeTrue();
+        denied = await Should.ThrowAsync<BusinessException>(() =>
+            _appService.CreateAsync(new CreateShortLinkDto
+            {
+                Origin = extra.Origin,
+                TargetUrl = "https://example.org/new",
+                CustomCode = "Extra02"
+            }));
+        denied.Code.ShouldBe(ShortLinkErrorCodes.DomainAccessDenied);
+        (await redirect.ResolveAsync(extraLink.Origin!, sharedCode)).Status
+            .ShouldBe(ShortLinkResolutionStatus.Found);
+
+        await _appService.DeleteAsync(extraLink.Id);
+        var currentExtra = await WithUnitOfWorkAsync(() =>
+            domainRepository.GetAsync(extra.Id));
+        var inUse = await Should.ThrowAsync<BusinessException>(() =>
+            domainManager.EnsureCanDeleteAsync(currentExtra));
+        inUse.Code.ShouldBe(ShortLinkErrorCodes.DomainInUse);
+        (await WithUnitOfWorkAsync(() => domainRepository.GetAsync(extra.Id)))
+            .Id.ShouldBe(extra.Id);
+    }
+
+    private Task<ShortLinkDomain> CreateDomainAsync(string origin)
+    {
+        return WithUnitOfWorkAsync(async () =>
+        {
+            var domain = await GetRequiredService<ShortLinkDomainManager>()
+                .CreateAsync(origin);
+            await GetRequiredService<IShortLinkDomainRepository>()
+                .InsertAsync(domain, autoSave: true);
+            return domain;
+        });
     }
 
     [Fact]
@@ -281,7 +474,7 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
         _capabilities.ClearReceivedCalls();
         await Should.ThrowAsync<InvalidOperationException>(() => _appService.GetCapabilitiesAsync());
         await _capabilities.DidNotReceive().GetQuotaAsync(
-            Arg.Any<Guid?>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -306,6 +499,7 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
     {
         return _appService.CreateAsync(new CreateShortLinkDto
         {
+            Origin = "https://go.example.test",
             TargetUrl = "https://example.com/path",
             CustomCode = $"C{Guid.NewGuid():N}",
             ExpiresAt = expiresAt
@@ -314,14 +508,21 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
 
     private void SetStatisticsEnabled(bool enabled)
     {
-        _capabilities.IsStatisticsEnabledAsync(
-                Arg.Any<Guid?>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(enabled);
+        SetStatisticsLevel(enabled
+            ? ShortLinkStatisticsLevel.Advanced
+            : ShortLinkStatisticsLevel.None);
+    }
+
+    private void SetStatisticsLevel(ShortLinkStatisticsLevel level)
+    {
+        _capabilities.GetStatisticsLevelAsync(
+                Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(level);
     }
 
     private void SetQuota(ShortLinkQuota quota)
     {
-        _capabilities.GetQuotaAsync(Arg.Any<Guid?>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _capabilities.GetQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(quota);
     }
 
@@ -361,12 +562,18 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
         IShortLinkRepository repository,
         Func<bool> shouldSeed) : IShortLinkCacheInvalidator
     {
-        public async Task RemoveAsync(string code, CancellationToken cancellationToken = default)
+        public async Task RemoveAsync(
+            string? origin,
+            string code,
+            CancellationToken cancellationToken = default)
         {
             if (shouldSeed())
             {
                 // Persist a nonzero counter after insertion but before the create response is mapped.
-                var entity = await repository.FindByCodeAsync(code, cancellationToken: cancellationToken);
+                var entity = await repository.FindByCodeAsync(
+                    origin!,
+                    code,
+                    cancellationToken: cancellationToken);
                 if (entity is { TotalVisitCount: 0 })
                 {
                     entity.IncreaseVisitCount();
@@ -375,7 +582,7 @@ public class ShortLinkCapabilitiesTests : ShortLinkTestBase<ShortLinkCapabilitie
                 }
             }
 
-            await inner.RemoveAsync(code, cancellationToken);
+            await inner.RemoveAsync(origin, code, cancellationToken);
         }
     }
 

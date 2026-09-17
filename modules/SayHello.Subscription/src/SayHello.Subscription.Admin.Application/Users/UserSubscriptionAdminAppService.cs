@@ -77,7 +77,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     {
         await EnsureAssignableUserAsync(userId);
         return AdminDtoMapper.ToDto(await _manager.PreviewPlanAsync(
-            CurrentTenant.Id, userId, planId, CancellationTokenProvider.Token));
+            userId, planId, CancellationTokenProvider.Token));
     }
 
     [Authorize(SubscriptionAdminPermissions.Users.Assign)]
@@ -85,7 +85,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     {
         await EnsureAssignableUserAsync(userId);
         return AdminDtoMapper.ToDto(await _manager.PreviewBundleAsync(
-            CurrentTenant.Id, userId, bundleId, CancellationTokenProvider.Token));
+            userId, bundleId, CancellationTokenProvider.Token));
     }
 
     [Authorize(SubscriptionAdminPermissions.Users.Assign)]
@@ -94,7 +94,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     {
         await EnsureAssignableUserAsync(input.UserId);
         return AdminDtoMapper.ToDto(await _manager.AssignPlanAsync(
-            new AssignSubscriptionPlan(CurrentTenant.Id, input.UserId, AdminDtoMapper.ToTarget(input.Target)),
+            new AssignSubscriptionPlan(input.UserId, AdminDtoMapper.ToTarget(input.Target)),
             CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
     }
 
@@ -104,7 +104,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     {
         await EnsureAssignableUserAsync(input.UserId);
         // One manager command owns the transaction; never loop over AssignPlanAsync here.
-        var subscriptions = await _manager.AssignBundleAsync(new AssignSubscriptionBundle(CurrentTenant.Id, input.UserId,
+        var subscriptions = await _manager.AssignBundleAsync(new AssignSubscriptionBundle(input.UserId,
             input.BundleId, input.BundleConcurrencyStamp, input.Targets.Select(AdminDtoMapper.ToTarget)),
             CancellationTokenProvider.Token);
         var now = _clock.Now.ToUniversalTime();
@@ -114,13 +114,13 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     [Authorize(SubscriptionAdminPermissions.Users.Revoke)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminUserSubscriptionDto> RevokeAsync(Guid id, RevokeSubscriptionDto input) =>
-        AdminDtoMapper.ToDto(await _manager.RevokeAsync(CurrentTenant.Id, id, input.ConcurrencyStamp, input.Reason,
+        AdminDtoMapper.ToDto(await _manager.RevokeAsync(id, input.ConcurrencyStamp, input.Reason,
             CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
 
     [Authorize(SubscriptionAdminPermissions.Users.AdjustExpiration)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminUserSubscriptionDto> AdjustExpirationAsync(Guid id, AdjustExpirationDto input) =>
-        AdminDtoMapper.ToDto(await _manager.AdjustExpirationAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        AdminDtoMapper.ToDto(await _manager.AdjustExpirationAsync(id, input.ConcurrencyStamp,
             input.ExpiresAt, CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
 
     private async Task EnsureAssignableUserAsync(Guid userId)

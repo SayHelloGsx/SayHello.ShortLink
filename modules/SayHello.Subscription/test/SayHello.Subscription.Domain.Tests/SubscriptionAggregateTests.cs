@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SayHello.Subscription.Catalog;
@@ -38,6 +40,79 @@ public class SubscriptionAggregateTests
             new FeatureDefinition("FEATURE", new FixedLocalizableString("F"), SubscriptionEntitlementType.Boolean)
         }));
         AssertCode(SubscriptionErrorCodes.InvalidCode, () => SubscriptionCode.Normalize("../alpha"));
+    }
+
+    [Fact]
+    public void String_entitlement_values_are_bounded_distinct_and_canonically_stored()
+    {
+        Assert.Equal(0, (int)SubscriptionEntitlementType.Boolean);
+        Assert.Equal(1, (int)SubscriptionEntitlementType.Numeric);
+        Assert.Equal(2, (int)SubscriptionEntitlementType.Enum);
+        Assert.Equal(3, (int)SubscriptionEntitlementType.StringSet);
+
+        var enumValue = EntitlementValue.Enum(" pro ");
+        Assert.Equal("pro", enumValue.StringValue);
+        var set = EntitlementValue.StringSet(new[] { "zeta", " alpha " });
+        Assert.Equal(new[] { "alpha", "zeta" }, set.StringValues);
+        Assert.Equal("""["alpha","zeta"]""", set.ToStorageStringSet());
+        var restored = EntitlementValue.FromStorage(
+            SubscriptionEntitlementType.StringSet, null, null, false, null, """["zeta","alpha"]""");
+        Assert.True(set.HasSameValueAs(restored));
+        Assert.Equal(set, restored);
+
+        AssertCode(SubscriptionErrorCodes.InvalidEntitlementValue, () => EntitlementValue.Enum(""));
+        AssertCode(SubscriptionErrorCodes.InvalidEntitlementValue, () =>
+            EntitlementValue.Enum(new string('x', SubscriptionConsts.MaxEntitlementStringLength + 1)));
+        AssertCode(SubscriptionErrorCodes.InvalidEntitlementValue, () =>
+            EntitlementValue.StringSet(new[] { "same", "same" }));
+        AssertCode(SubscriptionErrorCodes.InvalidEntitlementValue, () =>
+            EntitlementValue.StringSet(Enumerable.Range(0, SubscriptionConsts.MaxEntitlementStringSetCount + 1)
+                .Select(index => index.ToString())));
+        AssertCode(SubscriptionErrorCodes.InvalidEntitlementValue, () =>
+            EntitlementValue.FromStorage(SubscriptionEntitlementType.Enum, null, null, false, "pro", "[]"));
+    }
+
+    [Fact]
+    public async Task Business_options_are_canonical_and_apply_enum_and_string_set_rules()
+    {
+        var enumFeature = new FeatureDefinition(
+            "tier", new FixedLocalizableString("Tier"), SubscriptionEntitlementType.Enum);
+        var setFeature = new FeatureDefinition(
+            "regions", new FixedLocalizableString("Regions"), SubscriptionEntitlementType.StringSet);
+        var provider = new FixedOptionsProvider(new[] { "zeta", "alpha" });
+
+        Assert.Equal(new[] { "alpha", "zeta" },
+            await provider.GetCanonicalOptionsAsync("alpha", enumFeature));
+        await provider.ValidateOptionsAsync("alpha", enumFeature, EntitlementValue.Enum("alpha"));
+        await provider.ValidateOptionsAsync(
+            "alpha", setFeature, EntitlementValue.StringSet(new[] { "zeta", "alpha" }));
+        Assert.Equal(SubscriptionErrorCodes.EntitlementOptionNotAllowed,
+            (await Assert.ThrowsAsync<BusinessException>(() =>
+                provider.ValidateOptionsAsync("alpha", enumFeature, EntitlementValue.Enum("missing")))).Code);
+        Assert.Equal(SubscriptionErrorCodes.EntitlementOptionNotAllowed,
+            (await Assert.ThrowsAsync<BusinessException>(() =>
+                provider.ValidateOptionsAsync(
+                    "alpha", setFeature, EntitlementValue.StringSet(new[] { "alpha", "missing" })))).Code);
+
+        var freeForm = new FixedOptionsProvider(Array.Empty<string>());
+        await freeForm.ValidateOptionsAsync(
+            "alpha", setFeature, EntitlementValue.StringSet(new[] { "custom" }));
+        Assert.Equal(SubscriptionErrorCodes.EntitlementOptionsRequired,
+            (await Assert.ThrowsAsync<BusinessException>(() =>
+                freeForm.GetCanonicalOptionsAsync("alpha", enumFeature))).Code);
+
+        var manyOptions = new FixedOptionsProvider(
+            Enumerable.Range(0, SubscriptionConsts.MaxEntitlementStringSetCount + 1)
+                .Select(index => $"option-{index}")
+                .ToArray());
+        Assert.Equal(
+            SubscriptionConsts.MaxEntitlementStringSetCount + 1,
+            (await manyOptions.GetCanonicalOptionsAsync("alpha", enumFeature)).Count);
+
+        var conflict = await Assert.ThrowsAsync<BusinessException>(() =>
+            new ISubscriptionEntitlementOptionProvider[] { provider, freeForm }
+                .GetCanonicalOptionsAsync("alpha", enumFeature));
+        Assert.Equal(SubscriptionErrorCodes.EntitlementOptionProviderConflict, conflict.Code);
     }
 
     [Fact]
@@ -142,6 +217,25 @@ public class SubscriptionAggregateTests
     }
 
     [Fact]
+    public void Enum_and_string_set_results_preserve_grant_source_and_use_ordinal_matching()
+    {
+        var subscriptionId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var enumResult = EnumEntitlementResult.FromSubscription(subscriptionId, "pro", planId);
+        Assert.True(enumResult.Matches("pro"));
+        Assert.False(enumResult.Matches("PRO"));
+        Assert.Equal(planId, enumResult.PlanId);
+
+        var set = StringSetEntitlementResult.FromDefaultPlan(planId, new[] { "write", "read" });
+        Assert.Equal(new[] { "read", "write" }, set.Values);
+        Assert.True(set.Contains("read"));
+        Assert.True(set.ContainsAll(new[] { "write", "read" }));
+        Assert.False(set.Contains("READ"));
+        Assert.Equal(EntitlementSource.DefaultPlan, set.Source);
+        Assert.Empty(StringSetEntitlementResult.NoSubscription().Values);
+    }
+
+    [Fact]
     public void Default_product_cannot_be_unpublished_until_the_default_is_cleared()
     {
         var (product, plan) = Catalog();
@@ -175,5 +269,18 @@ public class SubscriptionAggregateTests
     public class DuplicateDefinitions : SubscriptionDefinitionProvider
     {
         public override void Define(ISubscriptionDefinitionContext context) => context.AddProduct(SubscriptionTestDefinitions.Product("ALPHA"));
+    }
+
+    private sealed class FixedOptionsProvider : ISubscriptionEntitlementOptionProvider
+    {
+        private readonly IReadOnlyList<string> _options;
+
+        public FixedOptionsProvider(IReadOnlyList<string> options) => _options = options;
+
+        public bool CanProvide(string productCode, string featureKey) => true;
+
+        public Task<IReadOnlyList<string>> GetOptionsAsync(
+            string productCode, string featureKey, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_options);
     }
 }

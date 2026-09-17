@@ -97,6 +97,77 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.ToTable("ShortLinkBlockedDomains", (string)null);
                 });
 
+            modelBuilder.Entity("SayHello.ShortLink.ShortLinkDomains.ShortLinkDomain", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("ConcurrencyStamp");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("CreationTime");
+
+                    b.Property<Guid?>("CreatorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("CreatorId");
+
+                    b.Property<string>("DefaultUniquenessKey")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("ExtraProperties")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ExtraProperties");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModificationTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("LastModificationTime");
+
+                    b.Property<Guid?>("LastModifierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("LastModifierId");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("TenantId");
+
+                    b.Property<string>("TenantScopeKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefaultUniquenessKey")
+                        .IsUnique();
+
+                    b.HasIndex("TenantScopeKey", "Origin")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "IsEnabled", "Origin");
+
+                    b.ToTable("ShortLinkDomains", (string)null);
+                });
+
             modelBuilder.Entity("SayHello.ShortLink.ShortLinks.ShortLink", b =>
                 {
                     b.Property<Guid>("Id")
@@ -130,6 +201,9 @@ namespace SayHello.ShortLink.WebHost.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("DeletionTime");
 
+                    b.Property<Guid?>("DomainId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("timestamp without time zone");
 
@@ -151,6 +225,10 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.Property<Guid?>("LastModifierId")
                         .HasColumnType("uuid")
                         .HasColumnName("LastModifierId");
+
+                    b.Property<string>("Origin")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uuid");
@@ -177,7 +255,14 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"Origin\" IS NULL");
+
+                    b.HasIndex("DomainId");
+
+                    b.HasIndex("Origin", "Code")
+                        .IsUnique()
+                        .HasFilter("\"Origin\" IS NOT NULL");
 
                     b.HasIndex("Status", "ExpiresAt");
 
@@ -484,6 +569,14 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.Property<long?>("NumericValue")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("StringSetValue")
+                        .HasMaxLength(307501)
+                        .HasColumnType("character varying(307501)");
+
+                    b.Property<string>("StringValue")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("TenantId");
@@ -495,7 +588,7 @@ namespace SayHello.ShortLink.WebHost.Migrations
 
                     b.ToTable("SubscriptionPlanEntitlements", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Subscription_PlanEntitlement_Value", "(\"ValueType\" = 0 AND \"BooleanValue\" IS NOT NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE) OR (\"ValueType\" = 1 AND \"BooleanValue\" IS NULL AND ((\"IsUnlimited\" = TRUE AND \"NumericValue\" IS NULL) OR (\"IsUnlimited\" = FALSE AND \"NumericValue\" IS NOT NULL AND \"NumericValue\" >= 0)))");
+                            t.HasCheckConstraint("CK_Subscription_PlanEntitlement_Value", "(\"ValueType\" = 0 AND \"BooleanValue\" IS NOT NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NULL) OR (\"ValueType\" = 1 AND \"BooleanValue\" IS NULL AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NULL AND ((\"IsUnlimited\" = TRUE AND \"NumericValue\" IS NULL) OR (\"IsUnlimited\" = FALSE AND \"NumericValue\" IS NOT NULL AND \"NumericValue\" >= 0))) OR (\"ValueType\" = 2 AND \"BooleanValue\" IS NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE AND \"StringValue\" IS NOT NULL AND \"StringSetValue\" IS NULL) OR (\"ValueType\" = 3 AND \"BooleanValue\" IS NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NOT NULL)");
                         });
                 });
 
@@ -722,6 +815,14 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.Property<long?>("NumericValue")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("StringSetValue")
+                        .HasMaxLength(307501)
+                        .HasColumnType("character varying(307501)");
+
+                    b.Property<string>("StringValue")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("TenantId");
@@ -733,7 +834,7 @@ namespace SayHello.ShortLink.WebHost.Migrations
 
                     b.ToTable("SubscriptionUserSubscriptionEntitlements", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Subscription_Snapshot_Value", "(\"ValueType\" = 0 AND \"BooleanValue\" IS NOT NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE) OR (\"ValueType\" = 1 AND \"BooleanValue\" IS NULL AND ((\"IsUnlimited\" = TRUE AND \"NumericValue\" IS NULL) OR (\"IsUnlimited\" = FALSE AND \"NumericValue\" IS NOT NULL AND \"NumericValue\" >= 0)))");
+                            t.HasCheckConstraint("CK_Subscription_Snapshot_Value", "(\"ValueType\" = 0 AND \"BooleanValue\" IS NOT NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NULL) OR (\"ValueType\" = 1 AND \"BooleanValue\" IS NULL AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NULL AND ((\"IsUnlimited\" = TRUE AND \"NumericValue\" IS NULL) OR (\"IsUnlimited\" = FALSE AND \"NumericValue\" IS NOT NULL AND \"NumericValue\" >= 0))) OR (\"ValueType\" = 2 AND \"BooleanValue\" IS NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE AND \"StringValue\" IS NOT NULL AND \"StringSetValue\" IS NULL) OR (\"ValueType\" = 3 AND \"BooleanValue\" IS NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NOT NULL)");
                         });
                 });
 
@@ -2617,6 +2718,14 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.HasKey("TenantId", "Name");
 
                     b.ToTable("AbpTenantConnectionStrings", (string)null);
+                });
+
+            modelBuilder.Entity("SayHello.ShortLink.ShortLinks.ShortLink", b =>
+                {
+                    b.HasOne("SayHello.ShortLink.ShortLinkDomains.ShortLinkDomain", null)
+                        .WithMany()
+                        .HasForeignKey("DomainId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("SayHello.ShortLink.ShortLinks.ShortLinkDailyDimensionStatistic", b =>

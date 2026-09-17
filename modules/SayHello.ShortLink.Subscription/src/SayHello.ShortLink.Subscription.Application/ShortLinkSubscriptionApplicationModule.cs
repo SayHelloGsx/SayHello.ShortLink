@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SayHello.ShortLink.ShortLinks;
+using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Public;
 using Volo.Abp.Modularity;
 
@@ -16,5 +17,8 @@ public class ShortLinkSubscriptionApplicationModule : AbpModule
     {
         context.Services.RemoveAll<IShortLinkCapabilityProvider>();
         context.Services.AddTransient<IShortLinkCapabilityProvider, SubscriptionShortLinkCapabilityProvider>();
+        context.Services.AddTransient<
+            ISubscriptionEntitlementOptionProvider,
+            ShortLinkSubscriptionEntitlementOptionProvider>();
     }
 }

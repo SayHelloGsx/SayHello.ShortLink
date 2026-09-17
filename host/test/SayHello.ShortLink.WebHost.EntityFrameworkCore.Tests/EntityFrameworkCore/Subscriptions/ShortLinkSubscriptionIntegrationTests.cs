@@ -7,6 +7,7 @@ using NSubstitute;
 using SayHello.ShortLink.Admin.ShortLinks;
 using SayHello.ShortLink.Public.ShortLinks;
 using SayHello.ShortLink.Settings;
+using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinks;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Subscriptions;
@@ -66,7 +67,13 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
         string source, bool granted, long? limit, bool statistics)
     {
         var tenantId = Guid.NewGuid();
-        if (source != "no-product")
+        if (source == "no-product")
+        {
+            await RunAsync(
+                ShortLinkSubscriptionTestData.EnsureDefaultDomainAsync,
+                tenantId);
+        }
+        else
         {
             await RunAsync(services => ShortLinkSubscriptionTestData.CreatePlanAsync(
                 services,
@@ -118,7 +125,7 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
     {
         await RunAsync(services => ShortLinkSubscriptionTestData.CreatePlanAsync(services, null, true, unlimited: true));
         GetRequiredService<IShortLinkCreationRateLimiter>()
-            .EnsureAllowedAsync(_owner, null, Arg.Any<CancellationToken>())
+            .EnsureAllowedAsync(_owner, Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new BusinessException(ShortLinkErrorCodes.CreationRateExceeded)));
         (await Should.ThrowAsync<BusinessException>(() => CreateAsync())).Code
             .ShouldBe(ShortLinkErrorCodes.CreationRateExceeded);
@@ -156,7 +163,7 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
         {
             var subscription = await services.GetRequiredService<IUserSubscriptionRepository>().GetAsync(subscriptionId);
             await services.GetRequiredService<ISubscriptionManager>()
-                .RevokeAsync(null, subscription.Id, subscription.ConcurrencyStamp, "integration revoke");
+                .RevokeAsync(subscription.Id, subscription.ConcurrencyStamp, "integration revoke");
         });
         var fallback = await CapabilitiesAsync();
         fallback.MaxLinks.ShouldBe(20);
@@ -254,6 +261,53 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
             services => services.GetRequiredService<IShortLinkAppService>().GetAsync(tenantLink.Id), secondTenant));
     }
 
+    [Fact]
+    public async Task Default_Domain_Should_Be_Open_While_Extra_Domains_Require_StringSet_Entitlement()
+    {
+        const string grantedOrigin = "https://pro.example.test";
+        const string deniedOrigin = "https://enterprise.example.test";
+        await RunAsync(async services =>
+        {
+            await ShortLinkSubscriptionTestData.EnsureDefaultDomainAsync(services);
+            var manager = services.GetRequiredService<ShortLinkDomainManager>();
+            var domains = services.GetRequiredService<IShortLinkDomainRepository>();
+            await domains.InsertAsync(
+                await manager.CreateAsync(grantedOrigin),
+                autoSave: true);
+            await domains.InsertAsync(
+                await manager.CreateAsync(deniedOrigin),
+                autoSave: true);
+            await ShortLinkSubscriptionTestData.CreatePlanAsync(
+                services,
+                10,
+                true,
+                domains: [grantedOrigin]);
+        });
+
+        var capabilities = await CapabilitiesAsync();
+        capabilities.Domains.Select(x => x.Origin).ShouldBe(
+            [ShortLinkSubscriptionTestData.DefaultOrigin, grantedOrigin],
+            ignoreOrder: true);
+        await CreateAsync();
+        var sameCode = "Domain" + Guid.NewGuid().ToString("N");
+        await RunAsync(services => services.GetRequiredService<IShortLinkAppService>()
+            .CreateAsync(new CreateShortLinkDto
+            {
+                Origin = grantedOrigin,
+                TargetUrl = "https://destination.example.test/pro",
+                CustomCode = sameCode
+            }));
+        var denied = await Should.ThrowAsync<BusinessException>(() =>
+            RunAsync(services => services.GetRequiredService<IShortLinkAppService>()
+                .CreateAsync(new CreateShortLinkDto
+                {
+                    Origin = deniedOrigin,
+                    TargetUrl = "https://destination.example.test/enterprise",
+                    CustomCode = sameCode
+                })));
+        denied.Code.ShouldBe(ShortLinkErrorCodes.DomainAccessDenied);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -289,6 +343,7 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
         (await Should.ThrowAsync<BusinessException>(() => RunAsync(services =>
             services.GetRequiredService<IShortLinkAppService>().CreateAsync(new CreateShortLinkDto
             {
+                Origin = ShortLinkSubscriptionTestData.DefaultOrigin,
                 TargetUrl = "https://127.0.0.1/private",
                 CustomCode = "invalid" + Guid.NewGuid().ToString("N")
             })))).Code.ShouldBe(ShortLinkErrorCodes.UnsafeTargetUrl);

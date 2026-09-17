@@ -33,12 +33,12 @@ public class CurrentUserEntitlementAppService : SubscriptionApplicationService, 
     public virtual async Task<EffectiveSubscriptionDto> GetAsync(string productCode)
     {
         var userId = CurrentUser.GetId();
-        var context = await _checker.ResolveAsync(CurrentTenant.Id, userId,
+        var context = await _checker.ResolveAsync(userId,
             productCode, CancellationTokenProvider.Token);
         var now = Clock.Now.ToUniversalTime();
         if (context.Subscription != null && !context.Subscription.IsEffectiveAt(now))
         {
-            context = await _checker.ResolveAsync(CurrentTenant.Id, userId,
+            context = await _checker.ResolveAsync(userId,
                 productCode, CancellationTokenProvider.Token);
             now = Clock.Now.ToUniversalTime();
         }
@@ -81,7 +81,7 @@ public class CurrentUserEntitlementAppService : SubscriptionApplicationService, 
         var query = new SubscriptionCatalogQuery(input.Filter, PublishedOnly: true,
             ProductId: input.ProductId, Sorting: input.Sorting, SkipCount: input.SkipCount,
             MaxResultCount: input.MaxResultCount);
-        var page = await _checker.GetDefaultPlansAsync(CurrentTenant.Id, CurrentUser.GetId(), query,
+        var page = await _checker.GetDefaultPlansAsync(CurrentUser.GetId(), query,
             CancellationTokenProvider.Token);
         return SubscriptionDtoMapper.ToPage(page, MapDefaultPlan);
     }
@@ -90,14 +90,28 @@ public class CurrentUserEntitlementAppService : SubscriptionApplicationService, 
         string productCode,
         string featureKey,
         CancellationToken cancellationToken = default) =>
-        SubscriptionDtoMapper.ToDto(await _checker.GetBooleanAsync(CurrentTenant.Id, CurrentUser.GetId(),
+        SubscriptionDtoMapper.ToDto(await _checker.GetBooleanAsync(CurrentUser.GetId(),
             productCode, featureKey, ResolveCancellationToken(cancellationToken)));
 
     public virtual async Task<NumericEntitlementResultDto> GetNumericAsync(
         string productCode,
         string featureKey,
         CancellationToken cancellationToken = default) =>
-        SubscriptionDtoMapper.ToDto(await _checker.GetNumericAsync(CurrentTenant.Id, CurrentUser.GetId(),
+        SubscriptionDtoMapper.ToDto(await _checker.GetNumericAsync(CurrentUser.GetId(),
+            productCode, featureKey, ResolveCancellationToken(cancellationToken)));
+
+    public virtual async Task<EnumEntitlementResultDto> GetEnumAsync(
+        string productCode,
+        string featureKey,
+        CancellationToken cancellationToken = default) =>
+        SubscriptionDtoMapper.ToDto(await _checker.GetEnumAsync(CurrentUser.GetId(),
+            productCode, featureKey, ResolveCancellationToken(cancellationToken)));
+
+    public virtual async Task<StringSetEntitlementResultDto> GetStringSetAsync(
+        string productCode,
+        string featureKey,
+        CancellationToken cancellationToken = default) =>
+        SubscriptionDtoMapper.ToDto(await _checker.GetStringSetAsync(CurrentUser.GetId(),
             productCode, featureKey, ResolveCancellationToken(cancellationToken)));
 
     private CancellationToken ResolveCancellationToken(CancellationToken cancellationToken) =>

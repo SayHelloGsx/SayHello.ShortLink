@@ -57,9 +57,15 @@
 
     function entitlements(values) {
         const list = $('<ul class="mb-0">');
-        (values || []).forEach(item => list.append($('<li>').text(item.displayName + ': ' +
-            (item.value.type === 0 ? l(item.value.booleanValue ? 'Enabled' : 'Disabled') :
-                item.value.isUnlimited ? l('Unlimited') : item.value.numericValue))));
+        (values || []).forEach(item => {
+            let value;
+            if (item.value.type === 0) value = l(item.value.booleanValue ? 'Enabled' : 'Disabled');
+            else if (item.value.type === 1) value = item.value.isUnlimited ? l('Unlimited') : item.value.numericValue;
+            else if (item.value.type === 2) value = item.value.stringValue;
+            else value = item.value.stringValues && item.value.stringValues.length
+                ? item.value.stringValues.join(', ') : l('EmptySet');
+            list.append($('<li>').text(item.displayName + ': ' + value));
+        });
         return list;
     }
 

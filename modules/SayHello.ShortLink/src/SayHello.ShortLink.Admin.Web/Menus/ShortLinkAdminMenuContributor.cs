@@ -39,6 +39,15 @@ public class ShortLinkAdminMenuContributor : IMenuContributor
                     "/admin/short-links/blocked-domains"));
         }
 
+        if (await context.IsGrantedAsync(ShortLinkAdminPermissions.Domains.Default))
+        {
+            administration.AddItem(
+                new ApplicationMenuItem(
+                    ShortLinkAdminMenus.Domains,
+                    localizer["Menu:ShortLinkDomains"],
+                    "/admin/short-links/domains"));
+        }
+
         if (await context.IsGrantedAsync(ShortLinkAdminPermissions.ManageSettings))
         {
             administration.AddItem(

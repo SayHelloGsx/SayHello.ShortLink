@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SayHello.ShortLink.BlockedDomains;
+using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp.EntityFrameworkCore;
 using Volo.Abp.Modularity;
@@ -19,6 +20,7 @@ public class ShortLinkEntityFrameworkCoreModule : AbpModule
             options.AddDefaultRepositories(includeAllEntities: true);
             options.AddRepository<ShortLinks.ShortLink, EfCoreShortLinkRepository>();
             options.AddRepository<BlockedDomain, EfCoreBlockedDomainRepository>();
+            options.AddRepository<ShortLinkDomain, EfCoreShortLinkDomainRepository>();
         });
     }
 }

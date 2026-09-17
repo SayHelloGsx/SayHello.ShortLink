@@ -146,4 +146,6 @@ public class RegisteredFeatureDto
     public SubscriptionEntitlementType Type { get; set; }
     public long? Maximum { get; set; }
     public bool AllowUnlimited { get; set; }
+    public SubscriptionEntitlementInputMode InputMode { get; set; }
+    public List<string> Options { get; set; } = new();
 }

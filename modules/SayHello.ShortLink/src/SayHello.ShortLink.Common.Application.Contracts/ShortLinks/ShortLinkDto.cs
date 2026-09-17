@@ -5,9 +5,11 @@ namespace SayHello.ShortLink.ShortLinks;
 
 public class ShortLinkDto : FullAuditedEntityDto<Guid>
 {
-    public Guid? TenantId { get; set; }
-
     public Guid OwnerUserId { get; set; }
+
+    public Guid? DomainId { get; set; }
+
+    public string? Origin { get; set; }
 
     public string Code { get; set; } = string.Empty;
 

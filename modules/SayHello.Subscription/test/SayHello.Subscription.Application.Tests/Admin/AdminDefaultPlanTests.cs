@@ -48,7 +48,7 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Select_replace_and_clear_forward_current_tenant_stamp_and_return_current_default(bool tenant)
+    public async Task Select_replace_and_clear_forward_stamp_and_return_current_default(bool tenant)
     {
         Guid? tenantId = tenant ? Guid.NewGuid() : null;
         var product = Product("alpha", tenantId);
@@ -61,13 +61,13 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
         var plans = new[] { free, replacement };
         _plans.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(call => plans.Where(plan => call.Arg<IReadOnlyCollection<Guid>>().Contains(plan.Id)).ToArray());
-        _catalog.SetDefaultPlanAsync(Arg.Is<Guid?>(id => id == tenantId), product.Id,
-                Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
+        _catalog.SetDefaultPlanAsync(product.Id, Arg.Any<string>(), Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 GetRequiredService<IUnitOfWorkManager>().Current!.Options.IsTransactional.ShouldBeTrue();
-                product.SetDefaultPlan(plans.SingleOrDefault(plan => plan.Id == call.ArgAt<Guid?>(3)));
-                product.ConcurrencyStamp = "saved-" + call.ArgAt<string>(2);
+                product.SetDefaultPlan(plans.SingleOrDefault(plan => plan.Id == call.ArgAt<Guid?>(2)));
+                product.ConcurrencyStamp = "saved-" + call.ArgAt<string>(1);
                 return product;
             });
 
@@ -92,9 +92,12 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
             cleared.DefaultPlanName.ShouldBeNull();
             cleared.HasDefaultPlan.ShouldBeFalse();
         }
-        await _catalog.Received(1).SetDefaultPlanAsync(tenantId, product.Id, "original", free.Id, Arg.Any<CancellationToken>());
-        await _catalog.Received(1).SetDefaultPlanAsync(tenantId, product.Id, "saved-original", replacement.Id, Arg.Any<CancellationToken>());
-        await _catalog.Received(1).SetDefaultPlanAsync(tenantId, product.Id, "saved-saved-original", null, Arg.Any<CancellationToken>());
+        await _catalog.Received(1).SetDefaultPlanAsync(
+            product.Id, "original", free.Id, Arg.Any<CancellationToken>());
+        await _catalog.Received(1).SetDefaultPlanAsync(
+            product.Id, "saved-original", replacement.Id, Arg.Any<CancellationToken>());
+        await _catalog.Received(1).SetDefaultPlanAsync(
+            product.Id, "saved-saved-original", null, Arg.Any<CancellationToken>());
         _catalog.ReceivedCalls().Count().ShouldBe(3);
         _plans.ReceivedCalls().Count().ShouldBe(2);
     }
@@ -257,8 +260,8 @@ public class AdminDefaultPlanTests : SubscriptionTestBase<AdminSurfaceTestModule
     [InlineData(SubscriptionErrorCodes.DefaultPlanInUse)]
     public async Task Default_business_failures_are_not_retried_or_translated_to_success(string code)
     {
-        _catalog.SetDefaultPlanAsync(Arg.Is<Guid?>(id => id == null), Arg.Any<Guid>(), "stale",
-                Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
+        _catalog.SetDefaultPlanAsync(Arg.Any<Guid>(), "stale", Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>())
             .Returns<Task<SubscriptionProduct>>(_ => throw new BusinessException(code));
         var error = await Should.ThrowAsync<BusinessException>(() => _service.SetDefaultPlanAsync(Guid.NewGuid(),
             new SetDefaultPlanInputDto { ConcurrencyStamp = "stale", PlanId = Guid.NewGuid() }));

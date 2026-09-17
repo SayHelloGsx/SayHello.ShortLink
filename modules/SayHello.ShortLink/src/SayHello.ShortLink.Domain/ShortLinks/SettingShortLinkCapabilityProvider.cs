@@ -21,7 +21,6 @@ public class SettingShortLinkCapabilityProvider : IShortLinkCapabilityProvider, 
     }
 
     public async Task<ShortLinkQuota> GetQuotaAsync(
-        Guid? tenantId,
         Guid userId,
         CancellationToken cancellationToken = default)
     {
@@ -40,13 +39,18 @@ public class SettingShortLinkCapabilityProvider : IShortLinkCapabilityProvider, 
 
         return ShortLinkQuota.Limited(limit);
     }
-
-    public Task<bool> IsStatisticsEnabledAsync(
-        Guid? tenantId,
+    public Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(true);
+        return Task.FromResult(ShortLinkStatisticsLevel.Advanced);
+    }
+    public Task<ShortLinkDomainAccess> GetDomainAccessAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ShortLinkDomainAccess.Unrestricted);
     }
 }

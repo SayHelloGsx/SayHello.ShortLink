@@ -10,6 +10,7 @@ using Volo.Abp;
 using Volo.Abp.Caching;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.DistributedLocking;
+using Volo.Abp.MultiTenancy;
 
 namespace SayHello.ShortLink.Common.BlockedDomains;
 
@@ -23,24 +24,27 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
     private readonly IDistributedCache<BlockedDomainResolutionCacheItem, string> _resolutionCache;
     private readonly IDistributedCache<BlockedDomainHostIndexCacheItem, string> _hostIndexCache;
     private readonly IAbpDistributedLock _distributedLock;
+    private readonly ICurrentTenant _currentTenant;
 
     public BlockedDomainCache(
         IBlockedDomainRepository repository,
         IDistributedCache<BlockedDomainResolutionCacheItem, string> resolutionCache,
         IDistributedCache<BlockedDomainHostIndexCacheItem, string> hostIndexCache,
-        IAbpDistributedLock distributedLock)
+        IAbpDistributedLock distributedLock,
+        ICurrentTenant currentTenant)
     {
         _repository = repository;
         _resolutionCache = resolutionCache;
         _hostIndexCache = hostIndexCache;
         _distributedLock = distributedLock;
+        _currentTenant = currentTenant;
     }
 
     public async Task<BlockedDomainResolutionCacheItem> GetAsync(
         string host,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
+        var tenantId = _currentTenant.Id;
         var normalizedHost = DomainNameNormalizer.Normalize(host);
         var cacheKey = GetResolutionKey(normalizedHost, tenantId);
         var cached = await _resolutionCache.GetAsync(cacheKey, token: cancellationToken);
@@ -65,7 +69,7 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
         }
 
         var result = await ResolveAsync(normalizedHost, cancellationToken);
-        await AddHostToIndexAsync(normalizedHost, tenantId, cancellationToken);
+        await AddHostToIndexAsync(normalizedHost, cancellationToken);
         await _resolutionCache.SetAsync(
             cacheKey,
             result,
@@ -79,16 +83,14 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
 
     public Task InvalidateAsync(
         string domain,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
         IReadOnlyCollection<string> domains = [domain];
-        return InvalidateManyAsync(domains, tenantId, cancellationToken);
+        return InvalidateManyAsync(domains, cancellationToken);
     }
 
     public async Task InvalidateManyAsync(
         IReadOnlyCollection<string> domains,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
         if (domains.Count == 0)
@@ -96,6 +98,7 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
             return;
         }
 
+        var tenantId = _currentTenant.Id;
         var normalizedDomains = domains
             .Select(DomainNameNormalizer.Normalize)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -174,9 +177,9 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
 
     private async Task AddHostToIndexAsync(
         string normalizedHost,
-        Guid? tenantId,
         CancellationToken cancellationToken)
     {
+        var tenantId = _currentTenant.Id;
         var indexKey = GetIndexKey(tenantId);
         var index = await _hostIndexCache.GetAsync(indexKey, token: cancellationToken) ??
                     new BlockedDomainHostIndexCacheItem();

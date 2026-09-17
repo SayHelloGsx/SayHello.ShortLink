@@ -27,23 +27,23 @@ public class BundleAdminAppService : SubscriptionApplicationService, IBundleAdmi
     [Authorize(SubscriptionAdminPermissions.Bundles.Create)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminBundleDto> CreateAsync(CreateBundleDto input) =>
-        await _reader.MapAsync(await _manager.CreateBundleAsync(CurrentTenant.Id, input.Code,
+        await _reader.MapAsync(await _manager.CreateBundleAsync(input.Code,
             new CatalogDetails(input.Name, input.Description, input.DisplayOrder), input.PlanIds, CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Bundles.Update)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminBundleDto> UpdateAsync(Guid id, UpdateBundleDto input) =>
-        await _reader.MapAsync(await _manager.UpdateBundleAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        await _reader.MapAsync(await _manager.UpdateBundleAsync(id, input.ConcurrencyStamp,
             new CatalogDetails(input.Name, input.Description, input.DisplayOrder), input.PlanIds, CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Bundles.Publish)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminBundleDto> SetStateAsync(Guid id, CatalogStateInputDto input) =>
-        await _reader.MapAsync(await _manager.SetBundleStateAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        await _reader.MapAsync(await _manager.SetBundleStateAsync(id, input.ConcurrencyStamp,
             input.State, CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Bundles.Delete)]
     [UnitOfWork(isTransactional: true)]
     public virtual Task DeleteAsync(Guid id, VersionInputDto input) =>
-        _manager.DeleteBundleAsync(CurrentTenant.Id, id, input.ConcurrencyStamp, CancellationTokenProvider.Token);
+        _manager.DeleteBundleAsync(id, input.ConcurrencyStamp, CancellationTokenProvider.Token);
 }

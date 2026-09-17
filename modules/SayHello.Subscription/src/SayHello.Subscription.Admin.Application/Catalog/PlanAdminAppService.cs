@@ -24,30 +24,30 @@ public class PlanAdminAppService : SubscriptionApplicationService, IPlanAdminApp
     public virtual async Task<AdminPlanDto> GetAsync(Guid id) => await _reader.MapAsync(await _reader.PlanAsync(id));
     public virtual Task<PagedResultDto<AdminProductDto>> GetProductsAsync(AdminCatalogQueryDto input) => _reader.ProductsAsync(input);
     public virtual async Task<RegisteredProductDto> GetDefinitionAsync(Guid productId) =>
-        _reader.Definition((await _reader.ProductAsync(productId)).Code);
+        await _reader.DefinitionAsync((await _reader.ProductAsync(productId)).Code);
 
     [Authorize(SubscriptionAdminPermissions.Plans.Create)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminPlanDto> CreateAsync(CreatePlanDto input) =>
-        await _reader.MapAsync(await _manager.CreatePlanAsync(CurrentTenant.Id, input.ProductId, input.Code,
+        await _reader.MapAsync(await _manager.CreatePlanAsync(input.ProductId, input.Code,
             new CatalogDetails(input.Name, input.Description, input.DisplayOrder),
             SubscriptionDtoMapper.ToValues(input.Entitlements), CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Plans.Update)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminPlanDto> UpdateAsync(Guid id, UpdatePlanDto input) =>
-        await _reader.MapAsync(await _manager.UpdatePlanAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        await _reader.MapAsync(await _manager.UpdatePlanAsync(id, input.ConcurrencyStamp,
             new CatalogDetails(input.Name, input.Description, input.DisplayOrder),
             SubscriptionDtoMapper.ToValues(input.Entitlements), CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Plans.Publish)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminPlanDto> SetStateAsync(Guid id, CatalogStateInputDto input) =>
-        await _reader.MapAsync(await _manager.SetPlanStateAsync(CurrentTenant.Id, id, input.ConcurrencyStamp,
+        await _reader.MapAsync(await _manager.SetPlanStateAsync(id, input.ConcurrencyStamp,
             input.State, CancellationTokenProvider.Token));
 
     [Authorize(SubscriptionAdminPermissions.Plans.Delete)]
     [UnitOfWork(isTransactional: true)]
     public virtual Task DeleteAsync(Guid id, VersionInputDto input) =>
-        _manager.DeletePlanAsync(CurrentTenant.Id, id, input.ConcurrencyStamp, CancellationTokenProvider.Token);
+        _manager.DeletePlanAsync(id, input.ConcurrencyStamp, CancellationTokenProvider.Token);
 }

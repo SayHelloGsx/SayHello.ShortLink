@@ -13,29 +13,29 @@ namespace SayHello.Subscription.Catalog;
 /// </summary>
 public interface ISubscriptionCatalogManager
 {
-    Task<SubscriptionProduct> CreateProductAsync(Guid? tenantId, string registeredProductCode, CatalogDetails details,
+    Task<SubscriptionProduct> CreateProductAsync(string registeredProductCode, CatalogDetails details,
         CancellationToken cancellationToken = default);
-    Task<SubscriptionProduct> UpdateProductAsync(Guid? tenantId, Guid id, string concurrencyStamp, CatalogDetails details,
+    Task<SubscriptionProduct> UpdateProductAsync(Guid id, string concurrencyStamp, CatalogDetails details,
         CancellationToken cancellationToken = default);
-    Task<SubscriptionProduct> SetDefaultPlanAsync(Guid? tenantId, Guid productId, string concurrencyStamp,
+    Task<SubscriptionProduct> SetDefaultPlanAsync(Guid productId, string concurrencyStamp,
         Guid? planId, CancellationToken cancellationToken = default);
-    Task<SubscriptionProduct> SetProductStateAsync(Guid? tenantId, Guid id, string concurrencyStamp,
+    Task<SubscriptionProduct> SetProductStateAsync(Guid id, string concurrencyStamp,
         SubscriptionCatalogState state, CancellationToken cancellationToken = default);
-    Task DeleteProductAsync(Guid? tenantId, Guid id, string concurrencyStamp, CancellationToken cancellationToken = default);
+    Task DeleteProductAsync(Guid id, string concurrencyStamp, CancellationToken cancellationToken = default);
 
-    Task<SubscriptionPlan> CreatePlanAsync(Guid? tenantId, Guid productId, string code, CatalogDetails details,
+    Task<SubscriptionPlan> CreatePlanAsync(Guid productId, string code, CatalogDetails details,
         IReadOnlyDictionary<string, EntitlementValue> entitlements, CancellationToken cancellationToken = default);
-    Task<SubscriptionPlan> UpdatePlanAsync(Guid? tenantId, Guid id, string concurrencyStamp, CatalogDetails details,
+    Task<SubscriptionPlan> UpdatePlanAsync(Guid id, string concurrencyStamp, CatalogDetails details,
         IReadOnlyDictionary<string, EntitlementValue> entitlements, CancellationToken cancellationToken = default);
-    Task<SubscriptionPlan> SetPlanStateAsync(Guid? tenantId, Guid id, string concurrencyStamp,
+    Task<SubscriptionPlan> SetPlanStateAsync(Guid id, string concurrencyStamp,
         SubscriptionCatalogState state, CancellationToken cancellationToken = default);
-    Task DeletePlanAsync(Guid? tenantId, Guid id, string concurrencyStamp, CancellationToken cancellationToken = default);
+    Task DeletePlanAsync(Guid id, string concurrencyStamp, CancellationToken cancellationToken = default);
 
-    Task<SubscriptionBundle> CreateBundleAsync(Guid? tenantId, string code, CatalogDetails details,
+    Task<SubscriptionBundle> CreateBundleAsync(string code, CatalogDetails details,
         IReadOnlyCollection<Guid> planIds, CancellationToken cancellationToken = default);
-    Task<SubscriptionBundle> UpdateBundleAsync(Guid? tenantId, Guid id, string concurrencyStamp, CatalogDetails details,
+    Task<SubscriptionBundle> UpdateBundleAsync(Guid id, string concurrencyStamp, CatalogDetails details,
         IReadOnlyCollection<Guid> planIds, CancellationToken cancellationToken = default);
-    Task<SubscriptionBundle> SetBundleStateAsync(Guid? tenantId, Guid id, string concurrencyStamp,
+    Task<SubscriptionBundle> SetBundleStateAsync(Guid id, string concurrencyStamp,
         SubscriptionCatalogState state, CancellationToken cancellationToken = default);
-    Task DeleteBundleAsync(Guid? tenantId, Guid id, string concurrencyStamp, CancellationToken cancellationToken = default);
+    Task DeleteBundleAsync(Guid id, string concurrencyStamp, CancellationToken cancellationToken = default);
 }

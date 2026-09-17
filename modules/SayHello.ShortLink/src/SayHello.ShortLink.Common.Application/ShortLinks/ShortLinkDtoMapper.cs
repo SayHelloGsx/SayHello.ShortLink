@@ -1,3 +1,4 @@
+using System;
 using SayHello.ShortLink.ShortLinks;
 using ShortLinkEntity = SayHello.ShortLink.ShortLinks.ShortLink;
 
@@ -8,10 +9,10 @@ public static class ShortLinkDtoMapper
     public static ShortLinkDto ToPublicDto(
         ShortLinkEntity shortLink,
         IShortLinkUrlBuilder urlBuilder,
-        bool statisticsEnabled)
+        ShortLinkStatisticsLevel statisticsLevel)
     {
         var dto = ToDto(shortLink, urlBuilder);
-        if (!statisticsEnabled)
+        if (statisticsLevel == ShortLinkStatisticsLevel.None)
         {
             dto.TotalVisitCount = null;
         }
@@ -24,10 +25,13 @@ public static class ShortLinkDtoMapper
         return new ShortLinkDto
         {
             Id = shortLink.Id,
-            TenantId = shortLink.TenantId,
             OwnerUserId = shortLink.OwnerUserId,
+            DomainId = shortLink.DomainId,
+            Origin = shortLink.Origin,
             Code = shortLink.Code,
-            ShortUrl = urlBuilder.Build(shortLink.Code),
+            ShortUrl = string.IsNullOrWhiteSpace(shortLink.Origin)
+                ? urlBuilder.Build(shortLink.Code)
+                : urlBuilder.Build(shortLink.Origin, shortLink.Code),
             TargetUrl = shortLink.TargetUrl,
             Title = shortLink.Title,
             Status = shortLink.Status,

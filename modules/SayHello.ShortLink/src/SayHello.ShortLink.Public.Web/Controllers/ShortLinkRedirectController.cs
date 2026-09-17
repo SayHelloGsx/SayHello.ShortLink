@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SayHello.ShortLink.Public.ShortLinks;
+using SayHello.ShortLink.ShortLinkDomains;
 
 namespace SayHello.ShortLink.Public.Web.Controllers;
 
@@ -31,7 +32,9 @@ public class ShortLinkRedirectController : Controller
                 UserAgent = Request.Headers.UserAgent.ToString()
             };
 
-        var result = await _redirectAppService.ResolveAsync(code, visit);
+        var origin = ShortLinkDomainOrigin.Normalize(
+            $"{Request.Scheme}://{Request.Host.Value}");
+        var result = await _redirectAppService.ResolveAsync(origin, code, visit);
         Response.Headers.CacheControl = "no-store";
 
         if (result.Status == ShortLinkResolutionStatus.Found)

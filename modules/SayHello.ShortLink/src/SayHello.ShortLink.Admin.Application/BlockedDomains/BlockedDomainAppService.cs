@@ -96,7 +96,6 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
     {
         var execution = await _csvImporter.ImportAsync(
             file,
-            CurrentTenant.Id,
             CancellationTokenProvider.Token);
 
         if (execution.ImportedDomains.Count > 0)
@@ -139,16 +138,19 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
 
     private async Task InvalidateCacheAsync(IReadOnlyCollection<string> domains)
     {
-        var tenantId = CurrentTenant.Id;
         await _blockedDomainCache.InvalidateManyAsync(
             domains,
-            tenantId,
             CancellationTokenProvider.Token);
 
-        CurrentUnitOfWork?.OnCompleted(() =>
-            _blockedDomainCache.InvalidateManyAsync(
-                domains,
-                tenantId,
-                CancellationToken.None));
+        var tenantId = CurrentTenant.Id;
+        CurrentUnitOfWork?.OnCompleted(async () =>
+        {
+            using (CurrentTenant.Change(tenantId))
+            {
+                await _blockedDomainCache.InvalidateManyAsync(
+                    domains,
+                    CancellationToken.None);
+            }
+        });
     }
 }

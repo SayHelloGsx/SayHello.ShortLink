@@ -45,6 +45,7 @@ public class AdminSurfaceTestModule : AbpModule
         context.Services.AddSingleton(Substitute.For<ISubscriptionManager>());
         context.Services.AddSingleton(Substitute.For<ISubscriptionUserLookupService>());
         context.Services.AddSingleton(Substitute.For<ISubscriptionDefinitionRegistry>());
+        context.Services.AddSingleton(Substitute.For<ISubscriptionEntitlementOptionProvider>());
         context.Services.AddSingleton(Substitute.For<IPermissionChecker>());
         Configure<AbpClockOptions>(options => options.Kind = DateTimeKind.Local);
     }
@@ -277,9 +278,8 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
         var planId = Guid.NewGuid();
         _users.FindByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(User(userId, null), (SubscriptionUser)null!);
-        _manager.PreviewPlanAsync(null, userId, planId, Arg.Any<CancellationToken>())
+        _manager.PreviewPlanAsync(userId, planId, Arg.Any<CancellationToken>())
             .Returns(new SubscriptionAssignmentPreview(
-                null,
                 userId,
                 null,
                 null,
@@ -312,7 +312,7 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
 
         exception.Code.ShouldBe(SubscriptionErrorCodes.UserNotFound);
         await _users.Received(2).FindByIdAsync(userId, Arg.Any<CancellationToken>());
-        await _manager.Received(1).PreviewPlanAsync(null, userId, planId, Arg.Any<CancellationToken>());
+        await _manager.Received(1).PreviewPlanAsync(userId, planId, Arg.Any<CancellationToken>());
         await _manager.DidNotReceive()
             .AssignPlanAsync(Arg.Any<AssignSubscriptionPlan>(), Arg.Any<CancellationToken>());
     }
@@ -338,7 +338,6 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
 
         var command = (AssignSubscriptionBundle)_manager.ReceivedCalls()
             .Single(call => call.GetMethodInfo().Name == nameof(ISubscriptionManager.AssignBundleAsync)).GetArguments()[0]!;
-        command.TenantId.ShouldBe(tenantId);
         command.UserId.ShouldBe(input.UserId);
         command.BundleId.ShouldBe(input.BundleId);
         command.BundleConcurrencyStamp.ShouldBe("bundle-stamp");
@@ -359,8 +358,8 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
         var userId = Guid.NewGuid();
         var planId = Guid.NewGuid();
         var current = new SubscriptionVersion(Guid.NewGuid(), "old");
-        _manager.PreviewPlanAsync(null, userId, planId, Arg.Any<CancellationToken>()).Returns(
-            new SubscriptionAssignmentPreview(null, userId, null, null, new[]
+        _manager.PreviewPlanAsync(userId, planId, Arg.Any<CancellationToken>()).Returns(
+            new SubscriptionAssignmentPreview(userId, null, null, new[]
             {
                 new SubscriptionAssignmentPreviewItem(Guid.NewGuid(), "alpha", "Alpha", "product",
                     planId, "basic", "Basic", "plan", current, DateTime.UtcNow.AddDays(1), Array.Empty<EntitlementSnapshotData>())
@@ -436,7 +435,7 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
         var plan = new SubscriptionPlan(Guid.NewGuid(), product, "basic", "Basic");
         GetRequiredService<ISubscriptionProductRepository>().GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(),
             Arg.Any<CancellationToken>()).Returns(new[] { product });
-        _catalog.CreatePlanAsync(null, product.Id, "basic", Arg.Any<CatalogDetails>(),
+        _catalog.CreatePlanAsync(product.Id, "basic", Arg.Any<CatalogDetails>(),
             Arg.Any<IReadOnlyDictionary<string, EntitlementValue>>(), Arg.Any<CancellationToken>()).Returns(plan);
         await GetRequiredService<IPlanAdminAppService>().CreateAsync(new CreatePlanDto
         {
@@ -449,12 +448,92 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
                 new() { FeatureKey = "unlimited", Value = new EntitlementValueDto { Type = SubscriptionEntitlementType.Numeric, IsUnlimited = true } }
             }
         });
-        var values = (IReadOnlyDictionary<string, EntitlementValue>)_catalog.ReceivedCalls().Single().GetArguments()[4]!;
+        var values = (IReadOnlyDictionary<string, EntitlementValue>)_catalog.ReceivedCalls().Single().GetArguments()[3]!;
         values["enabled"].BooleanValue.ShouldBe(true);
         values["zero"].NumericValue.ShouldBe(0);
         values["finite"].NumericValue.ShouldBe(long.MaxValue);
         values["unlimited"].IsUnlimited.ShouldBeTrue();
         values["unlimited"].NumericValue.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Plan_configuration_preserves_enum_and_canonical_string_set_values()
+    {
+        _granted.UnionWith(new[] { SubscriptionAdminPermissions.Plans.Default, SubscriptionAdminPermissions.Plans.Create });
+        var definition = SubscriptionTestDefinitions.Product("alpha");
+        var product = new SubscriptionProduct(Guid.NewGuid(), null, definition, "Alpha");
+        var plan = new SubscriptionPlan(Guid.NewGuid(), product, "basic", "Basic");
+        GetRequiredService<ISubscriptionProductRepository>().GetByIdsAsync(
+                Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { product });
+        _catalog.CreatePlanAsync(product.Id, "basic", Arg.Any<CatalogDetails>(),
+                Arg.Any<IReadOnlyDictionary<string, EntitlementValue>>(), Arg.Any<CancellationToken>())
+            .Returns(plan);
+
+        await GetRequiredService<IPlanAdminAppService>().CreateAsync(new CreatePlanDto
+        {
+            ProductId = product.Id,
+            Code = "basic",
+            Name = "Basic",
+            Entitlements =
+            {
+                new()
+                {
+                    FeatureKey = "tier",
+                    Value = new EntitlementValueDto
+                    {
+                        Type = SubscriptionEntitlementType.Enum,
+                        StringValue = "pro"
+                    }
+                },
+                new()
+                {
+                    FeatureKey = "regions",
+                    Value = new EntitlementValueDto
+                    {
+                        Type = SubscriptionEntitlementType.StringSet,
+                        StringValues = new() { "us", "apac" }
+                    }
+                }
+            }
+        });
+
+        var values = (IReadOnlyDictionary<string, EntitlementValue>)_catalog.ReceivedCalls().Single()
+            .GetArguments()[3]!;
+        values["tier"].StringValue.ShouldBe("pro");
+        values["regions"].StringValues.ShouldBe(new[] { "apac", "us" });
+    }
+
+    [Fact]
+    public async Task Registered_definitions_resolve_business_options_and_input_modes_asynchronously()
+    {
+        _granted.Add(SubscriptionAdminPermissions.Products.Default);
+        var definition = SubscriptionTestDefinitions.Product("alpha");
+        var definitions = GetRequiredService<ISubscriptionDefinitionRegistry>();
+        definitions.GetProducts().Returns(new[] { definition });
+        definitions.GetProduct("alpha").Returns(definition);
+        var options = GetRequiredService<ISubscriptionEntitlementOptionProvider>();
+        options.CanProvide("alpha", Arg.Any<string>()).Returns(true);
+        options.GetOptionsAsync("alpha", "tier", Arg.Any<CancellationToken>())
+            .Returns(new[] { "starter", "pro" });
+        options.GetOptionsAsync("alpha", "regions", Arg.Any<CancellationToken>())
+            .Returns(new[] { "us", "apac" });
+        options.GetOptionsAsync("alpha", "labels", Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<string>());
+
+        var result = await GetRequiredService<IProductAdminAppService>().GetDefinitionsAsync();
+
+        result.Items.Single().Features.Single(feature => feature.Key == "tier").ShouldSatisfyAllConditions(
+            feature => feature.InputMode.ShouldBe(SubscriptionEntitlementInputMode.Select),
+            feature => feature.Options.ShouldBe(new[] { "pro", "starter" }));
+        result.Items.Single().Features.Single(feature => feature.Key == "regions").ShouldSatisfyAllConditions(
+            feature => feature.InputMode.ShouldBe(SubscriptionEntitlementInputMode.MultiSelect),
+            feature => feature.Options.ShouldBe(new[] { "apac", "us" }));
+        result.Items.Single().Features.Single(feature => feature.Key == "labels").ShouldSatisfyAllConditions(
+            feature => feature.InputMode.ShouldBe(SubscriptionEntitlementInputMode.MultiText),
+            feature => feature.Options.ShouldBeEmpty());
+        await options.Received(3).GetOptionsAsync(
+            "alpha", Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -471,8 +550,8 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
         var subscription = new UserSubscription(Guid.NewGuid(), Guid.NewGuid(), product, plan,
             Array.Empty<EntitlementSnapshotData>(), DateTime.UtcNow, null, Guid.NewGuid());
         var expires = DateTime.UtcNow.AddMonths(1);
-        _manager.RevokeAsync(tenantId, subscription.Id, "original", "requested", Arg.Any<CancellationToken>()).Returns(subscription);
-        _manager.AdjustExpirationAsync(tenantId, subscription.Id, "original", expires, Arg.Any<CancellationToken>()).Returns(subscription);
+        _manager.RevokeAsync(subscription.Id, "original", "requested", Arg.Any<CancellationToken>()).Returns(subscription);
+        _manager.AdjustExpirationAsync(subscription.Id, "original", expires, Arg.Any<CancellationToken>()).Returns(subscription);
         using (GetRequiredService<ICurrentTenant>().Change(tenantId))
         {
             var service = GetRequiredService<IUserSubscriptionAdminAppService>();
@@ -485,8 +564,8 @@ public class AdminSurfaceTests : SubscriptionTestBase<AdminSurfaceTestModule>
                 ConcurrencyStamp = "original", ExpiresAt = expires
             })).ConcurrencyStamp.ShouldBe(subscription.ConcurrencyStamp);
         }
-        await _manager.Received(1).RevokeAsync(tenantId, subscription.Id, "original", "requested", Arg.Any<CancellationToken>());
-        await _manager.Received(1).AdjustExpirationAsync(tenantId, subscription.Id, "original", expires, Arg.Any<CancellationToken>());
+        await _manager.Received(1).RevokeAsync(subscription.Id, "original", "requested", Arg.Any<CancellationToken>());
+        await _manager.Received(1).AdjustExpirationAsync(subscription.Id, "original", expires, Arg.Any<CancellationToken>());
     }
 
     [Theory]

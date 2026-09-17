@@ -24,6 +24,21 @@ public class ShortLinkAdminPermissionDefinitionProvider : PermissionDefinitionPr
         administration.AddChild(
             ShortLinkAdminPermissions.ManageSettings,
             L("Permission:Administration.ManageSettings"));
+        var domains = administration.AddChild(
+            ShortLinkAdminPermissions.Domains.Default,
+            L("Permission:Administration.Domains"));
+        domains.AddChild(
+            ShortLinkAdminPermissions.Domains.Create,
+            L("Permission:Administration.Domains.Create"));
+        domains.AddChild(
+            ShortLinkAdminPermissions.Domains.EnableDisable,
+            L("Permission:Administration.Domains.EnableDisable"));
+        domains.AddChild(
+            ShortLinkAdminPermissions.Domains.SetDefault,
+            L("Permission:Administration.Domains.SetDefault"));
+        domains.AddChild(
+            ShortLinkAdminPermissions.Domains.Delete,
+            L("Permission:Administration.Domains.Delete"));
     }
 
     private static LocalizableString L(string name)

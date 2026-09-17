@@ -9,7 +9,23 @@ namespace SayHello.ShortLink.ShortLinks;
 public interface IShortLinkRepository : IRepository<ShortLink, Guid>
 {
     Task<bool> CodeExistsAsync(
+        string origin,
         string code,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> CodeExistsAsync(
+        string code,
+        CancellationToken cancellationToken = default);
+
+    Task<ShortLink?> FindByCodeAsync(
+        string origin,
+        string code,
+        bool includeDeleted = false,
+        CancellationToken cancellationToken = default);
+
+    Task<ShortLink?> FindLegacyByCodeAsync(
+        string code,
+        bool includeDeleted = false,
         CancellationToken cancellationToken = default);
 
     Task<ShortLink?> FindByCodeAsync(
@@ -38,5 +54,10 @@ public interface IShortLinkRepository : IRepository<ShortLink, Guid>
 
     Task RecordVisitAsync(
         ShortLinkVisit visit,
+        CancellationToken cancellationToken = default);
+
+    Task<long> BackfillDomainAsync(
+        Guid domainId,
+        string origin,
         CancellationToken cancellationToken = default);
 }

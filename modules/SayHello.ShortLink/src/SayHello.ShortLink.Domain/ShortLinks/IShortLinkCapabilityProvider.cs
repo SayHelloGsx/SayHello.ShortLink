@@ -9,12 +9,14 @@ public interface IShortLinkCapabilityProvider
     bool IsQuotaExternallyManaged { get; }
 
     Task<ShortLinkQuota> GetQuotaAsync(
-        Guid? tenantId,
         Guid userId,
         CancellationToken cancellationToken = default);
 
-    Task<bool> IsStatisticsEnabledAsync(
-        Guid? tenantId,
+    Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<ShortLinkDomainAccess> GetDomainAccessAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 }

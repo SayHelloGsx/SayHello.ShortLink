@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SayHello.ShortLink.ShortLinks;
 
 namespace SayHello.ShortLink.Public.ShortLinks;
 
@@ -9,9 +10,11 @@ public class ShortLinkStatisticsDto
 
     public string Code { get; set; } = string.Empty;
 
+    public ShortLinkStatisticsLevel StatisticsLevel { get; set; }
+
     public long TotalVisitCount { get; set; }
 
-    public long UniqueVisitorCount { get; set; }
+    public long? UniqueVisitorCount { get; set; }
 
     public List<DailyVisitStatisticDto> Daily { get; set; } = [];
 

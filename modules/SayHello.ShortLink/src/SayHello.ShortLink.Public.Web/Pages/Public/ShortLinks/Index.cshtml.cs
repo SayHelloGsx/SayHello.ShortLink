@@ -60,7 +60,9 @@ public class IndexModel : ShortLinkPublicPageModel
         catch (BusinessException exception) when (exception.Code is
             ShortLinkErrorCodes.LinkQuotaExceeded or
             ShortLinkErrorCodes.LinkQuotaNotGranted or
-            ShortLinkErrorCodes.CreationLockUnavailable)
+            ShortLinkErrorCodes.CreationLockUnavailable or
+            ShortLinkErrorCodes.DomainAccessDenied or
+            ShortLinkErrorCodes.DefaultDomainRequired)
         {
             var unitOfWorkManager = LazyServiceProvider.LazyGetRequiredService<IUnitOfWorkManager>();
             if (unitOfWorkManager.Current != null)
@@ -69,7 +71,9 @@ public class IndexModel : ShortLinkPublicPageModel
             }
 
             var converter = LazyServiceProvider.LazyGetRequiredService<IExceptionToErrorInfoConverter>();
-            ModelState.AddModelError(string.Empty, converter.Convert(exception).Message);
+            ModelState.AddModelError(
+                string.Empty,
+                converter.Convert(exception).Message ?? exception.Message);
             using var readUnitOfWork = unitOfWorkManager.Begin(requiresNew: true, isTransactional: false);
             await LoadItemsAsync();
             await readUnitOfWork.CompleteAsync();
@@ -111,7 +115,7 @@ public class IndexModel : ShortLinkPublicPageModel
     {
         Capabilities = await _appService.GetCapabilitiesAsync();
         HasCreatePermission = await AuthorizationService.IsGrantedAsync(ShortLinkPublicPermissions.Create);
-        CanViewStatistics = Capabilities.StatisticsEnabled &&
+        CanViewStatistics = Capabilities.StatisticsLevel != ShortLinkStatisticsLevel.None &&
             await AuthorizationService.IsGrantedAsync(ShortLinkPublicPermissions.ViewStatistics);
         CanUpdate = await AuthorizationService.IsGrantedAsync(ShortLinkPublicPermissions.Update);
         CanDelete = await AuthorizationService.IsGrantedAsync(ShortLinkPublicPermissions.Delete);

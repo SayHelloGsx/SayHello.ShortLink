@@ -17,13 +17,16 @@ public static class SubscriptionDtoMapper
         Type = value.Type,
         BooleanValue = value.BooleanValue,
         NumericValue = value.NumericValue,
-        IsUnlimited = value.IsUnlimited
+        IsUnlimited = value.IsUnlimited,
+        StringValue = value.StringValue,
+        StringValues = value.StringValues?.ToList()
     };
 
     public static EntitlementValue ToValue(EntitlementValueDto dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
-        return EntitlementValue.FromStorage(dto.Type, dto.BooleanValue, dto.NumericValue, dto.IsUnlimited);
+        return EntitlementValue.FromValues(dto.Type, dto.BooleanValue, dto.NumericValue, dto.IsUnlimited,
+            dto.StringValue, dto.StringValues);
     }
 
     public static IReadOnlyDictionary<string, EntitlementValue> ToValues(IEnumerable<EntitlementInputDto> values)
@@ -160,6 +163,26 @@ public static class SubscriptionDtoMapper
         IsGranted = result.IsGranted,
         Limit = result.Limit,
         IsUnlimited = result.IsUnlimited
+    };
+
+    public static EnumEntitlementResultDto ToDto(EnumEntitlementResult result) => new()
+    {
+        Status = result.Status,
+        Source = result.Source,
+        PlanId = result.PlanId,
+        SubscriptionId = result.SubscriptionId,
+        IsGranted = result.IsGranted,
+        Value = result.Value
+    };
+
+    public static StringSetEntitlementResultDto ToDto(StringSetEntitlementResult result) => new()
+    {
+        Status = result.Status,
+        Source = result.Source,
+        PlanId = result.PlanId,
+        SubscriptionId = result.SubscriptionId,
+        IsGranted = result.IsGranted,
+        Values = result.Values.ToList()
     };
 
     public static PagedResultDto<TDto> ToPage<T, TDto>(SubscriptionPage<T> page, Func<T, TDto> map) =>

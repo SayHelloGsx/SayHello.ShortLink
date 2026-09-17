@@ -1,4 +1,5 @@
 using System;
+using SayHello.ShortLink.ShortLinkDomains;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities.Auditing;
 using Volo.Abp.MultiTenancy;
@@ -10,6 +11,10 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
     public Guid? TenantId { get; protected set; }
 
     public Guid OwnerUserId { get; protected set; }
+
+    public Guid? DomainId { get; protected set; }
+
+    public string? Origin { get; protected set; }
 
     public string Code { get; protected set; } = string.Empty;
 
@@ -31,6 +36,33 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
         Guid id,
         Guid? tenantId,
         Guid ownerUserId,
+        Guid domainId,
+        string origin,
+        string code,
+        string targetUrl,
+        string? title,
+        DateTime? expiresAt)
+        : base(id)
+    {
+        TenantId = tenantId;
+        OwnerUserId = ownerUserId;
+        DomainId = domainId == Guid.Empty
+            ? throw new ArgumentException("A short-link domain ID is required.", nameof(domainId))
+            : domainId;
+        Origin = ShortLinkDomainOrigin.Normalize(origin);
+        Code = Check.NotNullOrWhiteSpace(code, nameof(code), ShortLinkConsts.MaxCodeLength);
+        Status = ShortLinkStatus.Active;
+        TotalVisitCount = 0;
+
+        SetTarget(targetUrl);
+        SetTitle(title);
+        SetExpiration(expiresAt);
+    }
+
+    internal ShortLink(
+        Guid id,
+        Guid? tenantId,
+        Guid ownerUserId,
         string code,
         string targetUrl,
         string? title,
@@ -46,6 +78,19 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
         SetTarget(targetUrl);
         SetTitle(title);
         SetExpiration(expiresAt);
+    }
+
+    internal void AssignDomain(Guid domainId, string origin)
+    {
+        if (DomainId.HasValue || !Origin.IsNullOrWhiteSpace())
+        {
+            throw new BusinessException(ShortLinkErrorCodes.InvalidState);
+        }
+
+        DomainId = domainId == Guid.Empty
+            ? throw new ArgumentException("A short-link domain ID is required.", nameof(domainId))
+            : domainId;
+        Origin = ShortLinkDomainOrigin.Normalize(origin);
     }
 
     public void Update(string targetUrl, string? title, DateTime? expiresAt)

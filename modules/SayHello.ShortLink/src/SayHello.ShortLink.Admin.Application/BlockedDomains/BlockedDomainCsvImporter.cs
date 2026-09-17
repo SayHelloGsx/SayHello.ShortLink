@@ -16,6 +16,7 @@ using Volo.Abp;
 using Volo.Abp.Content;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Guids;
+using Volo.Abp.MultiTenancy;
 
 namespace SayHello.ShortLink.Admin.BlockedDomains;
 
@@ -24,20 +25,22 @@ public class BlockedDomainCsvImporter : ITransientDependency
     private readonly IBlockedDomainRepository _repository;
     private readonly IGuidGenerator _guidGenerator;
     private readonly IStringLocalizer<ShortLinkResource> _localizer;
+    private readonly ICurrentTenant _currentTenant;
 
     public BlockedDomainCsvImporter(
         IBlockedDomainRepository repository,
         IGuidGenerator guidGenerator,
-        IStringLocalizer<ShortLinkResource> localizer)
+        IStringLocalizer<ShortLinkResource> localizer,
+        ICurrentTenant currentTenant)
     {
         _repository = repository;
         _guidGenerator = guidGenerator;
         _localizer = localizer;
+        _currentTenant = currentTenant;
     }
 
     public async Task<BlockedDomainCsvImportExecutionResult> ImportAsync(
         IRemoteStreamContent file,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
         ValidateFile(file);
@@ -94,7 +97,7 @@ public class BlockedDomainCsvImporter : ITransientDependency
             entities.Add(
                 new BlockedDomain(
                     _guidGenerator.Create(),
-                    tenantId,
+                    _currentTenant.Id,
                     candidate.Domain,
                     candidate.Reason));
         }

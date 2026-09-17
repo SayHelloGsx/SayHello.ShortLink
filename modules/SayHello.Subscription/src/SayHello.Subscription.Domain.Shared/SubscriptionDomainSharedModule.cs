@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Localization;
 using Volo.Abp;
@@ -17,6 +18,8 @@ public class SubscriptionDomainSharedModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
+        context.Services.TryAddSingleton<ISubscriptionEntitlementOptionProvider,
+            NullSubscriptionEntitlementOptionProvider>();
         Configure<AbpVirtualFileSystemOptions>(options =>
             options.FileSets.AddEmbedded<SubscriptionDomainSharedModule>());
         Configure<AbpLocalizationOptions>(options =>

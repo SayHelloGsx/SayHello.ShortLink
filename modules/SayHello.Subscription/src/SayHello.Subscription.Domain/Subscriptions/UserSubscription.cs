@@ -63,7 +63,8 @@ public class UserSubscription : AuditedAggregateRoot<Guid>, IMultiTenant
 
         if (entitlements.Any(e => e == null) || entitlements.Count != plan.Entitlements.Count ||
             entitlements.Select(e => e.FeatureKey).Distinct(StringComparer.Ordinal).Count() != entitlements.Count ||
-            entitlements.Any(e => !plan.Entitlements.Any(p => p.FeatureKey == e.FeatureKey && p.ToValue() == e.Value)))
+            entitlements.Any(e => !plan.Entitlements.Any(p =>
+                p.FeatureKey == e.FeatureKey && p.ToValue().HasSameValueAs(e.Value))))
         {
             throw new BusinessException(SubscriptionErrorCodes.InvalidAssignment);
         }

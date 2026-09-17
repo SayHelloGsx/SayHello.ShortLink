@@ -7,6 +7,10 @@ public static class SubscriptionErrorCodes
     public const string UnknownFeature = "Subscription:UnknownFeature";
     public const string InvalidEntitlementValue = "Subscription:InvalidEntitlementValue";
     public const string EntitlementTypeMismatch = "Subscription:EntitlementTypeMismatch";
+    public const string InvalidEntitlementOptions = "Subscription:InvalidEntitlementOptions";
+    public const string EntitlementOptionProviderConflict = "Subscription:EntitlementOptionProviderConflict";
+    public const string EntitlementOptionsRequired = "Subscription:EntitlementOptionsRequired";
+    public const string EntitlementOptionNotAllowed = "Subscription:EntitlementOptionNotAllowed";
     public const string InvalidState = "Subscription:InvalidState";
     public const string CatalogUnavailable = "Subscription:CatalogUnavailable";
     public const string DuplicateCode = "Subscription:DuplicateCode";

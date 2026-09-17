@@ -2,7 +2,8 @@
   "culture": "en",
   "texts": {
     "Subscription:ShortLink": "ShortLink",
-    "Subscription:Statistics": "Visit statistics",
+    "Subscription:Statistics": "Visit statistics level",
+    "Subscription:Domains": "Additional short-link domains",
     "Subscription:MaxLinks": "Maximum number of links"
   }
 }

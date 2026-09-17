@@ -28,7 +28,7 @@ public class BlockedDomainCacheTests : ShortLinkEntityFrameworkCoreTestBase
         var domain = $"{suffix}.example";
         var subdomain = $"deep.{domain}";
 
-        (await _cache.GetAsync(subdomain, null)).IsBlocked.ShouldBeFalse();
+        (await _cache.GetAsync(subdomain)).IsBlocked.ShouldBeFalse();
 
         var blockedDomain = new BlockedDomain(
             _guidGenerator.Create(),
@@ -38,18 +38,18 @@ public class BlockedDomainCacheTests : ShortLinkEntityFrameworkCoreTestBase
         await WithUnitOfWorkAsync(() =>
             _repository.InsertAsync(blockedDomain, autoSave: true));
 
-        (await _cache.GetAsync(subdomain, null)).IsBlocked.ShouldBeFalse();
+        (await _cache.GetAsync(subdomain)).IsBlocked.ShouldBeFalse();
 
-        await _cache.InvalidateAsync(domain, null);
-        var blocked = await _cache.GetAsync(subdomain, null);
+        await _cache.InvalidateAsync(domain);
+        var blocked = await _cache.GetAsync(subdomain);
         blocked.IsBlocked.ShouldBeTrue();
         blocked.MatchedDomain.ShouldBe(domain);
         blocked.Reason.ShouldBe("Blocked for testing");
 
         await WithUnitOfWorkAsync(() =>
             _repository.DeleteAsync(blockedDomain, autoSave: true));
-        await _cache.InvalidateAsync(domain, null);
-        (await _cache.GetAsync(subdomain, null)).IsBlocked.ShouldBeFalse();
+        await _cache.InvalidateAsync(domain);
+        (await _cache.GetAsync(subdomain)).IsBlocked.ShouldBeFalse();
     }
 
     [Fact]
@@ -77,11 +77,11 @@ public class BlockedDomainCacheTests : ShortLinkEntityFrameworkCoreTestBase
             await _repository.InsertAsync(disabledEntity, autoSave: true);
         });
 
-        var childMatch = await _cache.GetAsync($"deep.{child}", null);
+        var childMatch = await _cache.GetAsync($"deep.{child}");
         childMatch.MatchedDomain.ShouldBe(child);
         childMatch.Reason.ShouldBe("Child");
 
-        var disabledMatch = await _cache.GetAsync(disabled, null);
+        var disabledMatch = await _cache.GetAsync(disabled);
         disabledMatch.MatchedDomain.ShouldBe(parent);
         disabledMatch.Reason.ShouldBe("Parent");
     }

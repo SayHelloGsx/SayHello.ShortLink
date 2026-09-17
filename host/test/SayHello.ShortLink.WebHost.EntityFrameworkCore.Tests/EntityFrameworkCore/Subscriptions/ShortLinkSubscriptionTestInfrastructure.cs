@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Public.ShortLinks;
+using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinks;
 using SayHello.ShortLink.Subscription;
 using SayHello.Subscription;
@@ -39,6 +40,8 @@ public class ShortLinkSubscriptionIntegrationTestModule : AbpModule
 
 public static class ShortLinkSubscriptionTestData
 {
+    public const string DefaultOrigin = "https://short.example.test";
+
     public static void ConfigureExternalAdapters(IServiceCollection services)
     {
         var dns = Substitute.For<IHostAddressResolver>();
@@ -81,8 +84,15 @@ public static class ShortLinkSubscriptionTestData
         }, commit);
 
     public static async Task<SubscriptionPlan> CreatePlanAsync(
-        IServiceProvider services, long? limit, bool? statistics, bool unlimited = false, bool setDefault = true)
+        IServiceProvider services,
+        long? limit,
+        bool? statistics,
+        bool unlimited = false,
+        bool setDefault = true,
+        IReadOnlyCollection<string>? domains = null)
     {
+        await EnsureDefaultDomainAsync(services);
+
         var tenantId = services.GetRequiredService<ICurrentTenant>().Id;
         var definition = Definition(services);
         var products = services.GetRequiredService<ISubscriptionProductRepository>();
@@ -100,7 +110,9 @@ public static class ShortLinkSubscriptionTestData
         }
 
         var plan = new SubscriptionPlan(Guid.NewGuid(), product, "test-" + Guid.NewGuid().ToString("N"), "Integration plan");
-        plan.ReplaceEntitlements(definition, Entitlements(limit, statistics, unlimited));
+        plan.ReplaceEntitlements(
+            definition,
+            Entitlements(limit, statistics, unlimited, domains));
         plan.Publish(product, definition);
         await services.GetRequiredService<ISubscriptionPlanRepository>().InsertAsync(plan, autoSave: true);
         if (setDefault)
@@ -111,9 +123,36 @@ public static class ShortLinkSubscriptionTestData
         return plan;
     }
 
+    public static async Task EnsureDefaultDomainAsync(IServiceProvider services)
+    {
+        var domains = services.GetRequiredService<IShortLinkDomainRepository>();
+        var manager = services.GetRequiredService<ShortLinkDomainManager>();
+        var current = await domains.FindDefaultAsync();
+        if (current is null)
+        {
+            var created = await manager.CreateAsync(DefaultOrigin);
+            await domains.InsertAsync(created, autoSave: true);
+            return;
+        }
+
+        if (!string.Equals(current.Origin, DefaultOrigin, StringComparison.Ordinal))
+        {
+            var desired = await domains.FindByOriginAsync(DefaultOrigin);
+            if (desired is null)
+            {
+                desired = await manager.CreateAsync(DefaultOrigin);
+                await domains.InsertAsync(desired, autoSave: true);
+            }
+
+            manager.ClearDefault(current);
+            await domains.UpdateAsync(current, autoSave: true);
+            manager.SetDefault(desired);
+            await domains.UpdateAsync(desired, autoSave: true);
+        }
+    }
+
     public static async Task SetDefaultAsync(IServiceProvider services, Guid? planId)
     {
-        var tenantId = services.GetRequiredService<ICurrentTenant>().Id;
         var products = services.GetRequiredService<ISubscriptionProductRepository>();
         var product = (await products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode))!;
         var plan = planId.HasValue
@@ -136,8 +175,8 @@ public static class ShortLinkSubscriptionTestData
             await users.InsertAsync(user, autoSave: true);
         }
         var manager = services.GetRequiredService<ISubscriptionManager>();
-        var item = (await manager.PreviewPlanAsync(tenantId, userId, planId)).Items.Single();
-        return await manager.AssignPlanAsync(new AssignSubscriptionPlan(tenantId, userId,
+        var item = (await manager.PreviewPlanAsync(userId, planId)).Items.Single();
+        return await manager.AssignPlanAsync(new AssignSubscriptionPlan(userId,
             new SubscriptionAssignmentTarget(item.ProductId, item.PlanId,
                 item.ProductConcurrencyStamp, item.PlanConcurrencyStamp, expiresAt, item.ExpectedCurrent)));
     }
@@ -147,7 +186,10 @@ public static class ShortLinkSubscriptionTestData
             .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode);
 
     public static Dictionary<string, EntitlementValue> Entitlements(
-        long? limit, bool? statistics, bool unlimited = false)
+        long? limit,
+        bool? statistics,
+        bool unlimited = false,
+        IReadOnlyCollection<string>? domains = null)
     {
         var values = new Dictionary<string, EntitlementValue>();
         if (unlimited || limit.HasValue)
@@ -155,12 +197,19 @@ public static class ShortLinkSubscriptionTestData
                 ? EntitlementValue.Unlimited()
                 : EntitlementValue.Numeric(limit!.Value);
         if (statistics.HasValue)
-            values[ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Boolean(statistics.Value);
+            values[ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Enum(
+                statistics.Value
+                    ? ShortLinkSubscriptionDefinitions.StatisticsAdvanced
+                    : ShortLinkSubscriptionDefinitions.StatisticsNone);
+        if (domains is not null)
+            values[ShortLinkSubscriptionDefinitions.Domains] =
+                EntitlementValue.StringSet(domains);
         return values;
     }
 
     public static CreateShortLinkDto NewLink(DateTime? expiresAt = null) => new()
     {
+        Origin = DefaultOrigin,
         TargetUrl = "https://destination.example.test/path",
         CustomCode = "host" + Guid.NewGuid().ToString("N"),
         Title = "Host subscription integration",

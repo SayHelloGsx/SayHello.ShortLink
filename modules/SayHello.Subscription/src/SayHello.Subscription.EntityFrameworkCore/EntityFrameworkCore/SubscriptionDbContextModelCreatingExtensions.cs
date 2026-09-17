@@ -10,9 +10,15 @@ namespace SayHello.Subscription.EntityFrameworkCore;
 public static class SubscriptionDbContextModelCreatingExtensions
 {
     private const string ValueConstraint =
-        "(\"ValueType\" = 0 AND \"BooleanValue\" IS NOT NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE) OR " +
-        "(\"ValueType\" = 1 AND \"BooleanValue\" IS NULL AND ((\"IsUnlimited\" = TRUE AND \"NumericValue\" IS NULL) OR " +
-        "(\"IsUnlimited\" = FALSE AND \"NumericValue\" IS NOT NULL AND \"NumericValue\" >= 0)))";
+        "(\"ValueType\" = 0 AND \"BooleanValue\" IS NOT NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE " +
+        "AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NULL) OR " +
+        "(\"ValueType\" = 1 AND \"BooleanValue\" IS NULL AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NULL AND " +
+        "((\"IsUnlimited\" = TRUE AND \"NumericValue\" IS NULL) OR " +
+        "(\"IsUnlimited\" = FALSE AND \"NumericValue\" IS NOT NULL AND \"NumericValue\" >= 0))) OR " +
+        "(\"ValueType\" = 2 AND \"BooleanValue\" IS NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE " +
+        "AND \"StringValue\" IS NOT NULL AND \"StringSetValue\" IS NULL) OR " +
+        "(\"ValueType\" = 3 AND \"BooleanValue\" IS NULL AND \"NumericValue\" IS NULL AND \"IsUnlimited\" = FALSE " +
+        "AND \"StringValue\" IS NULL AND \"StringSetValue\" IS NOT NULL)";
 
     // Stored lifecycle values are UTC even when a provider returns timestamps without a DateTime kind.
     private static readonly ValueConverter<DateTime, DateTime> UtcTimestampConverter =
@@ -57,6 +63,8 @@ public static class SubscriptionDbContextModelCreatingExtensions
             b.ConfigureByConvention();
             b.HasKey(x => new { x.PlanId, x.FeatureKey });
             b.Property(x => x.FeatureKey).IsRequired().HasMaxLength(SubscriptionConsts.MaxFeatureKeyLength);
+            b.Property(x => x.StringValue).HasMaxLength(SubscriptionConsts.MaxEntitlementStringLength);
+            b.Property(x => x.StringSetValue).HasMaxLength(SubscriptionConsts.MaxEntitlementStringSetStorageLength);
         });
         builder.Entity<SubscriptionBundle>(b =>
         {
@@ -120,6 +128,8 @@ public static class SubscriptionDbContextModelCreatingExtensions
             b.HasKey(x => new { x.SubscriptionId, x.FeatureKey });
             b.Property(x => x.FeatureKey).IsRequired().HasMaxLength(SubscriptionConsts.MaxFeatureKeyLength);
             b.Property(x => x.DisplayName).IsRequired().HasMaxLength(SubscriptionConsts.MaxNameLength);
+            b.Property(x => x.StringValue).HasMaxLength(SubscriptionConsts.MaxEntitlementStringLength);
+            b.Property(x => x.StringSetValue).HasMaxLength(SubscriptionConsts.MaxEntitlementStringSetStorageLength);
         });
     }
 }

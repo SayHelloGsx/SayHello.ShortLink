@@ -66,7 +66,8 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
     [InlineData("/api/subscription/public/mine")]
     [InlineData("/api/subscription/public/mine/674c1f08-f0be-49dd-9b62-bcd8da234d4b")]
     [InlineData("/api/subscription/public/entitlements/short-link")]
-    [InlineData("/api/subscription/public/entitlements/short-link/boolean/statistics")]
+    [InlineData("/api/subscription/public/entitlements/short-link/enum/statistics")]
+    [InlineData("/api/subscription/public/entitlements/short-link/string-set/domains")]
     [InlineData("/api/subscription/public/entitlements/short-link/numeric/max-links")]
     [InlineData("/api/subscription/public/default-entitlements")]
     [InlineData("/admin/subscriptions/products")]
@@ -194,11 +195,15 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
         effectiveJson.RootElement.GetProperty("source").GetInt32().ShouldBe((int)EntitlementSource.Subscription);
         effectiveJson.RootElement.GetProperty("entitlementsAreLive").GetBoolean().ShouldBeFalse();
 
-        using var boolean = await client.GetAsync($"{prefix}/boolean/statistics?userId={suppliedOwner}");
-        boolean.StatusCode.ShouldBe(HttpStatusCode.OK);
-        using var booleanJson = JsonDocument.Parse(await boolean.Content.ReadAsStringAsync());
-        booleanJson.RootElement.GetProperty("subscriptionId").GetGuid().ShouldBe(expected);
-        booleanJson.RootElement.GetProperty("isGranted").GetBoolean().ShouldBe(!otherOwner);
+        using var enumResult = await client.GetAsync($"{prefix}/enum/statistics?userId={suppliedOwner}");
+        enumResult.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var enumJson = JsonDocument.Parse(await enumResult.Content.ReadAsStringAsync());
+        enumJson.RootElement.GetProperty("subscriptionId").GetGuid().ShouldBe(expected);
+        enumJson.RootElement.GetProperty("isGranted").GetBoolean().ShouldBeTrue();
+        enumJson.RootElement.GetProperty("value").GetString().ShouldBe(
+            otherOwner
+                ? ShortLinkSubscriptionDefinitions.StatisticsNone
+                : ShortLinkSubscriptionDefinitions.StatisticsAdvanced);
 
         using var numeric = await client.GetAsync($"{prefix}/numeric/max-links?userId={suppliedOwner}");
         numeric.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -270,7 +275,7 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
             .Single(value => value.GetProperty("featureKey").GetString() == "max-links");
         limit.GetProperty("value").GetProperty("numericValue").GetInt64().ShouldBe(20);
 
-        foreach (var feature in new[] { "boolean/statistics", "numeric/max-links" })
+        foreach (var feature in new[] { "enum/statistics", "numeric/max-links" })
         {
             using var response = await client.GetAsync($"{prefix}/{feature}?userId={SubscriptionAuthorizationFactory.OwnerId}");
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -281,6 +286,9 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
             json.RootElement.GetProperty("isGranted").GetBoolean().ShouldBeTrue();
             if (feature.StartsWith("numeric", StringComparison.Ordinal))
                 json.RootElement.GetProperty("limit").GetInt64().ShouldBe(20);
+            else
+                json.RootElement.GetProperty("value").GetString()
+                    .ShouldBe(ShortLinkSubscriptionDefinitions.StatisticsAdvanced);
         }
     }
 
@@ -446,7 +454,10 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
             var plan = new SubscriptionPlan(Guid.NewGuid(), product, code, code);
             plan.ReplaceEntitlements(definition, new Dictionary<string, EntitlementValue>
             {
-                [ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Boolean(!unlimited),
+                [ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Enum(
+                    unlimited
+                        ? ShortLinkSubscriptionDefinitions.StatisticsNone
+                        : ShortLinkSubscriptionDefinitions.StatisticsAdvanced),
                 [ShortLinkSubscriptionDefinitions.MaxLinks] = unlimited ? EntitlementValue.Unlimited() : EntitlementValue.Numeric(0)
             });
             plan.Publish(product, definition);
@@ -462,7 +473,8 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
         var free = new SubscriptionPlan(Guid.NewGuid(), product, "public-auth-free", "Authorization Free");
         free.ReplaceEntitlements(definition, new Dictionary<string, EntitlementValue>
         {
-            [ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Boolean(true),
+            [ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Enum(
+                ShortLinkSubscriptionDefinitions.StatisticsAdvanced),
             [ShortLinkSubscriptionDefinitions.MaxLinks] = EntitlementValue.Numeric(20)
         });
         free.Publish(product, definition);

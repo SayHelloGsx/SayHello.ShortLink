@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - A Linux VPS with Docker Engine and Docker Compose v2.
-- A public DNS A/AAAA record for the short-link domain.
+- Public DNS A/AAAA records for every short-link Origin that will be enabled.
 - Inbound TCP 80/443 and UDP 443 allowed.
 - SMTP credentials for email confirmation.
 - OpenSSL for the one-time OpenIddict certificate generation.
@@ -39,6 +39,14 @@
 
 7. Verify `https://YOUR_DOMAIN/health/ready`, register a test account, confirm its email,
    create a link, and open the resulting short URL.
+
+The migrator uses `ShortLink__Urls__BaseUrl` to create the initial default Origin and
+to attach legacy links during upgrades. Keep it set to the canonical public Origin
+while migrating. Additional Origins configured in the admin UI must also terminate
+TLS and reverse-proxy to the web service. The sample `Caddyfile` contains only
+`${DOMAIN}`; add every extra host to the Caddy site addresses before enabling it in
+the application. Domain ownership verification and certificate provisioning are
+deployment responsibilities, not performed by the application.
 
 ## Updating
 

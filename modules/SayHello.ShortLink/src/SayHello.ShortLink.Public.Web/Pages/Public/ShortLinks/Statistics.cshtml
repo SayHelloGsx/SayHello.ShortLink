@@ -7,6 +7,8 @@
 
 @{
     ViewData["Title"] = L["Statistics"];
+    var hasAdvancedStatistics =
+        Model.Statistics.StatisticsLevel == SayHello.ShortLink.ShortLinks.ShortLinkStatisticsLevel.Advanced;
     var maxVisits = Math.Max(1, Model.Statistics.Daily.Select(x => x.VisitCount).DefaultIfEmpty().Max());
 }
 
@@ -28,29 +30,32 @@ else
             <a asp-page="./Index" class="btn btn-outline-secondary">@L["Back"]</a>
         </div>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h2 class="h5">@L["DailyTrend"]</h2>
-                @foreach (var point in Model.Statistics.Daily)
-                {
-                    var width = point.VisitCount * 100 / maxVisits;
-                    <div class="row align-items-center mb-2">
-                        <div class="col-3 col-lg-2 small">@point.Date</div>
-                        <div class="col">
-                            <div class="progress" role="img" aria-label="@point.VisitCount">
-                                <div class="progress-bar" style="width: @width%">@point.VisitCount</div>
+        @if (hasAdvancedStatistics)
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h2 class="h5">@L["DailyTrend"]</h2>
+                    @foreach (var point in Model.Statistics.Daily)
+                    {
+                        var width = point.VisitCount * 100 / maxVisits;
+                        <div class="row align-items-center mb-2">
+                            <div class="col-3 col-lg-2 small">@point.Date</div>
+                            <div class="col">
+                                <div class="progress" role="img" aria-label="@point.VisitCount">
+                                    <div class="progress-bar" style="width: @width%">@point.VisitCount</div>
+                                </div>
                             </div>
+                            <div class="col-3 col-lg-2 small text-end">@L["Unique"]: @point.UniqueVisitorCount</div>
                         </div>
-                        <div class="col-3 col-lg-2 small text-end">@L["Unique"]: @point.UniqueVisitorCount</div>
-                    </div>
-                }
+                    }
+                </div>
             </div>
-        </div>
 
-        <div class="row g-4">
-            <partial name="_DimensionTable" model='(L["Referrers"].Value, Model.Statistics.Referrers)' />
-            <partial name="_DimensionTable" model='(L["Browsers"].Value, Model.Statistics.Browsers)' />
-            <partial name="_DimensionTable" model='(L["Devices"].Value, Model.Statistics.Devices)' />
-        </div>
+            <div class="row g-4">
+                <partial name="_DimensionTable" model='(L["Referrers"].Value, Model.Statistics.Referrers)' />
+                <partial name="_DimensionTable" model='(L["Browsers"].Value, Model.Statistics.Browsers)' />
+                <partial name="_DimensionTable" model='(L["Devices"].Value, Model.Statistics.Devices)' />
+            </div>
+        }
     </div>
 }

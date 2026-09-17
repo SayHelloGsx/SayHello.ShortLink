@@ -5,6 +5,7 @@ using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.Common.BlockedDomains;
 using SayHello.ShortLink.EntityFrameworkCore;
 using SayHello.ShortLink.Public.ShortLinks;
+using SayHello.ShortLink.ShortLinkDomains;
 using Shouldly;
 using Volo.Abp.Guids;
 using Volo.Abp.Users;
@@ -12,7 +13,7 @@ using Xunit;
 
 namespace SayHello.ShortLink.ShortLinks;
 
-public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
+public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase, IAsyncLifetime
 {
     private readonly IShortLinkAppService _appService;
     private readonly IShortLinkRedirectAppService _redirectAppService;
@@ -33,12 +34,26 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
         _guidGenerator = GetRequiredService<IGuidGenerator>();
     }
 
+    public async Task InitializeAsync()
+    {
+        await WithUnitOfWorkAsync(async () =>
+        {
+            var domain = await GetRequiredService<ShortLinkDomainManager>()
+                .CreateAsync("https://go.example.test");
+            await GetRequiredService<IShortLinkDomainRepository>()
+                .InsertAsync(domain, autoSave: true);
+        });
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
+
     [Fact]
     public async Task User_Should_Create_Resolve_Disable_And_Delete_A_Link()
     {
         var created = await _appService.CreateAsync(
             new CreateShortLinkDto
             {
+                Origin = "https://go.example.test",
                 TargetUrl = "https://example.com/path",
                 CustomCode = "Test123",
                 Title = "Test"
@@ -48,6 +63,7 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
         created.ShortUrl.ShouldBe("https://go.example.test/Test123");
 
         var found = await _redirectAppService.ResolveAsync(
+            created.Origin!,
             created.Code,
             new RecordShortLinkVisitDto
             {
@@ -62,6 +78,7 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
         current.TotalVisitCount.ShouldBe(1);
 
         var statistics = await _appService.GetStatisticsAsync(created.Id, 1);
+        statistics.StatisticsLevel.ShouldBe(ShortLinkStatisticsLevel.Advanced);
         statistics.TotalVisitCount.ShouldBe(1);
         statistics.UniqueVisitorCount.ShouldBe(1);
         statistics.Daily.Single().VisitCount.ShouldBe(1);
@@ -78,12 +95,12 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
             });
         disabled.Status.ShouldBe(ShortLinkStatus.Disabled);
 
-        (await _redirectAppService.ResolveAsync(created.Code)).Status
+        (await _redirectAppService.ResolveAsync(created.Origin!, created.Code)).Status
             .ShouldBe(ShortLinkResolutionStatus.Gone);
 
         await _appService.DeleteAsync(created.Id);
-        (await _repository.CodeExistsAsync(created.Code)).ShouldBeTrue();
-        (await _redirectAppService.ResolveAsync(created.Code)).Status
+        (await _repository.CodeExistsAsync(created.Origin!, created.Code)).ShouldBeTrue();
+        (await _redirectAppService.ResolveAsync(created.Origin!, created.Code)).Status
             .ShouldBe(ShortLinkResolutionStatus.Gone);
     }
 
@@ -95,6 +112,7 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
         var created = await _appService.CreateAsync(
             new CreateShortLinkDto
             {
+                Origin = "https://go.example.test",
                 TargetUrl = $"https://{targetHost}/path",
                 CustomCode = $"B{suffix[..6]}"
             });
@@ -107,9 +125,10 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase
                     targetHost,
                     "Unsafe destination"),
                 autoSave: true));
-        await _blockedDomainCache.InvalidateAsync(targetHost, null);
+        await _blockedDomainCache.InvalidateAsync(targetHost);
 
         var result = await _redirectAppService.ResolveAsync(
+            created.Origin!,
             created.Code,
             new RecordShortLinkVisitDto
             {

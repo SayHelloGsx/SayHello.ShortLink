@@ -1,11 +1,16 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinks;
 
 namespace SayHello.ShortLink.Public.ShortLinks;
 
 public class CreateShortLinkDto
 {
+    [Required]
+    [StringLength(ShortLinkDomainConsts.MaxOriginLength)]
+    public string Origin { get; set; } = string.Empty;
+
     [Required]
     [StringLength(ShortLinkConsts.MaxTargetUrlLength)]
     public string TargetUrl { get; set; } = string.Empty;

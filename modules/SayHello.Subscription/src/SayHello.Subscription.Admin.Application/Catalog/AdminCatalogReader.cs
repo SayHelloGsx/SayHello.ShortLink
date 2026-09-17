@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Localization;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Definitions;
+using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Domain.Entities;
@@ -18,14 +19,17 @@ public class AdminCatalogReader : ITransientDependency
     private readonly ISubscriptionPlanRepository _plans;
     private readonly ISubscriptionBundleRepository _bundles;
     private readonly ISubscriptionDefinitionRegistry _definitions;
+    private readonly IEnumerable<ISubscriptionEntitlementOptionProvider> _optionProviders;
     private readonly IStringLocalizerFactory _localizers;
     private readonly ICancellationTokenProvider _cancellation;
 
     public AdminCatalogReader(ISubscriptionProductRepository products, ISubscriptionPlanRepository plans,
         ISubscriptionBundleRepository bundles, ISubscriptionDefinitionRegistry definitions,
+        IEnumerable<ISubscriptionEntitlementOptionProvider> optionProviders,
         IStringLocalizerFactory localizers, ICancellationTokenProvider cancellation)
     {
         _products = products; _plans = plans; _bundles = bundles; _definitions = definitions;
+        _optionProviders = optionProviders;
         _localizers = localizers; _cancellation = cancellation;
     }
 
@@ -80,23 +84,44 @@ public class AdminCatalogReader : ITransientDependency
         (await _bundles.GetByIdsAsync(new[] { id }, _cancellation.Token)).SingleOrDefault()
         ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), id);
 
-    public RegisteredProductDto Definition(string code)
+    public async Task<RegisteredProductDto> DefinitionAsync(string code)
     {
         var definition = _definitions.GetProduct(code);
+        var features = new List<RegisteredFeatureDto>();
+        foreach (var feature in definition.Features.Values)
+        {
+            var options = await _optionProviders.GetCanonicalOptionsAsync(
+                definition.Code, feature, _cancellation.Token);
+            features.Add(new RegisteredFeatureDto
+            {
+                Key = feature.Key,
+                DisplayName = feature.DisplayName.Localize(_localizers).Value,
+                Description = feature.Description?.Localize(_localizers).Value,
+                Type = feature.Type,
+                Maximum = feature.Maximum,
+                AllowUnlimited = feature.AllowUnlimited,
+                InputMode = InputMode(feature.Type, options.Count),
+                Options = options.ToList()
+            });
+        }
+
         return new RegisteredProductDto
         {
             Code = definition.Code, DisplayName = definition.DisplayName.Localize(_localizers).Value,
-            Features = definition.Features.Values.Select(feature => new RegisteredFeatureDto
-            {
-                Key = feature.Key, DisplayName = feature.DisplayName.Localize(_localizers).Value,
-                Description = feature.Description?.Localize(_localizers).Value, Type = feature.Type,
-                Maximum = feature.Maximum, AllowUnlimited = feature.AllowUnlimited
-            }).ToList()
+            Features = features
         };
     }
 
-    public ListResultDto<RegisteredProductDto> Definitions() =>
-        new(_definitions.GetProducts().Select(product => Definition(product.Code)).ToList());
+    public async Task<ListResultDto<RegisteredProductDto>> DefinitionsAsync()
+    {
+        var result = new List<RegisteredProductDto>();
+        foreach (var product in _definitions.GetProducts())
+        {
+            result.Add(await DefinitionAsync(product.Code));
+        }
+
+        return new ListResultDto<RegisteredProductDto>(result);
+    }
 
     public async Task<AdminPlanDto> MapAsync(SubscriptionPlan plan) =>
         (await MapPlansAsync(new[] { plan })).Single();
@@ -135,4 +160,17 @@ public class AdminCatalogReader : ITransientDependency
         var page = await _bundles.GetPageAsync(Query(input, publishedOnly), _cancellation.Token);
         return new PagedResultDto<AdminBundleDto>(page.TotalCount, await MapBundlesAsync(page.Items.ToArray()));
     }
+
+    private static SubscriptionEntitlementInputMode InputMode(
+        SubscriptionEntitlementType type, int optionCount) =>
+        type switch
+        {
+            SubscriptionEntitlementType.Boolean => SubscriptionEntitlementInputMode.Boolean,
+            SubscriptionEntitlementType.Numeric => SubscriptionEntitlementInputMode.Numeric,
+            SubscriptionEntitlementType.Enum => SubscriptionEntitlementInputMode.Select,
+            SubscriptionEntitlementType.StringSet when optionCount > 0 =>
+                SubscriptionEntitlementInputMode.MultiSelect,
+            SubscriptionEntitlementType.StringSet => SubscriptionEntitlementInputMode.MultiText,
+            _ => throw new BusinessException(SubscriptionErrorCodes.InvalidEntitlementValue)
+        };
 }

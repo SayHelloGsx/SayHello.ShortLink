@@ -8,6 +8,7 @@ using SayHello.ShortLink.EntityFrameworkCore;
 using Volo.Abp;
 using Volo.Abp.Data;
 using Volo.Abp.Domain.Entities;
+using Volo.Abp.MultiTenancy;
 using Volo.Abp.Domain.Repositories.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore;
 
@@ -18,13 +19,30 @@ public class EfCoreShortLinkRepository :
     IShortLinkRepository
 {
     private readonly IDataFilter<ISoftDelete> _softDeleteFilter;
+    private readonly IDataFilter<IMultiTenant> _multiTenantFilter;
 
     public EfCoreShortLinkRepository(
         IDbContextProvider<IShortLinkDbContext> dbContextProvider,
-        IDataFilter<ISoftDelete> softDeleteFilter)
+        IDataFilter<ISoftDelete> softDeleteFilter,
+        IDataFilter<IMultiTenant> multiTenantFilter)
         : base(dbContextProvider)
     {
         _softDeleteFilter = softDeleteFilter;
+        _multiTenantFilter = multiTenantFilter;
+    }
+
+    public async Task<bool> CodeExistsAsync(
+        string origin,
+        string code,
+        CancellationToken cancellationToken = default)
+    {
+        using (_softDeleteFilter.Disable())
+        using (_multiTenantFilter.Disable())
+        {
+            return await (await GetDbSetAsync()).AnyAsync(
+                x => x.Origin == origin && x.Code == code,
+                GetCancellationToken(cancellationToken));
+        }
     }
 
     public async Task<bool> CodeExistsAsync(
@@ -34,26 +52,55 @@ public class EfCoreShortLinkRepository :
         using (_softDeleteFilter.Disable())
         {
             return await (await GetDbSetAsync()).AnyAsync(
-                x => x.Code == code,
+                x => x.Origin == null && x.Code == code,
                 GetCancellationToken(cancellationToken));
         }
     }
 
     public async Task<ShortLink?> FindByCodeAsync(
+        string origin,
         string code,
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        if (includeDeleted)
+        using (_multiTenantFilter.Disable())
         {
-            using (_softDeleteFilter.Disable())
+            if (includeDeleted)
             {
-                return await FindByCodeInternalAsync(code, cancellationToken);
+                using (_softDeleteFilter.Disable())
+                {
+                    return await FindByCodeInternalAsync(origin, code, cancellationToken);
+                }
             }
-        }
 
-        return await FindByCodeInternalAsync(code, cancellationToken);
+            return await FindByCodeInternalAsync(origin, code, cancellationToken);
+        }
     }
+
+    public async Task<ShortLink?> FindLegacyByCodeAsync(
+        string code,
+        bool includeDeleted = false,
+        CancellationToken cancellationToken = default)
+    {
+        using (_multiTenantFilter.Disable())
+        {
+            if (includeDeleted)
+            {
+                using (_softDeleteFilter.Disable())
+                {
+                    return await FindLegacyByCodeInternalAsync(code, cancellationToken);
+                }
+            }
+
+            return await FindLegacyByCodeInternalAsync(code, cancellationToken);
+        }
+    }
+
+    public Task<ShortLink?> FindByCodeAsync(
+        string code,
+        bool includeDeleted = false,
+        CancellationToken cancellationToken = default) =>
+        FindLegacyByCodeAsync(code, includeDeleted, cancellationToken);
 
     public async Task<long> GetCountByOwnerAsync(
         Guid ownerUserId,
@@ -102,6 +149,7 @@ public class EfCoreShortLinkRepository :
             GetCancellationToken(cancellationToken));
 
         var affectedRows = await dbContext.Set<ShortLink>()
+            .IgnoreQueryFilters()
             .Where(x => x.Id == visit.ShortLinkId)
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(
@@ -117,12 +165,39 @@ public class EfCoreShortLinkRepository :
         await dbContext.SaveChangesAsync(GetCancellationToken(cancellationToken));
     }
 
+    public async Task<long> BackfillDomainAsync(
+        Guid domainId,
+        string origin,
+        CancellationToken cancellationToken = default)
+    {
+        using (_softDeleteFilter.Disable())
+        {
+            return await (await GetDbSetAsync())
+                .Where(x => x.DomainId == null)
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(x => x.DomainId, domainId)
+                        .SetProperty(x => x.Origin, origin),
+                    GetCancellationToken(cancellationToken));
+        }
+    }
+
     private async Task<ShortLink?> FindByCodeInternalAsync(
+        string origin,
         string code,
         CancellationToken cancellationToken)
     {
         return await (await GetDbSetAsync()).FirstOrDefaultAsync(
-            x => x.Code == code,
+            x => x.Origin == origin && x.Code == code,
+            GetCancellationToken(cancellationToken));
+    }
+
+    private async Task<ShortLink?> FindLegacyByCodeInternalAsync(
+        string code,
+        CancellationToken cancellationToken)
+    {
+        return await (await GetDbSetAsync()).FirstOrDefaultAsync(
+            x => x.Origin == null && x.Code == code,
             GetCancellationToken(cancellationToken));
     }
 

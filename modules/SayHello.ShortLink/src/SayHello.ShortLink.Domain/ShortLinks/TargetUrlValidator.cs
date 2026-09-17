@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using SayHello.ShortLink.BlockedDomains;
+using SayHello.ShortLink.ShortLinkDomains;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
 
@@ -15,15 +16,18 @@ namespace SayHello.ShortLink.ShortLinks;
 public class TargetUrlValidator : DomainService, ITargetUrlValidator
 {
     private readonly IBlockedDomainRepository _blockedDomainRepository;
+    private readonly IShortLinkDomainRepository _shortLinkDomainRepository;
     private readonly IHostAddressResolver _hostAddressResolver;
     private readonly ShortLinkSecurityOptions _securityOptions;
 
     public TargetUrlValidator(
         IBlockedDomainRepository blockedDomainRepository,
+        IShortLinkDomainRepository shortLinkDomainRepository,
         IHostAddressResolver hostAddressResolver,
         IOptions<ShortLinkSecurityOptions> securityOptions)
     {
         _blockedDomainRepository = blockedDomainRepository;
+        _shortLinkDomainRepository = shortLinkDomainRepository;
         _hostAddressResolver = hostAddressResolver;
         _securityOptions = securityOptions.Value;
     }
@@ -57,6 +61,14 @@ public class TargetUrlValidator : DomainService, ITargetUrlValidator
             normalizedHost.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
         {
             throw new BusinessException(ShortLinkErrorCodes.UnsafeTargetUrl);
+        }
+
+        if (await _shortLinkDomainRepository.IsHostConfiguredAsync(
+                normalizedHost,
+                cancellationToken))
+        {
+            throw new BusinessException(ShortLinkErrorCodes.UnsafeTargetUrl)
+                .WithData("Host", normalizedHost);
         }
 
         if (await _blockedDomainRepository.IsBlockedAsync(normalizedHost, cancellationToken))

@@ -8,6 +8,7 @@ using SayHello.ShortLink.ShortLinks;
 using StackExchange.Redis;
 using Volo.Abp;
 using Volo.Abp.DependencyInjection;
+using Volo.Abp.MultiTenancy;
 using Volo.Abp.Settings;
 
 namespace SayHello.ShortLink.WebHost.ShortLinks;
@@ -28,21 +29,24 @@ public class RedisShortLinkCreationRateLimiter :
 
     private readonly IConnectionMultiplexer _connectionMultiplexer;
     private readonly ISettingProvider _settingProvider;
+    private readonly ICurrentTenant _currentTenant;
 
     public RedisShortLinkCreationRateLimiter(
         IConnectionMultiplexer connectionMultiplexer,
-        ISettingProvider settingProvider)
+        ISettingProvider settingProvider,
+        ICurrentTenant currentTenant)
     {
         _connectionMultiplexer = connectionMultiplexer;
         _settingProvider = settingProvider;
+        _currentTenant = currentTenant;
     }
 
     public async Task EnsureAllowedAsync(
         Guid userId,
-        Guid? tenantId,
         CancellationToken cancellationToken = default)
     {
         var limit = await GetLimitAsync();
+        var tenantId = _currentTenant.Id;
         var key = new RedisKey(
             $"short-link:create-rate:{tenantId?.ToString("N") ?? "host"}:{userId:N}");
         var database = _connectionMultiplexer.GetDatabase();

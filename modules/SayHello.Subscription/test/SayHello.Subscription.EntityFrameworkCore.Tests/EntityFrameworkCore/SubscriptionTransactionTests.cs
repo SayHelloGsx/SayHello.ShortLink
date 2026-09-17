@@ -18,11 +18,11 @@ public class SubscriptionTransactionTests : SubscriptionPersistenceTestBase
     public async Task In_process_preview_and_entitlement_queries_work_without_an_ambient_unit()
     {
         var data = await SeedAsync();
-        var preview = await Manager.PreviewPlanAsync(null, data.UserId, data.Plans[0].Id);
-        await Manager.AssignPlanAsync(new AssignSubscriptionPlan(null, data.UserId, Target(preview.Items[0])));
+        var preview = await Manager.PreviewPlanAsync(data.UserId, data.Plans[0].Id);
+        await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.UserId, Target(preview.Items[0])));
         var checker = GetRequiredService<ISubscriptionEntitlementChecker>();
-        await checker.RequireBooleanAsync(null, data.UserId, "alpha", "enabled");
-        Assert.Equal(10, (await checker.GetNumericAsync(null, data.UserId, "alpha", "limit")).Limit);
+        await checker.RequireBooleanAsync(data.UserId, "alpha", "enabled");
+        Assert.Equal(10, (await checker.GetNumericAsync(data.UserId, "alpha", "limit")).Limit);
         Assert.Null(GetRequiredService<IUnitOfWorkManager>().Current);
     }
 
@@ -30,8 +30,8 @@ public class SubscriptionTransactionTests : SubscriptionPersistenceTestBase
     public async Task Standalone_assignment_owns_a_transaction_and_releases_its_lock()
     {
         var data = await SeedAsync();
-        var preview = await InTransactionAsync(() => Manager.PreviewPlanAsync(null, data.UserId, data.Plans[0].Id));
-        var assigned = await Manager.AssignPlanAsync(new AssignSubscriptionPlan(null, data.UserId, Target(preview.Items[0])));
+        var preview = await InTransactionAsync(() => Manager.PreviewPlanAsync(data.UserId, data.Plans[0].Id));
+        var assigned = await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.UserId, Target(preview.Items[0])));
         Assert.Null(GetRequiredService<IUnitOfWorkManager>().Current);
         Assert.Equal(0, GetRequiredService<SubscriptionTestDistributedLock>().HeldCount);
         await InTransactionAsync(async () =>
@@ -47,9 +47,9 @@ public class SubscriptionTransactionTests : SubscriptionPersistenceTestBase
         var data = await SeedAsync();
         await InTransactionAsync(async () =>
         {
-            var preview = await Manager.PreviewPlanAsync(null, data.UserId, data.Plans[0].Id);
-            var assigned = await Manager.AssignPlanAsync(new AssignSubscriptionPlan(null, data.UserId, Target(preview.Items[0])));
-            var adjusted = await Manager.AdjustExpirationAsync(null, assigned.Id, assigned.ConcurrencyStamp, TestClock.Now.AddHours(1));
+            var preview = await Manager.PreviewPlanAsync(data.UserId, data.Plans[0].Id);
+            var assigned = await Manager.AssignPlanAsync(new AssignSubscriptionPlan(data.UserId, Target(preview.Items[0])));
+            var adjusted = await Manager.AdjustExpirationAsync(assigned.Id, assigned.ConcurrencyStamp, TestClock.Now.AddHours(1));
             Assert.Equal(TestClock.Now.AddHours(1), adjusted.ExpiresAt);
             Assert.Equal(1, GetRequiredService<SubscriptionTestDistributedLock>().HeldCount);
             return true;
@@ -135,8 +135,8 @@ public class SubscriptionTransactionTests : SubscriptionPersistenceTestBase
     public async Task Simultaneous_assignments_have_one_winner_and_one_stale_preview_failure()
     {
         var data = await SeedAsync();
-        var preview = await InTransactionAsync(() => Manager.PreviewPlanAsync(null, data.UserId, data.Plans[0].Id));
-        var input = new AssignSubscriptionPlan(null, data.UserId, Target(preview.Items[0]));
+        var preview = await InTransactionAsync(() => Manager.PreviewPlanAsync(data.UserId, data.Plans[0].Id));
+        var input = new AssignSubscriptionPlan(data.UserId, Target(preview.Items[0]));
         async Task<string> Attempt()
         {
             try

@@ -38,12 +38,12 @@ public class BridgeCompositionTests
             var capability = services.GetServices<IShortLinkCapabilityProvider>().ShouldHaveSingleItem();
             capability.ShouldBeOfType<SubscriptionShortLinkCapabilityProvider>();
             capability.IsQuotaExternallyManaged.ShouldBeTrue();
-            (await capability.GetQuotaAsync(BridgeTestSubject.TenantId, BridgeTestSubject.UserId))
+            (await capability.GetQuotaAsync(BridgeTestSubject.UserId))
                 .Limit.ShouldBe(20);
-            (await capability.IsStatisticsEnabledAsync(BridgeTestSubject.TenantId, BridgeTestSubject.UserId))
-                .ShouldBeTrue();
+            (await capability.GetStatisticsLevelAsync(BridgeTestSubject.UserId))
+                .ShouldBe(ShortLinkStatisticsLevel.Advanced);
             services.GetRequiredService<ISubscriptionDefinitionRegistry>()
-                .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode).Features.Count.ShouldBe(2);
+                .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode).Features.Count.ShouldBe(3);
         });
 
     private static async Task AssertIndependentCapabilitiesAsync(IServiceProvider services)
@@ -51,11 +51,12 @@ public class BridgeCompositionTests
         var capability = services.GetServices<IShortLinkCapabilityProvider>().ShouldHaveSingleItem();
         capability.ShouldBeOfType<SettingShortLinkCapabilityProvider>();
         capability.IsQuotaExternallyManaged.ShouldBeFalse();
-        var quota = await capability.GetQuotaAsync(null, Guid.NewGuid());
+        var quota = await capability.GetQuotaAsync(Guid.NewGuid());
         quota.IsGranted.ShouldBeTrue();
         quota.IsUnlimited.ShouldBeFalse();
         quota.Limit.ShouldBe(37);
-        (await capability.IsStatisticsEnabledAsync(null, Guid.NewGuid())).ShouldBeTrue();
+        (await capability.GetStatisticsLevelAsync(Guid.NewGuid()))
+            .ShouldBe(ShortLinkStatisticsLevel.Advanced);
     }
 
     private static async Task WithApplication<TModule>(Func<IServiceProvider, Task> action)
@@ -107,11 +108,15 @@ public class BridgeContractTestModule : AbpModule
                 ShortLinkSubscriptionDefinitions.MaxLinks,
                 Arg.Any<CancellationToken>())
             .Returns(new NumericEntitlementResultDto { IsGranted = true, Limit = 20 });
-        client.GetBooleanAsync(
+        client.GetEnumAsync(
                 ShortLinkSubscriptionDefinitions.ProductCode,
                 ShortLinkSubscriptionDefinitions.Statistics,
                 Arg.Any<CancellationToken>())
-            .Returns(new BooleanEntitlementResultDto { IsGranted = true });
+            .Returns(new EnumEntitlementResultDto
+            {
+                IsGranted = true,
+                Value = ShortLinkSubscriptionDefinitions.StatisticsAdvanced
+            });
         context.Services.Replace(ServiceDescriptor.Singleton(client));
 
         var currentUser = Substitute.For<ICurrentUser>();

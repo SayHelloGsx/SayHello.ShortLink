@@ -3,8 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SayHello.ShortLink.Common.BlockedDomains;
 using SayHello.ShortLink.Common.ShortLinks;
+using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Caching;
@@ -24,23 +27,30 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
     private readonly IVisitorHashService _visitorHashService;
     private readonly IVisitMetadataParser _metadataParser;
     private readonly IBlockedDomainCache _blockedDomainCache;
+    private readonly ShortLinkUrlOptions _urlOptions;
+    private readonly ILogger<ShortLinkRedirectAppService> _logger;
 
     public ShortLinkRedirectAppService(
         IShortLinkRepository shortLinkRepository,
         IDistributedCache<ShortLinkResolutionCacheItem, string> cache,
         IVisitorHashService visitorHashService,
         IVisitMetadataParser metadataParser,
-        IBlockedDomainCache blockedDomainCache)
+        IBlockedDomainCache blockedDomainCache,
+        IOptions<ShortLinkUrlOptions> urlOptions,
+        ILogger<ShortLinkRedirectAppService> logger)
     {
         _shortLinkRepository = shortLinkRepository;
         _cache = cache;
         _visitorHashService = visitorHashService;
         _metadataParser = metadataParser;
         _blockedDomainCache = blockedDomainCache;
+        _urlOptions = urlOptions.Value;
+        _logger = logger;
     }
 
     [UnitOfWork(isTransactional: true)]
     public async Task<ShortLinkResolutionDto> ResolveAsync(
+        string origin,
         string code,
         RecordShortLinkVisitDto? visit = null)
     {
@@ -52,12 +62,14 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
             return new ShortLinkResolutionDto { Status = ShortLinkResolutionStatus.NotFound };
         }
 
-        var cacheItem = await _cache.GetAsync(code, token: cancellationToken);
+        var normalizedOrigin = ShortLinkDomainOrigin.Normalize(origin);
+        var cacheKey = ShortLinkResolutionCacheKey.Create(normalizedOrigin, code);
+        var cacheItem = await _cache.GetAsync(cacheKey, token: cancellationToken);
         if (cacheItem is null)
         {
-            cacheItem = await CreateCacheItemAsync(code, cancellationToken);
+            cacheItem = await CreateCacheItemAsync(normalizedOrigin, code, cancellationToken);
             await _cache.SetAsync(
-                code,
+                cacheKey,
                 cacheItem,
                 new DistributedCacheEntryOptions
                 {
@@ -85,36 +97,38 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
             };
         }
 
-        var targetUri = new Uri(cacheItem.TargetUrl!, UriKind.Absolute);
-        var blockedDomain = await _blockedDomainCache.GetAsync(
-            targetUri.IdnHost,
-            cacheItem.TenantId,
-            cancellationToken);
-        if (blockedDomain.IsBlocked)
+        using (CurrentTenant.Change(cacheItem.TenantId))
         {
-            return new ShortLinkResolutionDto
+            var targetUri = new Uri(cacheItem.TargetUrl!, UriKind.Absolute);
+            var blockedDomain = await _blockedDomainCache.GetAsync(
+                targetUri.IdnHost,
+                cancellationToken);
+            if (blockedDomain.IsBlocked)
             {
-                Status = ShortLinkResolutionStatus.Blocked,
-                ShortLinkId = cacheItem.Id,
-                BlockedDomain = blockedDomain.MatchedDomain,
-                BlockedReason = blockedDomain.Reason
-            };
-        }
+                return new ShortLinkResolutionDto
+                {
+                    Status = ShortLinkResolutionStatus.Blocked,
+                    ShortLinkId = cacheItem.Id,
+                    BlockedDomain = blockedDomain.MatchedDomain,
+                    BlockedReason = blockedDomain.Reason
+                };
+            }
 
-        if (visit is not null)
-        {
-            var metadata = _metadataParser.Parse(visit.Referrer, visit.UserAgent);
-            var entity = new ShortLinkVisit(
-                GuidGenerator.Create(),
-                cacheItem.TenantId,
-                cacheItem.Id,
-                now,
-                _visitorHashService.Compute(visit.IpAddress, now),
-                metadata.ReferrerHost,
-                metadata.Browser,
-                metadata.DeviceType);
+            if (visit is not null)
+            {
+                var metadata = _metadataParser.Parse(visit.Referrer, visit.UserAgent);
+                var entity = new ShortLinkVisit(
+                    GuidGenerator.Create(),
+                    CurrentTenant.Id,
+                    cacheItem.Id,
+                    now,
+                    _visitorHashService.Compute(visit.IpAddress, now),
+                    metadata.ReferrerHost,
+                    metadata.Browser,
+                    metadata.DeviceType);
 
-            await _shortLinkRepository.RecordVisitAsync(entity, cancellationToken);
+                await _shortLinkRepository.RecordVisitAsync(entity, cancellationToken);
+            }
         }
 
         return new ShortLinkResolutionDto
@@ -126,13 +140,29 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
     }
 
     private async Task<ShortLinkResolutionCacheItem> CreateCacheItemAsync(
+        string origin,
         string code,
         CancellationToken cancellationToken)
     {
         var shortLink = await _shortLinkRepository.FindByCodeAsync(
+            origin,
             code,
             includeDeleted: true,
             cancellationToken);
+        if (shortLink is null && IsConfiguredLegacyOrigin(origin))
+        {
+            shortLink = await _shortLinkRepository.FindLegacyByCodeAsync(
+                code,
+                includeDeleted: true,
+                cancellationToken);
+            if (shortLink is not null)
+            {
+                _logger.LogWarning(
+                    "Resolving legacy short link {ShortLinkId} without an assigned Origin.",
+                    shortLink.Id);
+            }
+        }
+
         if (shortLink is null)
         {
             return new ShortLinkResolutionCacheItem();
@@ -143,10 +173,33 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
             Exists = true,
             Id = shortLink.Id,
             TenantId = shortLink.TenantId,
+            Origin = shortLink.Origin ?? origin,
             TargetUrl = shortLink.TargetUrl,
             Status = shortLink.Status,
             ExpiresAt = shortLink.ExpiresAt,
             IsDeleted = shortLink.IsDeleted
         };
+    }
+
+    private bool IsConfiguredLegacyOrigin(string origin)
+    {
+        if (_urlOptions.BaseUrl.IsNullOrWhiteSpace())
+        {
+            _logger.LogError(
+                "ShortLink:Urls:BaseUrl is missing; legacy links without an Origin cannot be resolved.");
+            return false;
+        }
+
+        try
+        {
+            return ShortLinkDomainOrigin.Normalize(_urlOptions.BaseUrl) == origin;
+        }
+        catch (BusinessException exception)
+        {
+            _logger.LogError(
+                exception,
+                "ShortLink:Urls:BaseUrl is invalid; legacy links without an Origin cannot be resolved.");
+            return false;
+        }
     }
 }

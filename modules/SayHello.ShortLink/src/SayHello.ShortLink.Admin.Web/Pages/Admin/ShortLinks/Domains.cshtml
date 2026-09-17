@@ -1,0 +1,116 @@
+@page "/admin/short-links/domains"
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@model SayHello.ShortLink.Admin.Web.Pages.Admin.ShortLinks.DomainsModel
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["ShortLinkDomains"];
+}
+
+<div class="container py-4">
+    <h1 class="mb-2">@L["ShortLinkDomains"]</h1>
+    <p class="text-muted mb-4">@L["ShortLinkDomains:Description"]</p>
+
+    @if (Model.CanCreate)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="post" asp-page-handler="Create" class="row g-3 align-items-end">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="col-md-9">
+                        <label asp-for="NewDomain.Origin" class="form-label">@L["Origin"]</label>
+                        <input asp-for="NewDomain.Origin"
+                               class="form-control"
+                               placeholder="https://go.example.com" />
+                        <span asp-validation-for="NewDomain.Origin" class="text-danger"></span>
+                        <div class="form-text">@L["ShortLinkDomains:OriginHelp"]</div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">
+                            @L["ShortLinkDomains:Add"]
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>@L["Origin"]</th>
+                    <th>@L["Status"]</th>
+                    <th>@L["ShortLinkDomains:Default"]</th>
+                    <th>@L["ShortLinkDomains:References"]</th>
+                    <th class="text-end">@L["Actions"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            @L["ShortLinkDomains:Empty"]
+                        </td>
+                    </tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td><code>@item.Origin</code></td>
+                        <td>
+                            <span class="badge @(item.IsEnabled ? "text-bg-success" : "text-bg-secondary")">
+                                @(item.IsEnabled ? L["Enabled"] : L["Disabled"])
+                            </span>
+                        </td>
+                        <td>
+                            @if (item.IsDefault)
+                            {
+                                <span class="badge text-bg-primary">@L["ShortLinkDomains:Default"]</span>
+                            }
+                        </td>
+                        <td>@item.ShortLinkReferenceCount</td>
+                        <td class="text-end">
+                            @if (Model.CanEnableDisable && !item.IsDefault)
+                            {
+                                <form method="post" asp-page-handler="SetEnabled" class="d-inline">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="isEnabled" value="@(!item.IsEnabled)" />
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                                        @(item.IsEnabled ? L["Disable"] : L["Enable"])
+                                    </button>
+                                </form>
+                            }
+                            @if (Model.CanSetDefault && !item.IsDefault)
+                            {
+                                <form method="post" asp-page-handler="SetDefault" class="d-inline">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        @L["ShortLinkDomains:SetDefault"]
+                                    </button>
+                                </form>
+                            }
+                            @if (Model.CanDelete && item.CanDelete)
+                            {
+                                <form method="post"
+                                      asp-page-handler="Delete"
+                                      class="d-inline delete-short-link-domain-form">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        @L["Delete"]
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<abp-script src="/Pages/Admin/ShortLinks/Domains.js" />

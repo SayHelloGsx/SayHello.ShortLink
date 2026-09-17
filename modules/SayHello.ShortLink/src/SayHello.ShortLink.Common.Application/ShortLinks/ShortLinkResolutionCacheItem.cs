@@ -14,6 +14,8 @@ public class ShortLinkResolutionCacheItem
 
     public Guid? TenantId { get; set; }
 
+    public string? Origin { get; set; }
+
     public string? TargetUrl { get; set; }
 
     public ShortLinkStatus Status { get; set; }

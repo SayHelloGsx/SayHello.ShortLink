@@ -47,4 +47,18 @@ public class CurrentUserEntitlementController : AbpControllerBase, ICurrentUserE
         [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
         CancellationToken cancellationToken = default) =>
         _service.GetNumericAsync(productCode, featureKey, cancellationToken);
+
+    [HttpGet("enum/{featureKey}")]
+    public Task<EnumEntitlementResultDto> GetEnumAsync(
+        [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default) =>
+        _service.GetEnumAsync(productCode, featureKey, cancellationToken);
+
+    [HttpGet("string-set/{featureKey}")]
+    public Task<StringSetEntitlementResultDto> GetStringSetAsync(
+        [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
+        [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
+        CancellationToken cancellationToken = default) =>
+        _service.GetStringSetAsync(productCode, featureKey, cancellationToken);
 }

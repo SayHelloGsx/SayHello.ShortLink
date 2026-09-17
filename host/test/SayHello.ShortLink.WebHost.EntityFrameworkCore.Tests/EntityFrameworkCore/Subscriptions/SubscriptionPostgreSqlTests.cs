@@ -103,7 +103,9 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         await context.Database.MigrateAsync();
         var defaultMigration = context.Database.GetMigrations().Single(name =>
             name.EndsWith("_AddSubscriptionDefaultPlans", StringComparison.Ordinal));
-        Assert.Equal(new[] { InitialMigration, SubscriptionMigration, defaultMigration },
+        var entitlementMigration = context.Database.GetMigrations().Single(name =>
+            name.EndsWith("_AddEntitlementValuesAndShortLinkDomains", StringComparison.Ordinal));
+        Assert.Equal(new[] { InitialMigration, SubscriptionMigration, defaultMigration, entitlementMigration },
             await context.Database.GetAppliedMigrationsAsync());
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());
         Assert.False(context.Database.HasPendingModelChanges());
@@ -112,13 +114,37 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             SELECT is_nullable FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = 'SubscriptionProducts' AND column_name = 'DefaultPlanId';
             """));
-        foreach (var table in subscriptionTables)
+        foreach (var table in subscriptionTables.Where(table =>
+                     table is not "SubscriptionPlanEntitlements" and
+                         not "SubscriptionUserSubscriptionEntitlements"))
             Assert.Equal(subscriptionRows[table], await SnapshotAsync(table, omitDefaultPlanId: table == "SubscriptionProducts"));
+        Assert.Equal("2|basic|NULL", await ScalarAsync("""
+            SELECT concat_ws('|', "ValueType", "StringValue", coalesce("BooleanValue"::text, 'NULL'))
+            FROM "SubscriptionPlanEntitlements"
+            WHERE "FeatureKey" = 'statistics';
+            """));
+        Assert.Equal("2|advanced|NULL\n2|basic|NULL", await ScalarAsync("""
+            SELECT string_agg(
+                concat_ws('|', "ValueType", "StringValue", coalesce("BooleanValue"::text, 'NULL')),
+                E'\n' ORDER BY "SubscriptionId")
+            FROM "SubscriptionUserSubscriptionEntitlements"
+            WHERE "FeatureKey" = 'statistics';
+            """));
+        Assert.Equal(3L, await ScalarAsync("""
+            SELECT count(*) FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND (
+                  (table_name = 'ShortLinkLinks' AND column_name IN ('DomainId', 'Origin'))
+                  OR (table_name = 'ShortLinkDomains' AND column_name = 'Origin')
+              );
+            """));
 
         var migrationHistory = await SnapshotAsync("__EFMigrationsHistory");
         await context.Database.MigrateAsync();
         Assert.Equal(migrationHistory, await SnapshotAsync("__EFMigrationsHistory"));
-        foreach (var table in subscriptionTables)
+        foreach (var table in subscriptionTables.Where(table =>
+                     table is not "SubscriptionPlanEntitlements" and
+                         not "SubscriptionUserSubscriptionEntitlements"))
             Assert.Equal(subscriptionRows[table], await SnapshotAsync(table, omitDefaultPlanId: table == "SubscriptionProducts"));
         Assert.Equal(baselineColumns, await BaselineColumnsAsync());
         Assert.Equal(baselineSettings, await SnapshotAsync("AbpSettings"));
@@ -140,7 +166,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             var product = await services.GetRequiredService<ISubscriptionProductRepository>().GetAsync(plan.ProductId);
             Assert.Null(product.DefaultPlanId);
             return await services.GetRequiredService<ISubscriptionCatalogManager>()
-                .SetDefaultPlanAsync(data.TenantId, product.Id, product.ConcurrencyStamp, plan.Id);
+                .SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, plan.Id);
         });
         await InUnitAsync(data.TenantId, async services =>
         {
@@ -160,7 +186,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         Assert.Equal(crossProduct.ConstraintName, referenced.ConstraintName);
 
         await InUnitAsync(data.TenantId, services => services.GetRequiredService<ISubscriptionCatalogManager>()
-            .SetDefaultPlanAsync(data.TenantId, selected.Id, selected.ConcurrencyStamp, null));
+            .SetDefaultPlanAsync(selected.Id, selected.ConcurrencyStamp, null));
         await ExecuteAsync($"""DELETE FROM "SubscriptionPlans" WHERE "Id" = '{plan.Id}';""");
         Assert.Equal(0L, await ScalarAsync($"""SELECT count(*) FROM "SubscriptionPlans" WHERE "Id" = '{plan.Id}';"""));
         Assert.Equal(subscriptionRows, await SnapshotAsync("SubscriptionUserSubscriptions"));
@@ -182,7 +208,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
                 .Begin(requiresNew: true, isTransactional: true);
             var product = await scope.ServiceProvider.GetRequiredService<ISubscriptionProductRepository>().GetAsync(plan.ProductId);
             await scope.ServiceProvider.GetRequiredService<ISubscriptionCatalogManager>()
-                .SetDefaultPlanAsync(null, product.Id, product.ConcurrencyStamp, plan.Id);
+                .SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, plan.Id);
             await using var contender = await distributedLock.TryAcquireAsync(key, TimeSpan.Zero);
             Assert.Null(contender);
             if (rollback) await unit.RollbackAsync();
@@ -194,7 +220,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
 
         Task<SubscriptionPlan> WithdrawAsync() => InUnitAsync(data.TenantId, services =>
             services.GetRequiredService<ISubscriptionCatalogManager>().SetPlanStateAsync(
-                data.TenantId, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Withdrawn));
+                plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Withdrawn));
         if (rollback)
         {
             Assert.Equal(SubscriptionCatalogState.Withdrawn, (await WithdrawAsync()).State);
@@ -352,7 +378,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         clock.Now = clock.Now.AddMinutes(15);
         await InUnitAsync(data.TenantId, services =>
             services.GetRequiredService<ISubscriptionManager>().RevokeAsync(
-                data.TenantId, assigned.Id, current.ConcurrencyStamp, "PostgreSQL timestamp test"));
+                assigned.Id, current.ConcurrencyStamp, "PostgreSQL timestamp test"));
         var history = Assert.Single(await ReadSubscriptionsAsync(data));
         Assert.Equal(startsAt, history.StartsAt);
         Assert.Equal(expiresAt, history.ExpiresAt);
@@ -408,21 +434,26 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             foreach (var code in new[] { ShortLinkSubscriptionDefinitions.ProductCode, "postgres-beta", "postgres-gamma" })
             {
                 if (code != ShortLinkSubscriptionDefinitions.ProductCode)
-                    product = await catalog.CreateProductAsync(tenantId, code, new CatalogDetails(code));
-                product = await catalog.SetProductStateAsync(tenantId, product.Id, product.ConcurrencyStamp, SubscriptionCatalogState.Published);
+                    product = await catalog.CreateProductAsync(code, new CatalogDetails(code));
+                product = await catalog.SetProductStateAsync(
+                    product.Id, product.ConcurrencyStamp, SubscriptionCatalogState.Published);
                 var values = code == ShortLinkSubscriptionDefinitions.ProductCode
                     ? new Dictionary<string, EntitlementValue>
                     {
-                        [ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Boolean(true),
+                        [ShortLinkSubscriptionDefinitions.Statistics] = EntitlementValue.Enum(
+                            ShortLinkSubscriptionDefinitions.StatisticsAdvanced),
                         [ShortLinkSubscriptionDefinitions.MaxLinks] = EntitlementValue.Numeric(25)
                     }
                     : new Dictionary<string, EntitlementValue> { ["enabled"] = EntitlementValue.Boolean(true) };
-                var plan = await catalog.CreatePlanAsync(tenantId, product.Id, "basic", new CatalogDetails("Basic"), values);
-                plans.Add(await catalog.SetPlanStateAsync(tenantId, plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published));
+                var plan = await catalog.CreatePlanAsync(
+                    product.Id, "basic", new CatalogDetails("Basic"), values);
+                plans.Add(await catalog.SetPlanStateAsync(
+                    plan.Id, plan.ConcurrencyStamp, SubscriptionCatalogState.Published));
             }
 
             var shortLink = (await products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode))!;
-            shortLink = await catalog.UpdateProductAsync(tenantId, shortLink.Id, shortLink.ConcurrencyStamp, new CatalogDetails("Administrator name"));
+            shortLink = await catalog.UpdateProductAsync(
+                shortLink.Id, shortLink.ConcurrencyStamp, new CatalogDetails("Administrator name"));
             var stamp = shortLink.ConcurrencyStamp;
             await seed.SeedAsync(new DataSeedContext(tenantId));
             shortLink = (await products.FindByCodeAsync(ShortLinkSubscriptionDefinitions.ProductCode))!;
@@ -430,9 +461,10 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             Assert.Equal(SubscriptionCatalogState.Published, shortLink.State);
             Assert.Equal(stamp, shortLink.ConcurrencyStamp);
 
-            var bundle = await catalog.CreateBundleAsync(tenantId, "postgres-bundle", new CatalogDetails("PostgreSQL bundle"),
+            var bundle = await catalog.CreateBundleAsync("postgres-bundle", new CatalogDetails("PostgreSQL bundle"),
                 plans.Take(2).Select(plan => plan.Id).ToArray());
-            bundle = await catalog.SetBundleStateAsync(tenantId, bundle.Id, bundle.ConcurrencyStamp, SubscriptionCatalogState.Published);
+            bundle = await catalog.SetBundleStateAsync(
+                bundle.Id, bundle.ConcurrencyStamp, SubscriptionCatalogState.Published);
             return new CatalogData(tenantId, user.Id, plans.ToArray(), bundle.Id);
         });
     }
@@ -441,8 +473,8 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         InUnitAsync(data.TenantId, async services =>
         {
             var manager = services.GetRequiredService<ISubscriptionManager>();
-            var preview = await manager.PreviewPlanAsync(data.TenantId, data.UserId, data.Plans[planIndex].Id);
-            return await manager.AssignPlanAsync(new AssignSubscriptionPlan(data.TenantId, data.UserId,
+            var preview = await manager.PreviewPlanAsync(data.UserId, data.Plans[planIndex].Id);
+            return await manager.AssignPlanAsync(new AssignSubscriptionPlan(data.UserId,
                 Target(preview.Items[0], expiresAt)));
         });
 
@@ -450,8 +482,8 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         InUnitAsync(data.TenantId, async services =>
         {
             var manager = services.GetRequiredService<ISubscriptionManager>();
-            var preview = await manager.PreviewBundleAsync(data.TenantId, data.UserId, data.BundleId);
-            return await manager.AssignBundleAsync(new AssignSubscriptionBundle(data.TenantId, data.UserId,
+            var preview = await manager.PreviewBundleAsync(data.UserId, data.BundleId);
+            return await manager.AssignBundleAsync(new AssignSubscriptionBundle(data.UserId,
                 data.BundleId, preview.BundleConcurrencyStamp!, preview.Items.Select(item => Target(item))));
         });
 
@@ -479,7 +511,10 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         SELECT string_agg(concat_ws('|', table_name, column_name, data_type, is_nullable, column_default),
             E'\n' ORDER BY table_name, ordinal_position)
         FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name NOT LIKE 'Subscription%' AND table_name <> '__EFMigrationsHistory';
+        WHERE table_schema = 'public'
+          AND table_name NOT LIKE 'Subscription%'
+          AND table_name NOT IN ('__EFMigrationsHistory', 'ShortLinkDomains')
+          AND NOT (table_name = 'ShortLinkLinks' AND column_name IN ('DomainId', 'Origin'));
         """);
 
     private Task<object?> SnapshotAsync(string table, bool omitDefaultPlanId = false) => ScalarAsync($"""
@@ -501,8 +536,11 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
                 "ExtraProperties", "ConcurrencyStamp", "CreationTime")
         VALUES ('30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001',
             'short-link', 'pro', 'Legacy Pro', 0, 1, '{}', 'legacy-plan', TIMESTAMP '2026-09-01 12:00:00');
-        INSERT INTO "SubscriptionPlanEntitlements" ("PlanId", "FeatureKey", "ValueType", "NumericValue", "IsUnlimited")
-        VALUES ('30000000-0000-0000-0000-000000000001', 'max-links', 1, 100, FALSE);
+        INSERT INTO "SubscriptionPlanEntitlements"
+            ("PlanId", "FeatureKey", "ValueType", "BooleanValue", "NumericValue", "IsUnlimited")
+        VALUES
+            ('30000000-0000-0000-0000-000000000001', 'max-links', 1, NULL, 100, FALSE),
+            ('30000000-0000-0000-0000-000000000001', 'statistics', 0, FALSE, NULL, FALSE);
         INSERT INTO "SubscriptionBundles"
             ("Id", "Code", "Name", "DisplayOrder", "State", "ExtraProperties", "ConcurrencyStamp", "CreationTime")
         VALUES ('40000000-0000-0000-0000-000000000001', 'legacy-bundle', 'Legacy bundle', 0, 1,
@@ -521,8 +559,10 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             TIMESTAMP '2026-09-01 12:00:00', TIMESTAMP '2027-09-01 12:00:00', TRUE,
             '{"sentinel":"assignment"}', 'legacy-subscription', TIMESTAMP '2026-09-01 12:00:00');
         INSERT INTO "SubscriptionUserSubscriptionEntitlements"
-            ("SubscriptionId", "FeatureKey", "DisplayName", "ValueType", "NumericValue", "IsUnlimited")
-        VALUES ('50000000-0000-0000-0000-000000000001', 'max-links', 'Assigned limit', 1, 80, FALSE);
+            ("SubscriptionId", "FeatureKey", "DisplayName", "ValueType", "BooleanValue", "NumericValue", "IsUnlimited")
+        VALUES
+            ('50000000-0000-0000-0000-000000000001', 'max-links', 'Assigned limit', 1, NULL, 80, FALSE),
+            ('50000000-0000-0000-0000-000000000001', 'statistics', 'Assigned statistics', 0, TRUE, NULL, FALSE);
         INSERT INTO "SubscriptionUserSubscriptions"
             ("Id", "UserId", "ProductId", "SourcePlanId", "AssignmentId",
                 "ProductCode", "ProductName", "PlanCode", "PlanName", "StartsAt", "EndedAt", "EndReason",
@@ -533,8 +573,10 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             TIMESTAMP '2026-08-01 12:00:00', TIMESTAMP '2026-09-01 12:00:00', 0, FALSE,
             '{"sentinel":"history"}', 'legacy-history', TIMESTAMP '2026-08-01 12:00:00');
         INSERT INTO "SubscriptionUserSubscriptionEntitlements"
-            ("SubscriptionId", "FeatureKey", "DisplayName", "ValueType", "NumericValue", "IsUnlimited")
-        VALUES ('50000000-0000-0000-0000-000000000002', 'max-links', 'Historical limit', 1, 60, FALSE);
+            ("SubscriptionId", "FeatureKey", "DisplayName", "ValueType", "BooleanValue", "NumericValue", "IsUnlimited")
+        VALUES
+            ('50000000-0000-0000-0000-000000000002', 'max-links', 'Historical limit', 1, NULL, 60, FALSE),
+            ('50000000-0000-0000-0000-000000000002', 'statistics', 'Historical statistics', 0, FALSE, NULL, FALSE);
         """);
 
     private async Task<object?> ScalarAsync(string sql)

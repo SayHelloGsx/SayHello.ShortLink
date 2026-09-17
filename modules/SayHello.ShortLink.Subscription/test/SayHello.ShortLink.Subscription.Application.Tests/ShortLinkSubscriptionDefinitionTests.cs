@@ -28,8 +28,11 @@ public class ShortLinkSubscriptionDefinitionTests
         var product = context.Products.ShouldHaveSingleItem();
         product.Code.ShouldBe(ShortLinkSubscriptionDefinitions.ProductCode);
         var statistics = product.GetFeature(ShortLinkSubscriptionDefinitions.Statistics);
-        statistics.Type.ShouldBe(SubscriptionEntitlementType.Boolean);
+        statistics.Type.ShouldBe(SubscriptionEntitlementType.Enum);
         statistics.AllowUnlimited.ShouldBeFalse();
+        var domains = product.GetFeature(ShortLinkSubscriptionDefinitions.Domains);
+        domains.Type.ShouldBe(SubscriptionEntitlementType.StringSet);
+        domains.AllowUnlimited.ShouldBeFalse();
         var limit = product.GetFeature(ShortLinkSubscriptionDefinitions.MaxLinks);
         limit.Type.ShouldBe(SubscriptionEntitlementType.Numeric);
         limit.AllowUnlimited.ShouldBeTrue();
@@ -48,7 +51,7 @@ public class ShortLinkSubscriptionDefinitionTests
             var product = application.ServiceProvider.GetRequiredService<ISubscriptionDefinitionRegistry>()
                 .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode);
 
-            product.Features.Count.ShouldBe(2);
+            product.Features.Count.ShouldBe(3);
         }
         finally
         {
@@ -57,12 +60,13 @@ public class ShortLinkSubscriptionDefinitionTests
     }
 
     [Theory]
-    [InlineData("en", "ShortLink", "Visit statistics", "Maximum number of links")]
-    [InlineData("zh-Hans", "短链接", "访问统计", "链接数量上限")]
+    [InlineData("en", "ShortLink", "Visit statistics level", "Additional short-link domains", "Maximum number of links")]
+    [InlineData("zh-Hans", "短链接", "访问统计等级", "额外短链接域名", "链接数量上限")]
     public void Bridge_owns_matching_localized_definition_texts(
         string culture,
         string product,
         string statistics,
+        string domains,
         string maxLinks)
     {
         var assembly = typeof(ShortLinkSubscriptionResource).Assembly;
@@ -74,6 +78,7 @@ public class ShortLinkSubscriptionDefinitionTests
 
         texts.GetProperty("Subscription:ShortLink").GetString().ShouldBe(product);
         texts.GetProperty("Subscription:Statistics").GetString().ShouldBe(statistics);
+        texts.GetProperty("Subscription:Domains").GetString().ShouldBe(domains);
         texts.GetProperty("Subscription:MaxLinks").GetString().ShouldBe(maxLinks);
     }
 

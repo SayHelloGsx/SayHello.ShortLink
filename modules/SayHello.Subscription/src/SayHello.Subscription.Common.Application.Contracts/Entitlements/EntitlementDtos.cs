@@ -12,18 +12,25 @@ public class EntitlementValueDto : IValidatableObject
     public bool? BooleanValue { get; set; }
     public long? NumericValue { get; set; }
     public bool IsUnlimited { get; set; }
+    [StringLength(SubscriptionConsts.MaxEntitlementStringLength)]
+    public string? StringValue { get; set; }
+    public List<string>? StringValues { get; set; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         try
         {
-            EntitlementValue.FromStorage(Type, BooleanValue, NumericValue, IsUnlimited);
+            EntitlementValue.FromValues(Type, BooleanValue, NumericValue, IsUnlimited, StringValue, StringValues);
             return Array.Empty<ValidationResult>();
         }
         catch (BusinessException)
         {
             return new[] { new ValidationResult("The typed entitlement value is invalid.",
-                new[] { nameof(Type), nameof(BooleanValue), nameof(NumericValue), nameof(IsUnlimited) }) };
+                new[]
+                {
+                    nameof(Type), nameof(BooleanValue), nameof(NumericValue), nameof(IsUnlimited),
+                    nameof(StringValue), nameof(StringValues)
+                }) };
         }
     }
 }
@@ -62,4 +69,24 @@ public class NumericEntitlementResultDto
     public bool IsGranted { get; set; }
     public long? Limit { get; set; }
     public bool IsUnlimited { get; set; }
+}
+
+public class EnumEntitlementResultDto
+{
+    public EntitlementGrantStatus Status { get; set; }
+    public EntitlementSource Source { get; set; }
+    public Guid? PlanId { get; set; }
+    public Guid? SubscriptionId { get; set; }
+    public bool IsGranted { get; set; }
+    public string? Value { get; set; }
+}
+
+public class StringSetEntitlementResultDto
+{
+    public EntitlementGrantStatus Status { get; set; }
+    public EntitlementSource Source { get; set; }
+    public Guid? PlanId { get; set; }
+    public Guid? SubscriptionId { get; set; }
+    public bool IsGranted { get; set; }
+    public List<string> Values { get; set; } = new();
 }

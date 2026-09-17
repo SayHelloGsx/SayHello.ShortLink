@@ -21,13 +21,23 @@ else
                 {
                     <span>@(entitlement.Value.BooleanValue == true ? L["Enabled"] : L["Disabled"])</span>
                 }
-                else if (entitlement.Value.IsUnlimited)
+                else if (entitlement.Value.Type == SubscriptionEntitlementType.Numeric && entitlement.Value.IsUnlimited)
                 {
                     <span>@L["Unlimited"]</span>
                 }
-                else
+                else if (entitlement.Value.Type == SubscriptionEntitlementType.Numeric)
                 {
                     <span>@L["FiniteLimit"]: @entitlement.Value.NumericValue</span>
+                }
+                else if (entitlement.Value.Type == SubscriptionEntitlementType.Enum)
+                {
+                    <span>@entitlement.Value.StringValue</span>
+                }
+                else
+                {
+                    <span>@(entitlement.Value.StringValues?.Count > 0
+                        ? string.Join(", ", entitlement.Value.StringValues)
+                        : L["EmptySet"])</span>
                 }
             </dd>
         }
