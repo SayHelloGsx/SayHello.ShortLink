@@ -1,11 +1,11 @@
 using System;
-using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 using SayHello.ShortLink.Admin.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinkDomains;
 using Shouldly;
 using Volo.Abp;
+using Volo.Abp.Data;
 using Volo.Abp.MultiTenancy;
 using Xunit;
 
@@ -51,7 +51,8 @@ public class ShortLinkDomainAppServiceTests :
                     first.Id,
                     new SetShortLinkDomainEnabledDto
                     {
-                        IsEnabled = false
+                        IsEnabled = false,
+                        ConcurrencyStamp = first.ConcurrencyStamp
                     }));
             cannotDisable.Code.ShouldBe(
                 ShortLinkErrorCodes.DefaultDomainCannotBeDisabled);
@@ -60,9 +61,15 @@ public class ShortLinkDomainAppServiceTests :
                 second.Id,
                 new SetShortLinkDomainEnabledDto
                 {
-                    IsEnabled = false
+                    IsEnabled = false,
+                    ConcurrencyStamp = second.ConcurrencyStamp
                 });
-            var newDefault = await _appService.SetDefaultAsync(disabledCandidate.Id);
+            var newDefault = await _appService.SetDefaultAsync(
+                disabledCandidate.Id,
+                new ShortLinkDomainVersionDto
+                {
+                    ConcurrencyStamp = disabledCandidate.ConcurrencyStamp
+                });
             newDefault.IsDefault.ShouldBeTrue();
             newDefault.IsEnabled.ShouldBeTrue();
 
@@ -75,7 +82,8 @@ public class ShortLinkDomainAppServiceTests :
                 previousDefault.Id,
                 new SetShortLinkDomainEnabledDto
                 {
-                    IsEnabled = false
+                    IsEnabled = false,
+                    ConcurrencyStamp = previousDefault.ConcurrencyStamp
                 });
             disabled.IsEnabled.ShouldBeFalse();
 
@@ -88,30 +96,6 @@ public class ShortLinkDomainAppServiceTests :
             cannotDelete.Code.ShouldBe(
                 ShortLinkErrorCodes.DefaultDomainCannotBeDeleted);
         }
-    }
-
-    [Theory]
-    [InlineData("23503", "insert or update on table violates foreign key constraint")]
-    [InlineData(null, "SQLite Error 19: 'FOREIGN KEY constraint failed'.")]
-    public void Delete_Should_Recognize_Provider_Foreign_Key_Violations(
-        string? sqlState,
-        string message)
-    {
-        var exception = new InvalidOperationException(
-            "Database update failed.",
-            new TestDatabaseException(message, sqlState));
-
-        ShortLinkDomainAppService.IsForeignKeyViolation(exception).ShouldBeTrue();
-    }
-
-    [Fact]
-    public void Delete_Should_Not_Translate_Unrelated_Database_Errors()
-    {
-        var exception = new InvalidOperationException(
-            "Database update failed.",
-            new TestDatabaseException("Unique constraint failed.", "23505"));
-
-        ShortLinkDomainAppService.IsForeignKeyViolation(exception).ShouldBeFalse();
     }
 
     [Fact]
@@ -162,9 +146,40 @@ public class ShortLinkDomainAppServiceTests :
         }
     }
 
-    private sealed class TestDatabaseException(string message, string? sqlState)
-        : DbException(message)
+    [Fact]
+    public async Task Domain_Updates_Should_Reject_A_Stale_Concurrency_Stamp()
     {
-        public override string? SqlState => sqlState;
+        var tenantId = Guid.NewGuid();
+        using (_currentTenant.Change(tenantId))
+        {
+            await _appService.CreateAsync(
+                new CreateShortLinkDomainDto
+                {
+                    Origin = "https://default.concurrency.example.test"
+                });
+            var candidate = await _appService.CreateAsync(
+                new CreateShortLinkDomainDto
+                {
+                    Origin = "https://candidate.concurrency.example.test"
+                });
+
+            var updated = await _appService.SetEnabledAsync(
+                candidate.Id,
+                new SetShortLinkDomainEnabledDto
+                {
+                    IsEnabled = false,
+                    ConcurrencyStamp = candidate.ConcurrencyStamp
+                });
+            updated.ConcurrencyStamp.ShouldNotBe(candidate.ConcurrencyStamp);
+
+            await Should.ThrowAsync<AbpDbConcurrencyException>(() =>
+                _appService.SetEnabledAsync(
+                    candidate.Id,
+                    new SetShortLinkDomainEnabledDto
+                    {
+                        IsEnabled = true,
+                        ConcurrencyStamp = candidate.ConcurrencyStamp
+                    }));
+        }
     }
 }

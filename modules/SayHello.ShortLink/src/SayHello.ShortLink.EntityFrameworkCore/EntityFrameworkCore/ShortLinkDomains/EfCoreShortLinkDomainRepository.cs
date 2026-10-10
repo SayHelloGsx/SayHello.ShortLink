@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -123,5 +124,50 @@ public class EfCoreShortLinkDomainRepository :
         throw new AbpException(
             $"'{nameof(ShortLink)}.{ShortLinkDomainConsts.ShortLinkDomainIdPropertyName}' " +
             "must be a Guid or nullable Guid.");
+    }
+
+    public override async Task DeleteAsync(
+        ShortLinkDomain entity,
+        bool autoSave = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await base.DeleteAsync(entity, autoSave, cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsForeignKeyViolation(exception))
+        {
+            throw new BusinessException(
+                    ShortLinkErrorCodes.DomainInUse,
+                    innerException: exception)
+                .WithData("Origin", entity.Origin)
+                .WithData("ReferenceCount", ">= 1");
+        }
+    }
+
+    internal static bool IsForeignKeyViolation(Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is DbException databaseException &&
+                string.Equals(databaseException.SqlState, "23503", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (current.GetType()
+                    .GetProperty("SqliteExtendedErrorCode")
+                    ?.GetValue(current) is 787 ||
+                current.Message.Contains(
+                    "FOREIGN KEY constraint failed",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

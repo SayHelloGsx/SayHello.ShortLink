@@ -168,16 +168,22 @@ public class ModuleBoundaryTests
             "modules",
             "SayHello.ShortLink",
             "src");
-        var applicationProjects = new[]
-        {
-            "SayHello.ShortLink.Common.Application",
-            "SayHello.ShortLink.Public.Application",
-            "SayHello.ShortLink.Admin.Application"
-        };
 
-        foreach (var project in applicationProjects)
+        foreach (var projectDirectory in Directory.EnumerateDirectories(sourceRoot)
+                     .Where(path => Path.GetFileName(path).Contains(
+                         ".Application",
+                         StringComparison.Ordinal)))
         {
-            var projectDirectory = Path.Combine(sourceRoot, project);
+            var projectName = Path.GetFileName(projectDirectory);
+            var project = XDocument.Load(Path.Combine(
+                projectDirectory,
+                projectName + ".csproj"));
+            Assert.DoesNotContain(
+                project.Descendants().Attributes("Include"),
+                attribute => attribute.Value.Contains(
+                    "EntityFrameworkCore",
+                    StringComparison.Ordinal));
+
             foreach (var sourceFile in Directory.EnumerateFiles(
                          projectDirectory,
                          "*.cs",
@@ -185,8 +191,13 @@ public class ModuleBoundaryTests
             {
                 var source = File.ReadAllText(sourceFile);
                 Assert.DoesNotContain("GetQueryableAsync", source, StringComparison.Ordinal);
-                Assert.DoesNotContain("IQueryable<", source, StringComparison.Ordinal);
-                Assert.DoesNotContain("IRepository<", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("IQueryable", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("IRepository", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("Microsoft.EntityFrameworkCore", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("System.Data.Common", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("DbContext", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("DbSet<", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("DbException", source, StringComparison.Ordinal);
             }
         }
     }

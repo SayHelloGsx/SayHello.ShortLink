@@ -60,7 +60,8 @@ public class ShortLinkDomainUiPermissionTests
                     Id = id,
                     Origin = "https://go.example.test",
                     IsEnabled = true,
-                    IsDefault = true
+                    IsDefault = true,
+                    ConcurrencyStamp = "stamp"
                 }
             ]));
         var authorizationService = Substitute.For<IAuthorizationService>();
@@ -85,14 +86,17 @@ public class ShortLinkDomainUiPermissionTests
         model.CanSetDefault.ShouldBeTrue();
         model.CanDelete.ShouldBeTrue();
 
-        await model.OnPostSetEnabledAsync(id, false);
+        await model.OnPostSetEnabledAsync(id, false, "stamp");
         await appService.Received(1).SetEnabledAsync(
             id,
             Arg.Is<SetShortLinkDomainEnabledDto>(
-                x => !x.IsEnabled));
+                x => !x.IsEnabled && x.ConcurrencyStamp == "stamp"));
 
-        await model.OnPostSetDefaultAsync(id);
-        await appService.Received(1).SetDefaultAsync(id);
+        await model.OnPostSetDefaultAsync(id, "stamp");
+        await appService.Received(1).SetDefaultAsync(
+            id,
+            Arg.Is<ShortLinkDomainVersionDto>(
+                x => x.ConcurrencyStamp == "stamp"));
 
         await model.OnPostDeleteAsync(id);
         await appService.Received(1).DeleteAsync(id);

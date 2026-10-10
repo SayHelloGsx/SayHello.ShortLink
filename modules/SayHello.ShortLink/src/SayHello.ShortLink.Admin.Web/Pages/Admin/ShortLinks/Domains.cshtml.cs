@@ -56,20 +56,29 @@ public class DomainsModel : ShortLinkAdminPageModel
 
     public async Task<IActionResult> OnPostSetEnabledAsync(
         Guid id,
-        bool isEnabled)
+        bool isEnabled,
+        string concurrencyStamp)
     {
         await _appService.SetEnabledAsync(
             id,
             new SetShortLinkDomainEnabledDto
             {
-                IsEnabled = isEnabled
+                IsEnabled = isEnabled,
+                ConcurrencyStamp = concurrencyStamp
             });
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostSetDefaultAsync(Guid id)
+    public async Task<IActionResult> OnPostSetDefaultAsync(
+        Guid id,
+        string concurrencyStamp)
     {
-        await _appService.SetDefaultAsync(id);
+        await _appService.SetDefaultAsync(
+            id,
+            new ShortLinkDomainVersionDto
+            {
+                ConcurrencyStamp = concurrencyStamp
+            });
         return RedirectToPage();
     }
 

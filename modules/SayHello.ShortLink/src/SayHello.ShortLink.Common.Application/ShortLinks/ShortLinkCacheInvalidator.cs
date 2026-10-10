@@ -27,6 +27,7 @@ public class ShortLinkCacheInvalidator : IShortLinkCacheInvalidator, ITransientD
     {
         return _cache.RemoveAsync(
             ShortLinkResolutionCacheKey.Create(origin ?? _options.BaseUrl, code),
+            considerUow: true,
             token: cancellationToken);
     }
 }

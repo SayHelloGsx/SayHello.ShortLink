@@ -99,7 +99,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             {
                 bundle = (await _bundles.GetByIdsAsync(new[] { bundleId.Value }, token)).SingleOrDefault()
                     ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), bundleId.Value);
-                SubscriptionCatalogManager.CheckStamp(bundle.ConcurrencyStamp, bundleStamp!);
+                SubscriptionCatalogManager.EnsureStamp(bundle.ConcurrencyStamp, bundleStamp!);
                 if (bundle.Items.Count != targets.Count || bundle.Items.Any(item =>
                         !targets.Any(target => target.ProductId == item.ProductId && target.PlanId == item.PlanId)))
                     throw new BusinessException(SubscriptionErrorCodes.ConcurrencyConflict);
@@ -120,8 +120,8 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
                 var product = products.Single(x => x.Id == target.ProductId);
                 var plan = plans.Single(x => x.Id == target.PlanId);
                 ValidatePlan(product, plan);
-                SubscriptionCatalogManager.CheckStamp(product.ConcurrencyStamp, target.ProductConcurrencyStamp);
-                SubscriptionCatalogManager.CheckStamp(plan.ConcurrencyStamp, target.PlanConcurrencyStamp);
+                SubscriptionCatalogManager.EnsureStamp(product.ConcurrencyStamp, target.ProductConcurrencyStamp);
+                SubscriptionCatalogManager.EnsureStamp(plan.ConcurrencyStamp, target.PlanConcurrencyStamp);
                 CheckExpectedCurrent(currents.SingleOrDefault(x => x.ProductId == target.ProductId), target.ExpectedCurrent);
                 SubscriptionGuard.FutureExpiration(now, target.ExpiresAt);
                 replacements.Add(new UserSubscription(_guids.Create(), userId, product, plan, Snapshot(plan),
@@ -152,7 +152,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             await _mutationLock.AcquireAsync(unitOfWork, userId, cancellationToken);
             var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
-            SubscriptionCatalogManager.CheckStamp(subscription.ConcurrencyStamp, concurrencyStamp);
+            SubscriptionCatalogManager.ApplyStamp(subscription, concurrencyStamp);
             subscription.End(_clock.Now.ToUniversalTime(), SubscriptionEndReason.Revoked, reason);
             return await _subscriptions.UpdateAsync(subscription, true, cancellationToken);
         }, cancellationToken);
@@ -167,7 +167,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             await _mutationLock.AcquireAsync(unitOfWork, userId, cancellationToken);
             var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
-            SubscriptionCatalogManager.CheckStamp(subscription.ConcurrencyStamp, concurrencyStamp);
+            SubscriptionCatalogManager.ApplyStamp(subscription, concurrencyStamp);
             subscription.AdjustExpiration(_clock.Now.ToUniversalTime(), expiresAt);
             return await _subscriptions.UpdateAsync(subscription, true, cancellationToken);
         }, cancellationToken);
@@ -225,6 +225,6 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         if (current == null && expected == null) return;
         if (current == null || expected == null || current.Id != expected.SubscriptionId)
             throw new BusinessException(SubscriptionErrorCodes.ConcurrencyConflict);
-        SubscriptionCatalogManager.CheckStamp(current.ConcurrencyStamp, expected.ConcurrencyStamp);
+        SubscriptionCatalogManager.ApplyStamp(current, expected.ConcurrencyStamp);
     }
 }

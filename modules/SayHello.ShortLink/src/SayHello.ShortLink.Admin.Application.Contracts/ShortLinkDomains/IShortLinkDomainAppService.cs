@@ -15,7 +15,9 @@ public interface IShortLinkDomainAppService : IApplicationService
         Guid id,
         SetShortLinkDomainEnabledDto input);
 
-    Task<ShortLinkDomainDto> SetDefaultAsync(Guid id);
+    Task<ShortLinkDomainDto> SetDefaultAsync(
+        Guid id,
+        ShortLinkDomainVersionDto input);
 
     Task DeleteAsync(Guid id);
 }

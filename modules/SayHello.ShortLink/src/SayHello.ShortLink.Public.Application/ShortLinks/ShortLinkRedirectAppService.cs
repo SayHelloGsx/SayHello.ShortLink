@@ -49,7 +49,7 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
     }
 
     [UnitOfWork(isTransactional: true)]
-    public async Task<ShortLinkResolutionDto> ResolveAsync(
+    public virtual async Task<ShortLinkResolutionDto> ResolveAsync(
         string origin,
         string code,
         RecordShortLinkVisitDto? visit = null)

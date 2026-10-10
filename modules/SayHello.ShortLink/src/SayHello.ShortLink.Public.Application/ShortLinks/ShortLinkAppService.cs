@@ -16,6 +16,7 @@ using ShortLinkEntity = SayHello.ShortLink.ShortLinks.ShortLink;
 namespace SayHello.ShortLink.Public.ShortLinks;
 
 [Authorize(ShortLinkPublicPermissions.Default)]
+[RemoteService(false)]
 public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppService
 {
     private readonly IShortLinkRepository _shortLinkRepository;
@@ -50,7 +51,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         _permissionChecker = permissionChecker;
     }
 
-    public async Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync()
+    public virtual async Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync()
     {
         var ownerUserId = CurrentUser.GetId();
         var cancellationToken = CancellationTokenProvider.Token;
@@ -81,7 +82,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         };
     }
 
-    public async Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
+    public virtual async Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
     {
         var ownerUserId = CurrentUser.GetId();
         var cancellationToken = CancellationTokenProvider.Token;
@@ -110,14 +111,14 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             entities.Select(x => ShortLinkDtoMapper.ToPublicDto(x, _urlBuilder, statisticsLevel)).ToList());
     }
 
-    public async Task<ShortLinkDto> GetAsync(Guid id)
+    public virtual async Task<ShortLinkDto> GetAsync(Guid id)
     {
         var shortLink = await GetOwnedAsync(id);
         return await ToPublicDtoAsync(shortLink);
     }
 
     [Authorize(ShortLinkPublicPermissions.Create)]
-    public async Task<ShortLinkDto> CreateAsync(CreateShortLinkDto input)
+    public virtual async Task<ShortLinkDto> CreateAsync(CreateShortLinkDto input)
     {
         var ownerUserId = CurrentUser.GetId();
         await _eligibilityChecker.EnsureEligibleAsync(ownerUserId);
@@ -141,10 +142,10 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     }
 
     [Authorize(ShortLinkPublicPermissions.Update)]
-    public async Task<ShortLinkDto> UpdateAsync(Guid id, UpdateShortLinkDto input)
+    public virtual async Task<ShortLinkDto> UpdateAsync(Guid id, UpdateShortLinkDto input)
     {
         var shortLink = await GetOwnedAsync(id);
-        ShortLinkConcurrencyGuard.EnsureMatches(shortLink, input.ConcurrencyStamp);
+        ShortLinkConcurrencyGuard.Apply(shortLink, input.ConcurrencyStamp);
         await _eligibilityChecker.EnsureEligibleAsync(CurrentUser.GetId());
         await _shortLinkManager.UpdateAsync(
             shortLink,
@@ -165,10 +166,10 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     }
 
     [Authorize(ShortLinkPublicPermissions.Update)]
-    public async Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
+    public virtual async Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
     {
         var shortLink = await GetOwnedAsync(id);
-        ShortLinkConcurrencyGuard.EnsureMatches(shortLink, input.ConcurrencyStamp);
+        ShortLinkConcurrencyGuard.Apply(shortLink, input.ConcurrencyStamp);
         await _eligibilityChecker.EnsureEligibleAsync(CurrentUser.GetId());
 
         if (input.Status == ShortLinkStatus.Active)
@@ -192,7 +193,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     }
 
     [Authorize(ShortLinkPublicPermissions.Delete)]
-    public async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(Guid id)
     {
         var shortLink = await GetOwnedAsync(id);
         await _eligibilityChecker.EnsureEligibleAsync(CurrentUser.GetId());
@@ -207,7 +208,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     }
 
     [Authorize(ShortLinkPublicPermissions.ViewStatistics)]
-    public async Task<ShortLinkStatisticsDto> GetStatisticsAsync(Guid id, int days = 30)
+    public virtual async Task<ShortLinkStatisticsDto> GetStatisticsAsync(Guid id, int days = 30)
     {
         var shortLink = await GetOwnedAsync(id);
         var statisticsLevel = await GetStatisticsLevelAsync();
@@ -253,7 +254,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         return result;
     }
 
-    public async Task<ShortLinkQrCodeDto> GetQrCodeAsync(Guid id)
+    public virtual async Task<ShortLinkQrCodeDto> GetQrCodeAsync(Guid id)
     {
         var shortLink = await GetOwnedAsync(id);
         var shortUrl = shortLink.Origin.IsNullOrWhiteSpace()

@@ -41,9 +41,11 @@ public class ShortLinkDomainController :
     }
 
     [HttpPut("{id:guid}/default")]
-    public Task<ShortLinkDomainDto> SetDefaultAsync(Guid id)
+    public Task<ShortLinkDomainDto> SetDefaultAsync(
+        Guid id,
+        ShortLinkDomainVersionDto input)
     {
-        return _appService.SetDefaultAsync(id);
+        return _appService.SetDefaultAsync(id, input);
     }
 
     [HttpDelete("{id:guid}")]

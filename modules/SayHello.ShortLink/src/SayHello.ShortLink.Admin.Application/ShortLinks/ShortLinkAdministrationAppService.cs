@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Authorization;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.ShortLinks;
+using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 
 namespace SayHello.ShortLink.Admin.ShortLinks;
 
 [Authorize(ShortLinkAdminPermissions.ManageAllLinks)]
+[RemoteService(false)]
 public class ShortLinkAdministrationAppService :
     ShortLinkApplicationService,
     IShortLinkAdministrationAppService
@@ -28,7 +30,7 @@ public class ShortLinkAdministrationAppService :
         _cacheInvalidator = cacheInvalidator;
     }
 
-    public async Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
+    public virtual async Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
     {
         var cancellationToken = CancellationTokenProvider.Token;
         var totalCount = await _shortLinkRepository.GetCountAsync(
@@ -50,12 +52,12 @@ public class ShortLinkAdministrationAppService :
             entities.Select(x => ShortLinkDtoMapper.ToDto(x, _urlBuilder)).ToList());
     }
 
-    public async Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
+    public virtual async Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
     {
         var shortLink = await _shortLinkRepository.GetAsync(
             id,
             cancellationToken: CancellationTokenProvider.Token);
-        ShortLinkConcurrencyGuard.EnsureMatches(
+        ShortLinkConcurrencyGuard.Apply(
             shortLink,
             input.ConcurrencyStamp);
 
@@ -79,7 +81,7 @@ public class ShortLinkAdministrationAppService :
         return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
     }
 
-    public async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(Guid id)
     {
         var shortLink = await _shortLinkRepository.GetAsync(
             id,

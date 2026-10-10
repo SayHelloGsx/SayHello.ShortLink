@@ -6,6 +6,7 @@ using SayHello.ShortLink.Settings;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.BackgroundWorkers;
+using Volo.Abp.DistributedLocking;
 using Volo.Abp.Settings;
 using Volo.Abp.Threading;
 using Volo.Abp.Timing;
@@ -30,6 +31,15 @@ public class ShortLinkMaintenanceWorker : AsyncPeriodicBackgroundWorkerBase
         var settingProvider = workerContext.ServiceProvider.GetRequiredService<ISettingProvider>();
         var clock = workerContext.ServiceProvider.GetRequiredService<IClock>();
         var unitOfWorkManager = workerContext.ServiceProvider.GetRequiredService<IUnitOfWorkManager>();
+        var distributedLock = workerContext.ServiceProvider.GetRequiredService<IAbpDistributedLock>();
+
+        await using var handle = await distributedLock.TryAcquireAsync(
+            "ShortLink:Maintenance",
+            cancellationToken: workerContext.CancellationToken);
+        if (handle is null)
+        {
+            return;
+        }
 
         var retentionDays = await GetPositiveSettingAsync(
             settingProvider,

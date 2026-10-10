@@ -25,6 +25,10 @@ public class ModuleBoundaryTests
                 Assert.DoesNotContain("GetQueryableAsync", code, StringComparison.Ordinal);
                 Assert.DoesNotContain("IRepository", code, StringComparison.Ordinal);
                 Assert.DoesNotContain("Microsoft.EntityFrameworkCore", code, StringComparison.Ordinal);
+                Assert.DoesNotContain("System.Data.Common", code, StringComparison.Ordinal);
+                Assert.DoesNotContain("DbContext", code, StringComparison.Ordinal);
+                Assert.DoesNotContain("DbSet<", code, StringComparison.Ordinal);
+                Assert.DoesNotContain("DbException", code, StringComparison.Ordinal);
             }
         }
     }

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.ShortLinkDomains;
 using Volo.Abp;
@@ -12,6 +12,7 @@ using Volo.Abp.Uow;
 namespace SayHello.ShortLink.Admin.ShortLinkDomains;
 
 [Authorize(ShortLinkAdminPermissions.Domains.Default)]
+[RemoteService(false)]
 public class ShortLinkDomainAppService :
     ShortLinkApplicationService,
     IShortLinkDomainAppService
@@ -30,7 +31,7 @@ public class ShortLinkDomainAppService :
         _configurationLock = configurationLock;
     }
 
-    public async Task<ListResultDto<ShortLinkDomainDto>> GetListAsync()
+    public virtual async Task<ListResultDto<ShortLinkDomainDto>> GetListAsync()
     {
         var entities = await _repository.GetListAsync(CancellationTokenProvider.Token);
         var items = new List<ShortLinkDomainDto>(entities.Count);
@@ -69,6 +70,7 @@ public class ShortLinkDomainAppService :
         var entity = await _repository.GetAsync(
             id,
             cancellationToken: cancellationToken);
+        ShortLinkConcurrencyGuard.Apply(entity, input.ConcurrencyStamp);
         if (input.IsEnabled)
         {
             entity.Enable();
@@ -87,13 +89,16 @@ public class ShortLinkDomainAppService :
 
     [Authorize(ShortLinkAdminPermissions.Domains.SetDefault)]
     [UnitOfWork(isTransactional: true)]
-    public virtual async Task<ShortLinkDomainDto> SetDefaultAsync(Guid id)
+    public virtual async Task<ShortLinkDomainDto> SetDefaultAsync(
+        Guid id,
+        ShortLinkDomainVersionDto input)
     {
         var cancellationToken = CancellationTokenProvider.Token;
         await _configurationLock.AcquireAsync(cancellationToken);
         var entity = await _repository.GetAsync(
             id,
             cancellationToken: cancellationToken);
+        ShortLinkConcurrencyGuard.Apply(entity, input.ConcurrencyStamp);
         if (entity.IsDefault)
         {
             return await ToDtoAsync(entity);
@@ -122,26 +127,15 @@ public class ShortLinkDomainAppService :
     public virtual async Task DeleteAsync(Guid id)
     {
         var cancellationToken = CancellationTokenProvider.Token;
-        string? origin = null;
-        try
-        {
-            await _configurationLock.AcquireAsync(cancellationToken);
-            var entity = await _repository.GetAsync(
-                id,
-                cancellationToken: cancellationToken);
-            origin = entity.Origin;
-            await _manager.EnsureCanDeleteAsync(entity, cancellationToken);
-            await _repository.DeleteAsync(
-                entity,
-                autoSave: true,
-                cancellationToken);
-        }
-        catch (Exception exception) when (IsForeignKeyViolation(exception))
-        {
-            throw new BusinessException(ShortLinkErrorCodes.DomainInUse)
-                .WithData("Origin", origin ?? id.ToString("D"))
-                .WithData("ReferenceCount", ">= 1");
-        }
+        await _configurationLock.AcquireAsync(cancellationToken);
+        var entity = await _repository.GetAsync(
+            id,
+            cancellationToken: cancellationToken);
+        await _manager.EnsureCanDeleteAsync(entity, cancellationToken);
+        await _repository.DeleteAsync(
+            entity,
+            autoSave: true,
+            cancellationToken);
     }
 
     private async Task<ShortLinkDomainDto> ToDtoAsync(ShortLinkDomain entity)
@@ -156,6 +150,7 @@ public class ShortLinkDomainAppService :
                 await _repository.GetShortLinkReferenceCountAsync(
                     entity.Id,
                     CancellationTokenProvider.Token),
+            ConcurrencyStamp = entity.ConcurrencyStamp,
             CreationTime = entity.CreationTime,
             CreatorId = entity.CreatorId,
             LastModificationTime = entity.LastModificationTime,
@@ -163,22 +158,4 @@ public class ShortLinkDomainAppService :
         };
     }
 
-    internal static bool IsForeignKeyViolation(Exception exception)
-    {
-        for (Exception? current = exception;
-             current is not null;
-             current = current.InnerException)
-        {
-            if (current is DbException databaseException &&
-                (string.Equals(databaseException.SqlState, "23503", StringComparison.Ordinal) ||
-                 databaseException.Message.Contains(
-                     "FOREIGN KEY constraint failed",
-                     StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

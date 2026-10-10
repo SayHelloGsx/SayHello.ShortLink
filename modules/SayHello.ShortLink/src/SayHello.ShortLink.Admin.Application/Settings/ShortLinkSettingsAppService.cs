@@ -6,15 +6,15 @@ using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.Settings;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
-using Volo.Abp.Application.Services;
 using Volo.Abp.SettingManagement;
 using Volo.Abp.Settings;
 
 namespace SayHello.ShortLink.Admin.Settings;
 
 [Authorize(ShortLinkAdminPermissions.ManageSettings)]
+[RemoteService(false)]
 public class ShortLinkSettingsAppService :
-    ApplicationService,
+    ShortLinkApplicationService,
     IShortLinkSettingsAppService
 {
     private readonly ISettingProvider _settingProvider;
@@ -31,7 +31,7 @@ public class ShortLinkSettingsAppService :
         _capabilityProvider = capabilityProvider;
     }
 
-    public async Task<ShortLinkSettingsDto> GetAsync()
+    public virtual async Task<ShortLinkSettingsDto> GetAsync()
     {
         return new ShortLinkSettingsDto
         {
@@ -54,7 +54,7 @@ public class ShortLinkSettingsAppService :
         };
     }
 
-    public async Task<ShortLinkSettingsDto> UpdateAsync(ShortLinkSettingsDto input)
+    public virtual async Task<ShortLinkSettingsDto> UpdateAsync(ShortLinkSettingsDto input)
     {
         ValidateRange(input.MaxLinksPerUser, 1, 100_000, ShortLinkSettings.MaxLinksPerUser);
         ValidateRange(input.CreateLimitPerHour, 1, 10_000, ShortLinkSettings.CreateLimitPerHour);

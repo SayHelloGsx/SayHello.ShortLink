@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -150,6 +151,69 @@ public class ShortLinkDomainRepositoryTests : ShortLinkEntityFrameworkCoreTestBa
             (await WithUnitOfWorkAsync(() => _repository.GetAsync(domain.Id)))
                 .IsEnabled.ShouldBeFalse();
         }
+    }
+
+    [Theory]
+    [InlineData("23503", "insert or update on table violates foreign key constraint")]
+    [InlineData(null, "SQLite Error 19: 'FOREIGN KEY constraint failed'.")]
+    public void Delete_Should_Recognize_Provider_Foreign_Key_Violations(
+        string? sqlState,
+        string message)
+    {
+        var exception = new InvalidOperationException(
+            "Database update failed.",
+            new TestDatabaseException(message, sqlState));
+
+        EfCoreShortLinkDomainRepository
+            .IsForeignKeyViolation(exception)
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Delete_Should_Not_Translate_Unrelated_Database_Errors()
+    {
+        var exception = new InvalidOperationException(
+            "Database update failed.",
+            new TestDatabaseException("Unique constraint failed.", "23505"));
+
+        EfCoreShortLinkDomainRepository
+            .IsForeignKeyViolation(exception)
+            .ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Delete_Should_Translate_A_Real_Foreign_Key_Violation()
+    {
+        var domain = new ShortLinkDomain(
+            _guidGenerator.Create(),
+            null,
+            "https://referenced.example.test");
+        var shortLink = new global::SayHello.ShortLink.ShortLinks.ShortLink(
+            _guidGenerator.Create(),
+            null,
+            Guid.NewGuid(),
+            domain.Id,
+            domain.Origin,
+            "Referenced",
+            "https://example.com/referenced",
+            null,
+            null);
+        var shortLinks = GetRequiredService<IShortLinkRepository>();
+        await WithUnitOfWorkAsync(async () =>
+        {
+            await _repository.InsertAsync(domain, autoSave: true);
+            await shortLinks.InsertAsync(shortLink, autoSave: true);
+        });
+
+        var exception = await Should.ThrowAsync<BusinessException>(() =>
+            WithUnitOfWorkAsync(async () =>
+            {
+                var persisted = await _repository.GetAsync(domain.Id);
+                await _repository.DeleteAsync(persisted, autoSave: true);
+            }));
+
+        exception.Code.ShouldBe(ShortLinkErrorCodes.DomainInUse);
+        exception.Data["Origin"].ShouldBe(domain.Origin);
     }
 
     [Fact]
@@ -303,5 +367,11 @@ public class ShortLinkDomainRepositoryTests : ShortLinkEntityFrameworkCoreTestBa
             shortLinks.GetAsync(hostLegacy.Id));
         hostStillBackfilled.DomainId.ShouldBe(hostDomain.Id);
         hostStillBackfilled.Origin.ShouldBe(hostDomain.Origin);
+    }
+
+    private sealed class TestDatabaseException(string message, string? sqlState)
+        : DbException(message)
+    {
+        public override string? SqlState => sqlState;
     }
 }

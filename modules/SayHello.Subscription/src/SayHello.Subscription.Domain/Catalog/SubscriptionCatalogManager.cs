@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Subscriptions;
 using Volo.Abp;
+using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Services;
 using Volo.Abp.Guids;
 using Volo.Abp.MultiTenancy;
@@ -231,7 +232,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
     private async Task<SubscriptionProduct> GetProductAsync(Guid id, string stamp, CancellationToken token)
     {
         var entity = await _products.GetAsync(id, cancellationToken: token);
-        CheckStamp(entity.ConcurrencyStamp, stamp);
+        ApplyStamp(entity, stamp);
         return entity;
     }
 
@@ -250,14 +251,14 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
     private async Task<SubscriptionPlan> GetPlanAsync(Guid id, string stamp, CancellationToken token)
     {
         var entity = await _plans.GetAsync(id, cancellationToken: token);
-        CheckStamp(entity.ConcurrencyStamp, stamp);
+        ApplyStamp(entity, stamp);
         return entity;
     }
 
     private async Task<SubscriptionBundle> GetBundleAsync(Guid id, string stamp, CancellationToken token)
     {
         var entity = await _bundles.GetAsync(id, cancellationToken: token);
-        CheckStamp(entity.ConcurrencyStamp, stamp);
+        ApplyStamp(entity, stamp);
         return entity;
     }
 
@@ -338,9 +339,15 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         }
     }
 
-    internal static void CheckStamp(string actual, string expected)
+    internal static void EnsureStamp(string actual, string expected)
     {
         if (!string.Equals(actual, SubscriptionGuard.ConcurrencyStamp(expected), StringComparison.Ordinal))
             throw new BusinessException(SubscriptionErrorCodes.ConcurrencyConflict);
+    }
+
+    internal static void ApplyStamp(IHasConcurrencyStamp entity, string expected)
+    {
+        EnsureStamp(entity.ConcurrencyStamp, expected);
+        entity.ConcurrencyStamp = expected;
     }
 }

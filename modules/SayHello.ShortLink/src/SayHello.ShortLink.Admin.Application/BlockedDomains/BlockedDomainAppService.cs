@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.Common.BlockedDomains;
+using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
@@ -16,6 +17,7 @@ using Volo.Abp.Data;
 namespace SayHello.ShortLink.Admin.BlockedDomains;
 
 [Authorize(ShortLinkAdminPermissions.ManageBlockedDomains)]
+[RemoteService(false)]
 public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDomainAppService
 {
     private readonly IBlockedDomainRepository _repository;
@@ -32,7 +34,7 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         _csvImporter = csvImporter;
     }
 
-    public async Task<ListResultDto<BlockedDomainDto>> GetListAsync()
+    public virtual async Task<ListResultDto<BlockedDomainDto>> GetListAsync()
     {
         var entities = await _repository.GetListAsync(
             CancellationTokenProvider.Token);
@@ -40,7 +42,7 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         return new ListResultDto<BlockedDomainDto>(entities.Select(ToDto).ToList());
     }
 
-    public async Task<BlockedDomainDto> CreateAsync(CreateBlockedDomainDto input)
+    public virtual async Task<BlockedDomainDto> CreateAsync(CreateBlockedDomainDto input)
     {
         var normalizedDomain = DomainNameNormalizer.Normalize(input.Domain);
         if (await _repository.ExistsAsync(
@@ -65,12 +67,12 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         return ToDto(entity);
     }
 
-    public async Task<BlockedDomainDto> UpdateAsync(Guid id, UpdateBlockedDomainDto input)
+    public virtual async Task<BlockedDomainDto> UpdateAsync(Guid id, UpdateBlockedDomainDto input)
     {
         var entity = await _repository.GetAsync(
             id,
             cancellationToken: CancellationTokenProvider.Token);
-        EnsureConcurrencyStamp(entity, input.ConcurrencyStamp);
+        ShortLinkConcurrencyGuard.Apply(entity, input.ConcurrencyStamp);
         entity.Update(input.Reason, input.IsActive);
         await _repository.UpdateAsync(
             entity,
@@ -80,7 +82,7 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         return ToDto(entity);
     }
 
-    public async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(Guid id)
     {
         var entity = await _repository.GetAsync(
             id,
@@ -92,7 +94,7 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         await InvalidateCacheAsync(entity.Domain);
     }
 
-    public async Task<BlockedDomainImportResultDto> ImportAsync(IRemoteStreamContent file)
+    public virtual async Task<BlockedDomainImportResultDto> ImportAsync(IRemoteStreamContent file)
     {
         var execution = await _csvImporter.ImportAsync(
             file,
@@ -104,14 +106,6 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         }
 
         return execution.Result;
-    }
-
-    private static void EnsureConcurrencyStamp(BlockedDomain entity, string concurrencyStamp)
-    {
-        if (!string.Equals(entity.ConcurrencyStamp, concurrencyStamp, StringComparison.Ordinal))
-        {
-            throw new AbpDbConcurrencyException();
-        }
     }
 
     private static BlockedDomainDto ToDto(BlockedDomain entity)
@@ -138,17 +132,22 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
 
     private async Task InvalidateCacheAsync(IReadOnlyCollection<string> domains)
     {
-        await _blockedDomainCache.InvalidateManyAsync(
-            domains,
-            CancellationTokenProvider.Token);
-
+        var snapshot = domains.ToArray();
         var tenantId = CurrentTenant.Id;
-        CurrentUnitOfWork?.OnCompleted(async () =>
+        if (CurrentUnitOfWork is null)
+        {
+            await _blockedDomainCache.InvalidateManyAsync(
+                snapshot,
+                CancellationTokenProvider.Token);
+            return;
+        }
+
+        CurrentUnitOfWork.OnCompleted(async () =>
         {
             using (CurrentTenant.Change(tenantId))
             {
                 await _blockedDomainCache.InvalidateManyAsync(
-                    domains,
+                    snapshot,
                     CancellationToken.None);
             }
         });

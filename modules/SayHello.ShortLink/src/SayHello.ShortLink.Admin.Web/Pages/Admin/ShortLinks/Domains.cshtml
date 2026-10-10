@@ -79,6 +79,7 @@
                                 <form method="post" asp-page-handler="SetEnabled" class="d-inline">
                                     <input type="hidden" name="id" value="@item.Id" />
                                     <input type="hidden" name="isEnabled" value="@(!item.IsEnabled)" />
+                                    <input type="hidden" name="concurrencyStamp" value="@item.ConcurrencyStamp" />
                                     <button type="submit" class="btn btn-sm btn-outline-warning">
                                         @(item.IsEnabled ? L["Disable"] : L["Enable"])
                                     </button>
@@ -88,6 +89,7 @@
                             {
                                 <form method="post" asp-page-handler="SetDefault" class="d-inline">
                                     <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="concurrencyStamp" value="@item.ConcurrencyStamp" />
                                     <button type="submit" class="btn btn-sm btn-outline-primary">
                                         @L["ShortLinkDomains:SetDefault"]
                                     </button>

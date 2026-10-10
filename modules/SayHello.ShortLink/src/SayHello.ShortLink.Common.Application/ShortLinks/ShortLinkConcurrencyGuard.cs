@@ -1,18 +1,20 @@
 using System;
 using Volo.Abp.Data;
-using ShortLinkEntity = SayHello.ShortLink.ShortLinks.ShortLink;
+using Volo.Abp.Domain.Entities;
 
 namespace SayHello.ShortLink.Common.ShortLinks;
 
 public static class ShortLinkConcurrencyGuard
 {
-    public static void EnsureMatches(
-        ShortLinkEntity shortLink,
+    public static void Apply(
+        IHasConcurrencyStamp entity,
         string concurrencyStamp)
     {
-        if (!string.Equals(shortLink.ConcurrencyStamp, concurrencyStamp, StringComparison.Ordinal))
+        if (!string.Equals(entity.ConcurrencyStamp, concurrencyStamp, StringComparison.Ordinal))
         {
             throw new AbpDbConcurrencyException();
         }
+
+        entity.ConcurrencyStamp = concurrencyStamp;
     }
 }
