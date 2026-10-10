@@ -2,80 +2,99 @@
 
 Read this file when a business module serves both privileged management users and an audience-facing application, especially when those APIs can be consumed or deployed independently.
 
+This repository already uses Common/Admin/Public splits in the ShortLink and Subscription modules. Preserve their existing contracts, remote-service constants, explicit controllers, and thin umbrella composition modules unless the requested change intentionally alters deployment boundaries.
+
 ## Decide whether to split
 
-Admin/Public separation is an exposure and use-case boundary, not a required project pair for every module.
-
-Split the surfaces when one or more of these differ materially:
+Admin/Public separation is an exposure and use-case boundary, not a required project pair for every module. Split when one or more of these differ materially:
 
 - authorization policies or resource-ownership rules;
 - DTO fields and allowed operations;
-- public versus internal lifecycle states, such as published and draft content;
-- HTTP exposure, remote-service clients, UI consumers, or deployment hosts;
+- public versus internal lifecycle states, such as published and draft;
+- HTTP exposure, remote clients, UI consumers, or deployment hosts;
 - release or compatibility requirements.
 
-Keep the normal Application.Contracts/Application structure when the module is small and the audiences, contracts, and deployment boundary are genuinely the same. Do not add empty Admin, Public, or Common projects merely to imitate another module.
+Keep the normal Application.Contracts/Application structure when the audiences and deployment boundary are genuinely the same. Do not add empty Admin, Public, or Common projects for symmetry.
 
-Admin normally owns back-office use cases such as creation, configuration, moderation, publication, and full lifecycle management. Public owns audience-facing reads and explicitly supported interactions. `Public` does not mean anonymous: decide authorization per use case with the solution's normal `[Authorize]`, `[AllowAnonymous]`, permission, ownership, tenant, and feature checks.
+Admin normally owns back-office creation, configuration, moderation, publication, and full lifecycle management. Public owns audience-facing reads and explicitly supported interactions. `Public` does not mean anonymous: decide authorization per use case with `[Authorize]`, `[AllowAnonymous]`, permissions, ownership, tenant, and feature checks.
 
 ## Project and dependency layout
 
-When a full split is justified, use the solution's naming convention for projects equivalent to:
+When a full split is justified, follow the local equivalent of:
 
 ```text
 <Module>.Common.Application.Contracts
 <Module>.Common.Application
+<Module>.Common.HttpApi
+<Module>.Common.HttpApi.Client
+<Module>.Common.Web
 <Module>.Admin.Application.Contracts
 <Module>.Admin.Application
 <Module>.Admin.HttpApi
+<Module>.Admin.HttpApi.Client
+<Module>.Admin.Web
 <Module>.Public.Application.Contracts
 <Module>.Public.Application
 <Module>.Public.HttpApi
+<Module>.Public.HttpApi.Client
+<Module>.Public.Web
+<Module>.Application.Contracts   (optional umbrella)
+<Module>.Application             (optional umbrella)
+<Module>.HttpApi                 (optional umbrella)
+<Module>.HttpApi.Client          (optional umbrella)
+<Module>.Web                     (optional umbrella)
 ```
 
-Add Admin/Public HTTP API clients or presentation projects only when those surfaces are independently consumed. The Common layer is optional. It is appropriate for contracts, base classes, mapping helpers, and implementation utilities whose semantics are identical and safe on both surfaces; it must not become a miscellaneous application layer or hide audience-specific use cases.
+Create only the projects the module needs. Add matching HTTP API clients or UI projects only when independently consumed. The Common layer may contain base application classes, shared-safe contracts, mapping helpers, cache/options infrastructure, module-wide workers, and orchestration utilities whose semantics are identical for both audiences; it must not hide audience-specific use cases.
 
 Keep dependencies one-way:
 
-1. Admin.Contracts and Public.Contracts may each depend on Common.Contracts; neither references the other.
-2. Admin.Application and Public.Application each depend on their own Contracts and may depend on Common.Application; neither calls or references the other.
-3. Each HttpApi module depends on its matching Contracts module and any genuinely shared HttpApi module.
-4. Common.Application may depend on Domain, and Common.Contracts may depend on Domain.Shared. Domain and persistence providers never depend on Admin or Public application projects.
-5. Project references and `[DependsOn]` declarations must describe the same direct dependency graph.
+1. Admin.Contracts and Public.Contracts may depend on Common.Contracts; neither references the other.
+2. Admin.Application and Public.Application each depend on their own Contracts and may depend on Common.Application; neither calls/references the other.
+3. Common.Application depends on Common.Contracts and Domain; Common.Contracts depends inward on Domain.Shared.
+4. Each Admin/Public HttpApi depends on its matching Contracts and Common.HttpApi. It does not need the concrete Application implementation.
+5. Each matching HttpApi.Client depends on its Contracts and Common.HttpApi.Client, and registers proxies with that surface's remote-service name.
+6. Each Admin/Public Web module depends on its matching Contracts and Common.Web. The host separately composes local application implementations or remote clients.
+7. Domain and persistence never depend on Common/Admin/Public application or presentation projects.
+8. Project references and `[DependsOn]` declarations describe the same direct graph.
 
-If duplicate application logic appears, first move business rules to the aggregate or a domain service. Use Common.Application only for application-layer mechanics that cannot belong to Domain; never make a Public service call an Admin service, or the reverse.
+If duplicate application logic appears, first move business rules to an aggregate/domain service. Use Common.Application only for application mechanics that cannot belong to Domain.
 
-ABP CMS Kit demonstrates optional umbrella projects such as `<Module>.Application.Contracts`, `<Module>.Application`, and `<Module>.HttpApi` that compose both Admin and Public modules. Such projects should contain no audience-specific implementation. Use them only for an all-in-one host or compatibility. A separately deployed Admin or Public host must reference the specific modules it needs rather than an umbrella that transitively loads both surfaces.
+Optional umbrella Application.Contracts, Application, HttpApi, HttpApi.Client, and Web modules may compose both surfaces for an all-in-one host or compatibility. They should contain no audience-specific implementation. A selective host references only the surface modules it serves.
 
 ## Contracts and application behavior
 
-- Define separate service interfaces and DTOs whenever fields, validation, permissions, or compatibility can diverge. Do not reuse an Admin DTO as a convenient superset for Public output.
-- Put each surface in an explicit `Admin` or `Public` namespace and follow the local service naming pattern, such as `PageAdminAppService` and `PagePublicAppService`.
-- Admin reads may expose drafts, moderation state, audit context, or internal configuration only under the required management permissions.
-- Public queries must enforce publication, visibility, ownership, tenant, soft-delete, and feature rules on the server. Hiding a field or record only in the UI is not a boundary.
-- Public writes such as comments, profile actions, or submissions require the same domain invariants as Admin writes plus the appropriate authentication and resource checks.
-- Both surfaces operate on the same aggregates, repositories, domain services, events, and persistence mappings. Do not duplicate entities or create separate tables merely because the APIs are split.
-- Apply the normal optimistic-concurrency contract independently to every mutable Admin or Public update endpoint that uses concurrency stamps.
+- Define separate interfaces and DTOs whenever fields, validation, permissions, or compatibility can diverge. Do not reuse an Admin DTO as a Public superset.
+- Use explicit `Admin`/`Public` namespaces and local naming such as `ProductAdminAppService`.
+- Admin reads expose draft, moderation, audit, or internal configuration fields only under management permissions.
+- Public queries enforce publication, visibility, ownership, tenant, soft-delete, and feature rules on the server.
+- Public writes enforce the same domain invariants as Admin writes plus authentication/resource checks.
+- Both surfaces operate on the same aggregates, repositories, domain services, events, and persistence mappings.
+- Apply the optimistic-concurrency contract independently to every mutable surface.
+- Keep permission definition providers with the owning contracts surface. A Public permission is still a permission.
 
-Share a DTO only when its meaning and safe field set are truly identical for both audiences. Prefer a small shared DTO over making Public depend on an Admin contract.
+Share a DTO only when its meaning and safe field set are truly identical. Prefer a small Common DTO over a Public dependency on Admin contracts.
 
 ## HTTP API and host composition
 
-- Place controllers in separate Admin/Public assemblies and module namespaces so a host can load either surface without loading the other.
-- Use distinct route prefixes, remote-service names, API explorer areas, and client registrations according to the repository's convention. Verify that conventional-controller generation cannot create route or service-name collisions.
-- Register each controller assembly through its own module using the ABP-version-appropriate mechanism. Do not use `AdditionalAssembly` or an umbrella dependency to smuggle the other surface into a host.
-- Protect Admin at the application-service boundary even when controllers also declare authorization. Public endpoints must declare or inherit the intended authenticated/anonymous policy rather than becoming anonymous by naming convention.
-- If one host intentionally serves both surfaces, compose both modules explicitly or use a thin existing umbrella module. Keep selective hosts on the specific dependency path.
+- Place controllers in separate Admin/Public assemblies and namespaces so a host can load either surface independently.
+- Reuse `[Area(...)]`, `[RemoteService(Name = ...)]`, stable `api/<module>/<surface>/...` routes, and the owning `*RemoteServiceConsts`.
+- Explicit controllers implement/delegate to the Application.Contracts interface, never a concrete app service.
+- Follow the local `[RemoteService(false)]` pattern on app services where needed to prevent duplicate conventional exposure.
+- If conventional controllers are intentional, configure only the owning contracts/application assembly and root path. Check for route, action-name, and remote-service collisions.
+- Register each controller assembly through its own module. Do not use `AdditionalAssembly` or an umbrella dependency to smuggle the other surface into a selective host.
+- Protect Admin at the application-service boundary even when controllers also authorize. Public endpoints must explicitly inherit or declare authenticated/anonymous behavior.
+- Verify both local and generated remote-client composition: route, verb, body/stream binding, serialization, and remote-service identity must implement the same application contract.
 
 ## Verification
 
-Test the boundary itself, not only the business result:
+- A Public-only host cannot resolve or route Admin services/controllers, and conversely where isolation is required.
+- Admin methods reject callers without the exact management permission.
+- Public reads exclude drafts, unpublished, soft-deleted, cross-tenant, or otherwise invisible data and omit sensitive fields.
+- Authenticated Public mutations enforce ownership and resource authorization.
+- Routes, API explorer groups, remote-service names, and generated clients remain distinct.
+- Local implementations and remote proxies satisfy the same surface contract.
+- The project/module graph has no Admin-to-Public or Public-to-Admin reference.
+- Umbrella modules contain composition only.
 
-- a Public-only test host cannot resolve or route Admin services/controllers, and the converse holds when required;
-- Admin methods reject callers without the exact management permissions;
-- Public reads exclude drafts, unpublished, soft-deleted, cross-tenant, or otherwise invisible data and omit sensitive fields;
-- authenticated Public mutations enforce ownership and resource authorization;
-- routes, OpenAPI/API explorer groups, and generated remote clients remain distinct;
-- the project/module dependency graph has no Admin-to-Public or Public-to-Admin reference.
-
-CMS Kit is a useful structural example, not a template to copy blindly. Inspect the source matching the solution's ABP version before relying on exact project names or module APIs: [CMS Kit source](https://github.com/abpframework/abp/tree/dev/modules/cms-kit/src) and [ABP modularity](https://abp.io/docs/latest/framework/architecture/modularity/basics).
+CMS Kit is a useful structural example, not a template to copy blindly. Use [CMS Kit 10.6 source](https://github.com/abpframework/abp/tree/10.6.0/modules/cms-kit/src), [ABP modularity](https://abp.io/docs/10.6/framework/architecture/modularity/basics), and [auto API controllers](https://abp.io/docs/10.6/framework/api-development/auto-controllers).
