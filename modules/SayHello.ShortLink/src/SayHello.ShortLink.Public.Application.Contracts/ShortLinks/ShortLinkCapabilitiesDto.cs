@@ -15,6 +15,19 @@ public class ShortLinkCapabilitiesDto
 
     public long? RemainingLinks { get; set; }
 
+    public long UsedCustomCodes { get; set; }
+
+    public bool IsCustomCodeQuotaGranted { get; set; }
+
+    public bool IsCustomCodeUnlimited { get; set; }
+
+    public long? MaxCustomCodes { get; set; }
+
+    public long? RemainingCustomCodes { get; set; }
+
+    public bool CanUseCustomCode => IsCustomCodeQuotaGranted &&
+        (IsCustomCodeUnlimited || RemainingCustomCodes > 0);
+
     public ShortLinkStatisticsLevel StatisticsLevel { get; set; }
 
     public bool StatisticsEnabled => StatisticsLevel != ShortLinkStatisticsLevel.None;

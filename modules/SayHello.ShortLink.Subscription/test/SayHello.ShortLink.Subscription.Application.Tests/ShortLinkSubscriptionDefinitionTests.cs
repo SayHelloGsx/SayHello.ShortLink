@@ -38,6 +38,12 @@ public class ShortLinkSubscriptionDefinitionTests
         limit.AllowUnlimited.ShouldBeTrue();
         limit.Validate(EntitlementValue.Numeric(0));
         limit.Validate(EntitlementValue.Unlimited());
+        var customCodeLimit = product.GetFeature(
+            ShortLinkSubscriptionDefinitions.MaxCustomCodes);
+        customCodeLimit.Type.ShouldBe(SubscriptionEntitlementType.Numeric);
+        customCodeLimit.AllowUnlimited.ShouldBeTrue();
+        customCodeLimit.Validate(EntitlementValue.Numeric(0));
+        customCodeLimit.Validate(EntitlementValue.Unlimited());
     }
 
     [Fact]
@@ -51,7 +57,7 @@ public class ShortLinkSubscriptionDefinitionTests
             var product = application.ServiceProvider.GetRequiredService<ISubscriptionDefinitionRegistry>()
                 .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode);
 
-            product.Features.Count.ShouldBe(3);
+            product.Features.Count.ShouldBe(4);
         }
         finally
         {
@@ -60,14 +66,15 @@ public class ShortLinkSubscriptionDefinitionTests
     }
 
     [Theory]
-    [InlineData("en", "ShortLink", "Visit statistics level", "Additional short-link domains", "Maximum number of links")]
-    [InlineData("zh-Hans", "短链接", "访问统计等级", "额外短链接域名", "链接数量上限")]
+    [InlineData("en", "ShortLink", "Visit statistics level", "Additional short-link domains", "Maximum number of links", "Maximum number of custom codes")]
+    [InlineData("zh-Hans", "短链接", "访问统计等级", "额外短链接域名", "链接数量上限", "自定义短码数量上限")]
     public void Bridge_owns_matching_localized_definition_texts(
         string culture,
         string product,
         string statistics,
         string domains,
-        string maxLinks)
+        string maxLinks,
+        string maxCustomCodes)
     {
         var assembly = typeof(ShortLinkSubscriptionResource).Assembly;
         var resourceName = assembly.GetManifestResourceNames().Single(name =>
@@ -80,6 +87,8 @@ public class ShortLinkSubscriptionDefinitionTests
         texts.GetProperty("Subscription:Statistics").GetString().ShouldBe(statistics);
         texts.GetProperty("Subscription:Domains").GetString().ShouldBe(domains);
         texts.GetProperty("Subscription:MaxLinks").GetString().ShouldBe(maxLinks);
+        texts.GetProperty("Subscription:MaxCustomCodes").GetString()
+            .ShouldBe(maxCustomCodes);
     }
 
     private sealed class DefinitionContext : ISubscriptionDefinitionContext

@@ -6,6 +6,7 @@ public static class ShortLinkSubscriptionDefinitions
     public const string Statistics = "statistics";
     public const string Domains = "domains";
     public const string MaxLinks = "max-links";
+    public const string MaxCustomCodes = "max-custom-codes";
 
     public const string StatisticsNone = "none";
     public const string StatisticsBasic = "basic";

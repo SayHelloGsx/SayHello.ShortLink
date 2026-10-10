@@ -63,6 +63,9 @@ public class ShortLinkCapabilitiesTests :
         _capabilities = Substitute.For<IShortLinkCapabilityProvider>();
         _capabilities.GetQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(ShortLinkQuota.Unlimited);
+        _capabilities.GetCustomCodeQuotaAsync(
+                Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ShortLinkQuota.Unlimited);
         _capabilities.GetDomainAccessAsync(
                 Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(ShortLinkDomainAccess.Unrestricted);
@@ -225,6 +228,27 @@ public class ShortLinkCapabilitiesTests :
         var publicList = await _appService.GetListAsync(new GetShortLinksInput { Sorting = "totalvisitcount desc" });
         publicList.Items.First().Id.ShouldBe(first.Id);
         AssertSerializedCounter(publicList.Items.First(), 2);
+    }
+
+    [Fact]
+    public async Task Capabilities_Should_Report_Custom_Code_Usage_And_Released_Slots()
+    {
+        SetCustomCodeQuota(ShortLinkQuota.Limited(1));
+        var created = await CreateAsync();
+
+        var full = await _appService.GetCapabilitiesAsync();
+        full.UsedCustomCodes.ShouldBe(1);
+        full.IsCustomCodeQuotaGranted.ShouldBeTrue();
+        full.IsCustomCodeUnlimited.ShouldBeFalse();
+        full.MaxCustomCodes.ShouldBe(1);
+        full.RemainingCustomCodes.ShouldBe(0);
+        full.CanUseCustomCode.ShouldBeFalse();
+
+        await _appService.DeleteAsync(created.Id);
+        var available = await _appService.GetCapabilitiesAsync();
+        available.UsedCustomCodes.ShouldBe(0);
+        available.RemainingCustomCodes.ShouldBe(1);
+        available.CanUseCustomCode.ShouldBeTrue();
     }
 
     [Fact]
@@ -523,6 +547,13 @@ public class ShortLinkCapabilitiesTests :
     private void SetQuota(ShortLinkQuota quota)
     {
         _capabilities.GetQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(quota);
+    }
+
+    private void SetCustomCodeQuota(ShortLinkQuota quota)
+    {
+        _capabilities.GetCustomCodeQuotaAsync(
+                Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(quota);
     }
 

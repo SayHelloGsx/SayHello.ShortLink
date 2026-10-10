@@ -34,4 +34,6 @@ public static class ShortLinkErrorCodes
     public const string DomainConfigurationLockUnavailable = "ShortLink:010030";
     public const string DomainAccessDenied = "ShortLink:010031";
     public const string DefaultDomainRequired = "ShortLink:010032";
+    public const string CustomCodeQuotaNotGranted = "ShortLink:010033";
+    public const string CustomCodeQuotaExceeded = "ShortLink:010034";
 }

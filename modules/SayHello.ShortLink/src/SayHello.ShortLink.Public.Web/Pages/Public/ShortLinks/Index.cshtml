@@ -47,6 +47,30 @@
             {
                 <div class="text-muted mt-2">@L["Statistics:Unavailable"]</div>
             }
+            <hr />
+            <h3 class="h6">@L["CustomCodeQuota:Usage"]</h3>
+            <span class="me-3">@L["Quota:Used", Model.Capabilities.UsedCustomCodes]</span>
+            @if (!Model.Capabilities.IsCustomCodeQuotaGranted)
+            {
+                <div class="text-warning mt-2" role="status">@L["CustomCodeQuota:NotGranted"]</div>
+            }
+            else if (Model.Capabilities.IsCustomCodeUnlimited)
+            {
+                <span>@L["Quota:Unlimited"]</span>
+            }
+            else
+            {
+                <span class="me-3">@L["Quota:Limit", Model.Capabilities.MaxCustomCodes!]</span>
+                <span>@L["Quota:Remaining", Model.Capabilities.RemainingCustomCodes!]</span>
+                @if (Model.Capabilities.UsedCustomCodes > Model.Capabilities.MaxCustomCodes)
+                {
+                    <div class="text-warning mt-2" role="status">@L["CustomCodeQuota:OverLimit"]</div>
+                }
+                else if (Model.Capabilities.RemainingCustomCodes == 0)
+                {
+                    <div class="text-warning mt-2" role="status">@L["CustomCodeQuota:Full"]</div>
+                }
+            }
         </div>
     </div>
 
@@ -77,7 +101,16 @@
                     </div>
                     <div class="col-lg-2">
                         <label asp-for="NewLink.CustomCode" class="form-label">@L["CustomCode"]</label>
-                        <input asp-for="NewLink.CustomCode" class="form-control" />
+                        <input asp-for="NewLink.CustomCode"
+                               class="form-control"
+                               disabled="@(!Model.Capabilities.CanUseCustomCode)"
+                               aria-describedby="custom-code-help" />
+                        @if (!Model.Capabilities.CanUseCustomCode)
+                        {
+                            <div id="custom-code-help" class="form-text">
+                                @L["CustomCodeQuota:InputUnavailable"]
+                            </div>
+                        }
                         <span asp-validation-for="NewLink.CustomCode" class="text-danger"></span>
                     </div>
                     <div class="col-lg-2">

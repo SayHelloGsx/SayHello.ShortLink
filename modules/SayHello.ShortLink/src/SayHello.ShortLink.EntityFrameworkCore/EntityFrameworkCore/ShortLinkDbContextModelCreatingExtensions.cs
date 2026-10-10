@@ -23,6 +23,7 @@ public static class ShortLinkDbContextModelCreatingExtensions
             b.Property(x => x.TargetUrl).IsRequired().HasMaxLength(ShortLinkConsts.MaxTargetUrlLength);
             b.Property(x => x.Title).HasMaxLength(ShortLinkConsts.MaxTitleLength);
             b.Property(x => x.Status).IsRequired();
+            b.Property(x => x.IsCustomCode).IsRequired();
             b.Property(x => x.TotalVisitCount).IsRequired();
             b.HasIndex(x => new { x.Origin, x.Code })
                 .IsUnique()
@@ -35,6 +36,7 @@ public static class ShortLinkDbContextModelCreatingExtensions
                 .HasForeignKey(x => x.DomainId)
                 .OnDelete(DeleteBehavior.Restrict);
             b.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.IsDeleted, x.CreationTime });
+            b.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.IsDeleted, x.IsCustomCode });
             b.HasIndex(x => new { x.Status, x.ExpiresAt });
         });
 

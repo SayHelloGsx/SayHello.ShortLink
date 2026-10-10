@@ -41,6 +41,8 @@ public class ShortLinkQuotaTests :
     }
     public async Task InitializeAsync()
     {
+        _capabilities.Quota = ShortLinkQuota.Unlimited;
+        _capabilities.CustomCodeQuota = ShortLinkQuota.Unlimited;
         await CreateDomainAsync();
         _locks.ResetAcquisitions();
     }
@@ -236,7 +238,8 @@ public class ShortLinkQuotaTests :
     [Fact]
     public async Task Quota_Should_Be_Isolated_By_Owner_And_Tenant()
     {
-        _capabilities.Quota = ShortLinkQuota.Limited(1);
+        _capabilities.Quota = ShortLinkQuota.Unlimited;
+        _capabilities.CustomCodeQuota = ShortLinkQuota.Limited(1);
         await CreateAsync();
         await CreateWithAsync(_manager, Guid.NewGuid());
         var tenantId = Guid.NewGuid();
@@ -250,9 +253,85 @@ public class ShortLinkQuotaTests :
         await Should.ThrowAsync<BusinessException>(() => CreateWithAsync(_manager, _owner));
     }
 
+    [Fact]
+    public async Task Missing_Custom_Code_Entitlement_Should_Still_Allow_Generated_Codes()
+    {
+        _capabilities.CustomCodeQuota = ShortLinkQuota.Denied;
+
+        (await Should.ThrowAsync<BusinessException>(() => CreateAsync())).Code
+            .ShouldBe(ShortLinkErrorCodes.CustomCodeQuotaNotGranted);
+        var generated = await CreateGeneratedAsync();
+
+        generated.IsCustomCode.ShouldBeFalse();
+        (await CountAsync()).ShouldBe(1);
+        (await CustomCodeCountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Disabled_Custom_Codes_Should_Count_And_Delete_Should_Release_The_Slot()
+    {
+        _capabilities.CustomCodeQuota = ShortLinkQuota.Limited(1);
+        var first = await CreateAsync();
+        await WithUnitOfWorkAsync(async () =>
+        {
+            var entity = await _repository.GetAsync(first.Id);
+            entity.Disable();
+            await _repository.UpdateAsync(entity, autoSave: true);
+        });
+
+        (await CustomCodeCountAsync()).ShouldBe(1);
+        (await Should.ThrowAsync<BusinessException>(() => CreateAsync())).Code
+            .ShouldBe(ShortLinkErrorCodes.CustomCodeQuotaExceeded);
+
+        await WithUnitOfWorkAsync(() =>
+            _repository.DeleteAsync(first.Id, autoSave: true));
+        var replacement = await CreateAsync();
+
+        replacement.IsCustomCode.ShouldBeTrue();
+        (await CustomCodeCountAsync()).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Last_Custom_Code_Slot_Should_Be_Claimed_Once()
+    {
+        _capabilities.CustomCodeQuota = ShortLinkQuota.Limited(1);
+        var start = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var contenders = Enumerable.Range(0, 6).Select(_ => Task.Run(async () =>
+        {
+            await start.Task;
+            using var scope = ServiceProvider.CreateScope();
+            var manager = scope.ServiceProvider.GetRequiredService<ShortLinkManager>();
+            try
+            {
+                await CreateWithAsync(manager, _owner);
+                return true;
+            }
+            catch (BusinessException exception) when (
+                exception.Code == ShortLinkErrorCodes.CustomCodeQuotaExceeded)
+            {
+                return false;
+            }
+        })).ToArray();
+        start.SetResult();
+
+        (await Task.WhenAll(contenders)).Count(success => success).ShouldBe(1);
+        (await CustomCodeCountAsync()).ShouldBe(1);
+    }
+
     private Task<ShortLink> CreateAsync(DateTime? expiresAt = null, string target = "https://example.com/path") =>
         _manager.CreateAndSaveAsync(Guid.NewGuid(), _owner, "https://go.example.test", target,
             "Q" + Guid.NewGuid().ToString("N"), null, expiresAt);
+
+    private Task<ShortLink> CreateGeneratedAsync() =>
+        _manager.CreateAndSaveAsync(
+            Guid.NewGuid(),
+            _owner,
+            "https://go.example.test",
+            "https://example.com/path",
+            null,
+            null,
+            null);
 
     private Task CreateDomainAsync()
     {
@@ -270,6 +349,10 @@ public class ShortLinkQuotaTests :
 
     private Task<long> CountAsync() =>
         WithUnitOfWorkAsync(() => _repository.GetCountByOwnerAsync(_owner));
+
+    private Task<long> CustomCodeCountAsync() =>
+        WithUnitOfWorkAsync(() =>
+            _repository.GetCustomCodeCountByOwnerAsync(_owner));
 }
 
 [DependsOn(typeof(ShortLinkEntityFrameworkCoreTestModule))]
@@ -289,9 +372,14 @@ public class ShortLinkQuotaTestModule : AbpModule
 public class QuotaCapabilityProvider : IShortLinkCapabilityProvider
 {
     public ShortLinkQuota Quota { get; set; } = ShortLinkQuota.Unlimited;
+    public ShortLinkQuota CustomCodeQuota { get; set; } = ShortLinkQuota.Unlimited;
     public bool IsQuotaExternallyManaged => true;
     public Task<ShortLinkQuota> GetQuotaAsync(Guid userId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Quota);
+    public Task<ShortLinkQuota> GetCustomCodeQuotaAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(CustomCodeQuota);
     public Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
         Guid userId,
         CancellationToken cancellationToken = default) =>

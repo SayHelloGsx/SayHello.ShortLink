@@ -4,6 +4,7 @@
     "Subscription:ShortLink": "ShortLink",
     "Subscription:Statistics": "Visit statistics level",
     "Subscription:Domains": "Additional short-link domains",
-    "Subscription:MaxLinks": "Maximum number of links"
+    "Subscription:MaxLinks": "Maximum number of links",
+    "Subscription:MaxCustomCodes": "Maximum number of custom codes"
   }
 }

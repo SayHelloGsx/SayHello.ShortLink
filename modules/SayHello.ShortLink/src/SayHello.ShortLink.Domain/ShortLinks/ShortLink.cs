@@ -18,6 +18,8 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
 
     public string Code { get; protected set; } = string.Empty;
 
+    public bool IsCustomCode { get; protected set; }
+
     public string TargetUrl { get; protected set; } = string.Empty;
 
     public string? Title { get; protected set; }
@@ -41,7 +43,8 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
         string code,
         string targetUrl,
         string? title,
-        DateTime? expiresAt)
+        DateTime? expiresAt,
+        bool isCustomCode = false)
         : base(id)
     {
         TenantId = tenantId;
@@ -51,6 +54,7 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
             : domainId;
         Origin = ShortLinkDomainOrigin.Normalize(origin);
         Code = Check.NotNullOrWhiteSpace(code, nameof(code), ShortLinkConsts.MaxCodeLength);
+        IsCustomCode = isCustomCode;
         Status = ShortLinkStatus.Active;
         TotalVisitCount = 0;
 
@@ -66,12 +70,14 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
         string code,
         string targetUrl,
         string? title,
-        DateTime? expiresAt)
+        DateTime? expiresAt,
+        bool isCustomCode = false)
         : base(id)
     {
         TenantId = tenantId;
         OwnerUserId = ownerUserId;
         Code = Check.NotNullOrWhiteSpace(code, nameof(code), ShortLinkConsts.MaxCodeLength);
+        IsCustomCode = isCustomCode;
         Status = ShortLinkStatus.Active;
         TotalVisitCount = 0;
 

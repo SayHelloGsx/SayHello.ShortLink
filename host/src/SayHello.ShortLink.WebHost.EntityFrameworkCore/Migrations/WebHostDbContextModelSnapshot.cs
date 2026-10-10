@@ -212,6 +212,9 @@ namespace SayHello.ShortLink.WebHost.Migrations
                         .HasColumnType("text")
                         .HasColumnName("ExtraProperties");
 
+                    b.Property<bool>("IsCustomCode")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -267,6 +270,8 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.HasIndex("Status", "ExpiresAt");
 
                     b.HasIndex("TenantId", "OwnerUserId", "IsDeleted", "CreationTime");
+
+                    b.HasIndex("TenantId", "OwnerUserId", "IsDeleted", "IsCustomCode");
 
                     b.ToTable("ShortLinkLinks", (string)null);
                 });

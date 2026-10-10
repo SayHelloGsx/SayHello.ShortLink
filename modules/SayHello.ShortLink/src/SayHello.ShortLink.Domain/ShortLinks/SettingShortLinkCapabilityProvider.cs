@@ -39,6 +39,15 @@ public class SettingShortLinkCapabilityProvider : IShortLinkCapabilityProvider, 
 
         return ShortLinkQuota.Limited(limit);
     }
+
+    public Task<ShortLinkQuota> GetCustomCodeQuotaAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ShortLinkQuota.Unlimited);
+    }
+
     public Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

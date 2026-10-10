@@ -25,6 +25,11 @@ public class ShortLinkSubscriptionDefinitionProvider : SubscriptionDefinitionPro
                     ShortLinkSubscriptionDefinitions.MaxLinks,
                     LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxLinks"),
                     SubscriptionEntitlementType.Numeric,
+                    allowUnlimited: true),
+                new FeatureDefinition(
+                    ShortLinkSubscriptionDefinitions.MaxCustomCodes,
+                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxCustomCodes"),
+                    SubscriptionEntitlementType.Numeric,
                     allowUnlimited: true)
             ]));
     }

@@ -58,6 +58,13 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         var quota = await _capabilityProvider.GetQuotaAsync(ownerUserId, cancellationToken);
         var usedLinks = await _shortLinkRepository.GetCountByOwnerAsync(
             ownerUserId, cancellationToken);
+        var customCodeQuota = await _capabilityProvider.GetCustomCodeQuotaAsync(
+            ownerUserId,
+            cancellationToken);
+        var usedCustomCodes =
+            await _shortLinkRepository.GetCustomCodeCountByOwnerAsync(
+                ownerUserId,
+                cancellationToken);
 
         var statisticsLevel = await _capabilityProvider.GetStatisticsLevelAsync(
             ownerUserId, cancellationToken);
@@ -73,6 +80,17 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             RemainingLinks = !quota.IsGranted
                 ? 0
                 : quota.IsUnlimited ? null : Math.Max(0, quota.Limit!.Value - usedLinks),
+            UsedCustomCodes = usedCustomCodes,
+            IsCustomCodeQuotaGranted = customCodeQuota.IsGranted,
+            IsCustomCodeUnlimited = customCodeQuota.IsUnlimited,
+            MaxCustomCodes = customCodeQuota.Limit,
+            RemainingCustomCodes = !customCodeQuota.IsGranted
+                ? 0
+                : customCodeQuota.IsUnlimited
+                    ? null
+                    : Math.Max(
+                        0,
+                        customCodeQuota.Limit!.Value - usedCustomCodes),
             StatisticsLevel = statisticsLevel,
             Domains = domains.Select(domain => new ShortLinkDomainOptionDto
             {

@@ -57,6 +57,12 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
         json.RootElement.GetProperty("maxLinks").GetInt64().ShouldBe(20);
         json.RootElement.GetProperty("remainingLinks").GetInt64()
             .ShouldBe(20 - json.RootElement.GetProperty("usedLinks").GetInt64());
+        json.RootElement.GetProperty("isCustomCodeQuotaGranted").GetBoolean()
+            .ShouldBeTrue();
+        json.RootElement.GetProperty("isCustomCodeUnlimited").GetBoolean()
+            .ShouldBeTrue();
+        json.RootElement.GetProperty("remainingCustomCodes").ValueKind
+            .ShouldBe(JsonValueKind.Null);
         json.RootElement.GetProperty("statisticsEnabled").GetBoolean().ShouldBeFalse();
     }
 
@@ -212,6 +218,55 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
             document.DocumentNode.InnerText.ShouldContain("Unlimited");
         else
             document.DocumentNode.SelectSingleNode("//div[@role='status']").ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Missing_Custom_Code_Entitlement_Should_Disable_Only_The_Custom_Code_Input()
+    {
+        var owner = Guid.NewGuid();
+        await ShortLinkSubscriptionTestData.RunAsync(
+            _factory.Services,
+            null,
+            owner,
+            async services =>
+            {
+                var plan = await ShortLinkSubscriptionTestData.CreatePlanAsync(
+                    services,
+                    2,
+                    false,
+                    setDefault: false,
+                    customCodesUnlimited: false);
+                await ShortLinkSubscriptionTestData.AssignAsync(
+                    services,
+                    owner,
+                    plan.Id);
+                foreach (var permission in new[]
+                         {
+                             ShortLinkPublicPermissions.Default,
+                             ShortLinkPublicPermissions.Create
+                         })
+                {
+                    await services.GetRequiredService<IPermissionManager>()
+                        .SetForUserAsync(owner, permission, true);
+                }
+            });
+
+        using var client = Client(owner);
+        using var response = await client.GetAsync("/short-links");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var document = new HtmlDocument();
+        document.LoadHtml(await response.Content.ReadAsStringAsync());
+
+        var customCodeInput = document.DocumentNode.SelectSingleNode(
+            "//input[@name='NewLink.CustomCode']");
+        customCodeInput.ShouldNotBeNull();
+        customCodeInput.Attributes.Contains("disabled").ShouldBeTrue();
+        var createButton = document.DocumentNode.SelectSingleNode(
+            "//form[contains(@action, 'handler=Create')]//button[@type='submit']");
+        createButton.ShouldNotBeNull();
+        createButton.Attributes.Contains("disabled").ShouldBeFalse();
+        document.DocumentNode.InnerText.ShouldContain(
+            "Leave this field empty to generate a code automatically.");
     }
 
     [Fact]

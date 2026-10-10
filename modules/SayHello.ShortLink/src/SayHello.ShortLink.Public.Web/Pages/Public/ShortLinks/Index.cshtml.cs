@@ -62,7 +62,9 @@ public class IndexModel : ShortLinkPublicPageModel
             ShortLinkErrorCodes.LinkQuotaNotGranted or
             ShortLinkErrorCodes.CreationLockUnavailable or
             ShortLinkErrorCodes.DomainAccessDenied or
-            ShortLinkErrorCodes.DefaultDomainRequired)
+            ShortLinkErrorCodes.DefaultDomainRequired or
+            ShortLinkErrorCodes.CustomCodeQuotaNotGranted or
+            ShortLinkErrorCodes.CustomCodeQuotaExceeded)
         {
             var unitOfWorkManager = LazyServiceProvider.LazyGetRequiredService<IUnitOfWorkManager>();
             if (unitOfWorkManager.Current != null)

@@ -4,6 +4,7 @@
     "Subscription:ShortLink": "短链接",
     "Subscription:Statistics": "访问统计等级",
     "Subscription:Domains": "额外短链接域名",
-    "Subscription:MaxLinks": "链接数量上限"
+    "Subscription:MaxLinks": "链接数量上限",
+    "Subscription:MaxCustomCodes": "自定义短码数量上限"
   }
 }

@@ -40,10 +40,12 @@ public class BridgeCompositionTests
             capability.IsQuotaExternallyManaged.ShouldBeTrue();
             (await capability.GetQuotaAsync(BridgeTestSubject.UserId))
                 .Limit.ShouldBe(20);
+            (await capability.GetCustomCodeQuotaAsync(BridgeTestSubject.UserId))
+                .IsUnlimited.ShouldBeTrue();
             (await capability.GetStatisticsLevelAsync(BridgeTestSubject.UserId))
                 .ShouldBe(ShortLinkStatisticsLevel.Advanced);
             services.GetRequiredService<ISubscriptionDefinitionRegistry>()
-                .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode).Features.Count.ShouldBe(3);
+                .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode).Features.Count.ShouldBe(4);
         });
 
     private static async Task AssertIndependentCapabilitiesAsync(IServiceProvider services)
@@ -55,6 +57,8 @@ public class BridgeCompositionTests
         quota.IsGranted.ShouldBeTrue();
         quota.IsUnlimited.ShouldBeFalse();
         quota.Limit.ShouldBe(37);
+        (await capability.GetCustomCodeQuotaAsync(Guid.NewGuid()))
+            .IsUnlimited.ShouldBeTrue();
         (await capability.GetStatisticsLevelAsync(Guid.NewGuid()))
             .ShouldBe(ShortLinkStatisticsLevel.Advanced);
     }
@@ -116,6 +120,15 @@ public class BridgeContractTestModule : AbpModule
             {
                 IsGranted = true,
                 Value = ShortLinkSubscriptionDefinitions.StatisticsAdvanced
+            });
+        client.GetNumericAsync(
+                ShortLinkSubscriptionDefinitions.ProductCode,
+                ShortLinkSubscriptionDefinitions.MaxCustomCodes,
+                Arg.Any<CancellationToken>())
+            .Returns(new NumericEntitlementResultDto
+            {
+                IsGranted = true,
+                IsUnlimited = true
             });
         context.Services.Replace(ServiceDescriptor.Singleton(client));
 

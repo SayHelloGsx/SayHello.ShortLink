@@ -157,6 +157,50 @@ public class SubscriptionShortLinkCapabilityProviderTests
         quota.Limit.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task Missing_custom_code_entitlement_is_denied()
+    {
+        CustomCodeNumeric(new NumericEntitlementResultDto());
+
+        var quota = await _provider.GetCustomCodeQuotaAsync(_userId);
+
+        quota.IsGranted.ShouldBeFalse();
+        quota.IsUnlimited.ShouldBeFalse();
+        quota.Limit.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(1L)]
+    [InlineData(20L)]
+    public async Task Finite_custom_code_quotas_preserve_the_limit(long limit)
+    {
+        CustomCodeNumeric(new NumericEntitlementResultDto
+        {
+            IsGranted = true,
+            Limit = limit
+        });
+
+        var quota = await _provider.GetCustomCodeQuotaAsync(_userId);
+
+        quota.IsGranted.ShouldBeTrue();
+        quota.IsUnlimited.ShouldBeFalse();
+        quota.Limit.ShouldBe(limit);
+    }
+
+    [Fact]
+    public async Task Explicit_unlimited_custom_code_entitlement_is_unlimited()
+    {
+        CustomCodeNumeric(new NumericEntitlementResultDto
+        {
+            IsGranted = true,
+            IsUnlimited = true
+        });
+
+        (await _provider.GetCustomCodeQuotaAsync(_userId))
+            .IsUnlimited.ShouldBeTrue();
+    }
+
     [Theory]
     [InlineData(ShortLinkSubscriptionDefinitions.StatisticsNone, ShortLinkStatisticsLevel.None)]
     [InlineData(ShortLinkSubscriptionDefinitions.StatisticsBasic, ShortLinkStatisticsLevel.Basic)]
@@ -226,6 +270,11 @@ public class SubscriptionShortLinkCapabilityProviderTests
     {
         using var cancellation = new CancellationTokenSource();
         Numeric(new NumericEntitlementResultDto { IsGranted = true, Limit = 20 });
+        CustomCodeNumeric(new NumericEntitlementResultDto
+        {
+            IsGranted = true,
+            Limit = 5
+        });
         _client.GetEnumAsync(
                 ShortLinkSubscriptionDefinitions.ProductCode,
                 ShortLinkSubscriptionDefinitions.Statistics,
@@ -242,12 +291,17 @@ public class SubscriptionShortLinkCapabilityProviderTests
             .Returns(new StringSetEntitlementResultDto());
 
         await _provider.GetQuotaAsync(_userId, cancellation.Token);
+        await _provider.GetCustomCodeQuotaAsync(_userId, cancellation.Token);
         await _provider.GetStatisticsLevelAsync(_userId, cancellation.Token);
         await _provider.GetDomainAccessAsync(_userId, cancellation.Token);
 
         await _client.Received(1).GetNumericAsync(
             ShortLinkSubscriptionDefinitions.ProductCode,
             ShortLinkSubscriptionDefinitions.MaxLinks,
+            cancellation.Token);
+        await _client.Received(1).GetNumericAsync(
+            ShortLinkSubscriptionDefinitions.ProductCode,
+            ShortLinkSubscriptionDefinitions.MaxCustomCodes,
             cancellation.Token);
         await _client.Received(1).GetEnumAsync(
             ShortLinkSubscriptionDefinitions.ProductCode,
@@ -285,6 +339,15 @@ public class SubscriptionShortLinkCapabilityProviderTests
             _provider.GetQuotaAsync(_userId));
     }
 
+    [Fact]
+    public async Task A_granted_finite_custom_code_result_without_a_limit_is_invalid()
+    {
+        CustomCodeNumeric(new NumericEntitlementResultDto { IsGranted = true });
+
+        await Should.ThrowAsync<InvalidOperationException>(() =>
+            _provider.GetCustomCodeQuotaAsync(_userId));
+    }
+
     [Theory]
     [InlineData("remote")]
     [InlineData("cancellation")]
@@ -307,6 +370,13 @@ public class SubscriptionShortLinkCapabilityProviderTests
         _client.GetNumericAsync(
                 ShortLinkSubscriptionDefinitions.ProductCode,
                 ShortLinkSubscriptionDefinitions.MaxLinks,
+                Arg.Any<CancellationToken>())
+            .Returns(result);
+
+    private void CustomCodeNumeric(NumericEntitlementResultDto result) =>
+        _client.GetNumericAsync(
+                ShortLinkSubscriptionDefinitions.ProductCode,
+                ShortLinkSubscriptionDefinitions.MaxCustomCodes,
                 Arg.Any<CancellationToken>())
             .Returns(result);
 }

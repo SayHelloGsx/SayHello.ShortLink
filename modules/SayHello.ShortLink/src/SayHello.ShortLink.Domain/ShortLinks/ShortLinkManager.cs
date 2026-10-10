@@ -125,6 +125,31 @@ public class ShortLinkManager : DomainService
                 .WithData("Limit", limit);
         }
 
+        var isCustomCode = !customCode.IsNullOrWhiteSpace();
+        if (isCustomCode)
+        {
+            var customCodeQuota = await _capabilityProvider.GetCustomCodeQuotaAsync(
+                ownerUserId,
+                cancellationToken);
+            if (!customCodeQuota.IsGranted)
+            {
+                throw new BusinessException(
+                    ShortLinkErrorCodes.CustomCodeQuotaNotGranted);
+            }
+
+            var currentCustomCodeCount =
+                await _shortLinkRepository.GetCustomCodeCountByOwnerAsync(
+                    ownerUserId,
+                    cancellationToken);
+            if (customCodeQuota.Limit is { } customCodeLimit &&
+                currentCustomCodeCount >= customCodeLimit)
+            {
+                throw new BusinessException(
+                        ShortLinkErrorCodes.CustomCodeQuotaExceeded)
+                    .WithData("Limit", customCodeLimit);
+            }
+        }
+
         var domain = await GetAuthorizedDomainAsync(
             ownerUserId,
             origin,
@@ -145,7 +170,8 @@ public class ShortLinkManager : DomainService
             code,
             validatedTarget.NormalizedUrl,
             title,
-            expiresAt);
+            expiresAt,
+            isCustomCode);
     }
     public async Task<IReadOnlyList<ShortLinkDomain>> GetAvailableDomainsAsync(
         Guid userId,

@@ -69,6 +69,27 @@ public sealed class SubscriptionShortLinkCapabilityProvider : IShortLinkCapabili
         };
     }
 
+    public async Task<ShortLinkQuota> GetCustomCodeQuotaAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCurrentSubject(userId);
+        var result = await _entitlements.GetNumericAsync(
+            ShortLinkSubscriptionDefinitions.ProductCode,
+            ShortLinkSubscriptionDefinitions.MaxCustomCodes,
+            cancellationToken);
+        if (!result.IsGranted)
+        {
+            return ShortLinkQuota.Denied;
+        }
+
+        return result.IsUnlimited
+            ? ShortLinkQuota.Unlimited
+            : ShortLinkQuota.Limited(result.Limit ??
+                throw new InvalidOperationException(
+                    "A granted finite custom-code quota must have a limit."));
+    }
+
     public async Task<ShortLinkDomainAccess> GetDomainAccessAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

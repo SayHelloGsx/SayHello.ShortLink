@@ -37,6 +37,10 @@ public interface IShortLinkRepository : IRepository<ShortLink, Guid>
         Guid ownerUserId,
         CancellationToken cancellationToken = default);
 
+    Task<long> GetCustomCodeCountByOwnerAsync(
+        Guid ownerUserId,
+        CancellationToken cancellationToken = default);
+
     Task<List<ShortLink>> GetListAsync(
         Guid? ownerUserId,
         string? filter,

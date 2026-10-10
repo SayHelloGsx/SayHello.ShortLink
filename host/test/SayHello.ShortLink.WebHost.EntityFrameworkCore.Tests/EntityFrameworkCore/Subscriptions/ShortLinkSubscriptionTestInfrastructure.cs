@@ -89,7 +89,9 @@ public static class ShortLinkSubscriptionTestData
         bool? statistics,
         bool unlimited = false,
         bool setDefault = true,
-        IReadOnlyCollection<string>? domains = null)
+        IReadOnlyCollection<string>? domains = null,
+        long? customCodeLimit = null,
+        bool customCodesUnlimited = true)
     {
         await EnsureDefaultDomainAsync(services);
 
@@ -112,7 +114,13 @@ public static class ShortLinkSubscriptionTestData
         var plan = new SubscriptionPlan(Guid.NewGuid(), product, "test-" + Guid.NewGuid().ToString("N"), "Integration plan");
         plan.ReplaceEntitlements(
             definition,
-            Entitlements(limit, statistics, unlimited, domains));
+            Entitlements(
+                limit,
+                statistics,
+                unlimited,
+                domains,
+                customCodeLimit,
+                customCodesUnlimited));
         plan.Publish(product, definition);
         await services.GetRequiredService<ISubscriptionPlanRepository>().InsertAsync(plan, autoSave: true);
         if (setDefault)
@@ -189,7 +197,9 @@ public static class ShortLinkSubscriptionTestData
         long? limit,
         bool? statistics,
         bool unlimited = false,
-        IReadOnlyCollection<string>? domains = null)
+        IReadOnlyCollection<string>? domains = null,
+        long? customCodeLimit = null,
+        bool customCodesUnlimited = true)
     {
         var values = new Dictionary<string, EntitlementValue>();
         if (unlimited || limit.HasValue)
@@ -204,14 +214,23 @@ public static class ShortLinkSubscriptionTestData
         if (domains is not null)
             values[ShortLinkSubscriptionDefinitions.Domains] =
                 EntitlementValue.StringSet(domains);
+        if (customCodesUnlimited || customCodeLimit.HasValue)
+            values[ShortLinkSubscriptionDefinitions.MaxCustomCodes] =
+                customCodesUnlimited
+                    ? EntitlementValue.Unlimited()
+                    : EntitlementValue.Numeric(customCodeLimit!.Value);
         return values;
     }
 
-    public static CreateShortLinkDto NewLink(DateTime? expiresAt = null) => new()
+    public static CreateShortLinkDto NewLink(
+        DateTime? expiresAt = null,
+        bool customCode = true) => new()
     {
         Origin = DefaultOrigin,
         TargetUrl = "https://destination.example.test/path",
-        CustomCode = "host" + Guid.NewGuid().ToString("N"),
+        CustomCode = customCode
+            ? "host" + Guid.NewGuid().ToString("N")
+            : null,
         Title = "Host subscription integration",
         ExpiresAt = expiresAt
     };

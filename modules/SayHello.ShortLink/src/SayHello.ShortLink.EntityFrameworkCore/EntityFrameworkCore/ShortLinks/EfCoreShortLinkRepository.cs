@@ -111,6 +111,15 @@ public class EfCoreShortLinkRepository :
             GetCancellationToken(cancellationToken));
     }
 
+    public async Task<long> GetCustomCodeCountByOwnerAsync(
+        Guid ownerUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (await GetDbSetAsync()).LongCountAsync(
+            x => x.OwnerUserId == ownerUserId && x.IsCustomCode,
+            GetCancellationToken(cancellationToken));
+    }
+
     public async Task<List<ShortLink>> GetListAsync(
         Guid? ownerUserId,
         string? filter,

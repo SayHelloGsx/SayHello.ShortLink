@@ -97,6 +97,11 @@
     "Quota:Full": "短链接配额已用满，请删除部分链接后再创建。",
     "Quota:OverLimit": "当前用量已超过配额上限，已有链接不受影响；用量降至上限以下后才能继续创建。",
     "Quota:ExternallyManaged": "短链接配额由外部能力提供者管理。每用户最大短链接数设置仅保留用于独立运行，不控制当前生效的配额。",
+    "CustomCodeQuota:Usage": "自定义短码用量",
+    "CustomCodeQuota:NotGranted": "当前账户未获得自定义短码权益。请留空以自动生成短码。",
+    "CustomCodeQuota:Full": "自定义短码配额已用满。请删除自定义短码链接，或留空以自动生成短码。",
+    "CustomCodeQuota:OverLimit": "当前自定义短码用量已超过配额上限，已有链接不受影响；删除部分自定义短码链接后才能继续创建。",
+    "CustomCodeQuota:InputUnavailable": "请留空以自动生成短码。",
     "Statistics:Unavailable": "当前账户暂不可查看访问统计。",
     "CreateLimitPerHour": "每用户每小时创建上限",
     "VisitRetentionDays": "访问明细保留天数",
@@ -157,6 +162,8 @@
     "ShortLink:010029": "域名 Origin“{Origin}”仍被 {ReferenceCount} 条短链接引用，无法删除。",
     "ShortLink:010030": "短链接域名配置正忙，请稍后重试。",
     "ShortLink:010031": "您无权使用该短链接域名。",
-    "ShortLink:010032": "短链接域名目录缺少默认域名，请先修复配置。"
+    "ShortLink:010032": "短链接域名目录缺少默认域名，请先修复配置。",
+    "ShortLink:010033": "当前账户尚未获得自定义短码权益，请将自定义短码留空以自动生成。",
+    "ShortLink:010034": "当前账户已达到 {Limit} 个自定义短码的配额上限。请删除自定义短码链接，或留空以自动生成短码。"
   }
 }

@@ -164,12 +164,44 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
         }
     }
 
+    [Fact]
+    public async Task Custom_Code_Count_Should_Include_Disabled_But_Exclude_Generated_And_Deleted_Links()
+    {
+        var ownerId = Guid.NewGuid();
+        var first = Create(ownerId, "Custom01", isCustomCode: true);
+        var disabled = Create(ownerId, "Custom02", isCustomCode: true);
+        disabled.Disable();
+        var generated = Create(ownerId, "Generated01");
+        var anotherOwner = Create(
+            Guid.NewGuid(),
+            "Custom03",
+            isCustomCode: true);
+
+        await WithUnitOfWorkAsync(async () =>
+        {
+            await _repository.InsertAsync(first, autoSave: true);
+            await _repository.InsertAsync(disabled, autoSave: true);
+            await _repository.InsertAsync(generated, autoSave: true);
+            await _repository.InsertAsync(anotherOwner, autoSave: true);
+        });
+
+        (await WithUnitOfWorkAsync(() =>
+            _repository.GetCustomCodeCountByOwnerAsync(ownerId))).ShouldBe(2);
+
+        await WithUnitOfWorkAsync(() =>
+            _repository.DeleteAsync(first.Id, autoSave: true));
+
+        (await WithUnitOfWorkAsync(() =>
+            _repository.GetCustomCodeCountByOwnerAsync(ownerId))).ShouldBe(1);
+    }
+
     private ShortLink Create(
         Guid ownerId,
         string code,
         string targetUrl = "https://example.com/",
         string? title = null,
-        Guid? tenantId = null)
+        Guid? tenantId = null,
+        bool isCustomCode = false)
     {
         return new ShortLink(
             _guidGenerator.Create(),
@@ -178,6 +210,7 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
             code,
             targetUrl,
             title,
-            null);
+            null,
+            isCustomCode);
     }
 }

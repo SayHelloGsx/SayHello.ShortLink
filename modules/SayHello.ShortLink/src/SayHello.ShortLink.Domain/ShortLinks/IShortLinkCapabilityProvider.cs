@@ -12,6 +12,10 @@ public interface IShortLinkCapabilityProvider
         Guid userId,
         CancellationToken cancellationToken = default);
 
+    Task<ShortLinkQuota> GetCustomCodeQuotaAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
     Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
         Guid userId,
         CancellationToken cancellationToken = default);

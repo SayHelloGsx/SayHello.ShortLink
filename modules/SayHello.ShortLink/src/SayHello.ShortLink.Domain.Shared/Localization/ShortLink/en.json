@@ -97,6 +97,11 @@
     "Quota:Full": "Your short-link quota is full. Delete a link to make room before creating another.",
     "Quota:OverLimit": "Your usage exceeds the current quota. Existing links are unchanged, but you cannot create more until usage is below the limit.",
     "Quota:ExternallyManaged": "Link quotas are managed by an external capability provider. The maximum links per user setting is retained for standalone use and does not control the active quota.",
+    "CustomCodeQuota:Usage": "Custom-code usage",
+    "CustomCodeQuota:NotGranted": "Custom codes are not available for this account. Leave the field empty to generate a code automatically.",
+    "CustomCodeQuota:Full": "Your custom-code quota is full. Delete a custom-code link or leave the field empty to generate a code automatically.",
+    "CustomCodeQuota:OverLimit": "Your custom-code usage exceeds the current limit. Existing links are unchanged; delete custom-code links before creating another.",
+    "CustomCodeQuota:InputUnavailable": "Leave this field empty to generate a code automatically.",
     "Statistics:Unavailable": "Statistics are not currently available for this account.",
     "CreateLimitPerHour": "Creates per user per hour",
     "VisitRetentionDays": "Visit detail retention (days)",
@@ -157,6 +162,8 @@
     "ShortLink:010029": "The domain origin '{Origin}' is used by {ReferenceCount} short links and cannot be deleted.",
     "ShortLink:010030": "Short-link domain configuration is busy. Try again shortly.",
     "ShortLink:010031": "You do not have access to this short-link domain.",
-    "ShortLink:010032": "The short-link domain catalog has no default domain and must be repaired before another domain can be added."
+    "ShortLink:010032": "The short-link domain catalog has no default domain and must be repaired before another domain can be added.",
+    "ShortLink:010033": "Custom codes are not currently granted for this account. Leave the custom-code field empty to generate one automatically.",
+    "ShortLink:010034": "The account has reached its limit of {Limit} custom codes. Delete a custom-code link or generate a code automatically."
   }
 }

@@ -51,6 +51,8 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
         capabilities.RemainingLinks.ShouldBe(0);
         capabilities.IsQuotaGranted.ShouldBeTrue();
         capabilities.IsUnlimited.ShouldBeFalse();
+        capabilities.IsCustomCodeQuotaGranted.ShouldBeTrue();
+        capabilities.IsCustomCodeUnlimited.ShouldBeTrue();
         capabilities.StatisticsEnabled.ShouldBe(assignPro);
         (await Should.ThrowAsync<BusinessException>(() => CreateAsync()))
             .Code.ShouldBe(ShortLinkErrorCodes.LinkQuotaExceeded);
@@ -354,15 +356,82 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
         (await CapabilitiesAsync()).UsedLinks.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Missing_Custom_Code_Entitlement_Should_Allow_Automatic_Codes_Only()
+    {
+        await RunAsync(services => ShortLinkSubscriptionTestData.CreatePlanAsync(
+            services,
+            5,
+            true,
+            customCodesUnlimited: false));
+
+        var capabilities = await CapabilitiesAsync();
+        capabilities.IsCustomCodeQuotaGranted.ShouldBeFalse();
+        capabilities.UsedCustomCodes.ShouldBe(0);
+        capabilities.RemainingCustomCodes.ShouldBe(0);
+        capabilities.CanUseCustomCode.ShouldBeFalse();
+        (await Should.ThrowAsync<BusinessException>(() => CreateAsync()))
+            .Code.ShouldBe(ShortLinkErrorCodes.CustomCodeQuotaNotGranted);
+
+        var generated = await CreateAsync(customCode: false);
+        await RunAsync(async services =>
+        {
+            var entity = await services.GetRequiredService<IShortLinkRepository>()
+                .GetAsync(generated.Id);
+            entity.IsCustomCode.ShouldBeFalse();
+        });
+    }
+
+    [Fact]
+    public async Task Finite_Custom_Code_Quota_Should_Count_Disabled_And_Release_On_Delete()
+    {
+        await RunAsync(services => ShortLinkSubscriptionTestData.CreatePlanAsync(
+            services,
+            5,
+            true,
+            customCodeLimit: 1,
+            customCodesUnlimited: false));
+        var first = await CreateAsync();
+        await RunAsync(services =>
+            services.GetRequiredService<IShortLinkAppService>().SetStatusAsync(
+                first.Id,
+                new SetShortLinkStatusDto
+                {
+                    Status = ShortLinkStatus.Disabled,
+                    ConcurrencyStamp = first.ConcurrencyStamp
+                }));
+
+        var full = await CapabilitiesAsync();
+        full.UsedCustomCodes.ShouldBe(1);
+        full.MaxCustomCodes.ShouldBe(1);
+        full.RemainingCustomCodes.ShouldBe(0);
+        full.CanUseCustomCode.ShouldBeFalse();
+        (await Should.ThrowAsync<BusinessException>(() => CreateAsync()))
+            .Code.ShouldBe(ShortLinkErrorCodes.CustomCodeQuotaExceeded);
+
+        var generated = await CreateAsync(customCode: false);
+        generated.ShouldNotBeNull();
+        await DeleteAsync(first.Id, admin: false, commit: true);
+        var released = await CapabilitiesAsync();
+        released.UsedCustomCodes.ShouldBe(0);
+        released.RemainingCustomCodes.ShouldBe(1);
+        released.CanUseCustomCode.ShouldBeTrue();
+        (await CreateAsync()).ShouldNotBeNull();
+    }
+
     private Task DeleteAsync(Guid id, bool admin, bool commit) => RunAsync(
         services => admin
             ? services.GetRequiredService<IShortLinkAdministrationAppService>().DeleteAsync(id)
             : services.GetRequiredService<IShortLinkAppService>().DeleteAsync(id),
         userId: admin ? Guid.NewGuid() : _owner, commit: commit);
 
-    private Task<ShortLinkDto> CreateAsync(Guid? tenantId = null, Guid? userId = null) =>
+    private Task<ShortLinkDto> CreateAsync(
+        Guid? tenantId = null,
+        Guid? userId = null,
+        bool customCode = true) =>
         RunAsync(services => services.GetRequiredService<IShortLinkAppService>()
-            .CreateAsync(ShortLinkSubscriptionTestData.NewLink()), tenantId, userId);
+            .CreateAsync(ShortLinkSubscriptionTestData.NewLink(
+                customCode: customCode)), tenantId, userId);
 
     private Task<ShortLinkCapabilitiesDto> CapabilitiesAsync(Guid? tenantId = null, Guid? userId = null) =>
         RunAsync(services => services.GetRequiredService<IShortLinkAppService>().GetCapabilitiesAsync(), tenantId, userId);
