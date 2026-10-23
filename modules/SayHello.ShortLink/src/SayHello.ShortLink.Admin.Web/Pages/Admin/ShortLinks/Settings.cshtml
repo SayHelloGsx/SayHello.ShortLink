@@ -1,6 +1,7 @@
 @page "/admin/short-links/settings"
 @using Microsoft.Extensions.Localization
 @using SayHello.ShortLink.Localization
+@using SayHello.ShortLink.ShortLinkNamespaces
 @model SayHello.ShortLink.Admin.Web.Pages.Admin.ShortLinks.SettingsModel
 @inject IStringLocalizer<ShortLinkResource> L
 
@@ -18,6 +19,19 @@
             }
             <form method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <div class="mb-3">
+                    <label asp-for="Settings.DefaultNamespace" class="form-label">@L["DefaultNamespace"]</label>
+                    <input asp-for="Settings.DefaultNamespace"
+                           class="form-control"
+                           required
+                           minlength="@ShortLinkNamespaceConsts.MinNameLength"
+                           maxlength="@ShortLinkNamespaceConsts.MaxNameLength"
+                           pattern="[A-Za-z0-9_-]+"
+                           data-val-regex-pattern="^[A-Za-z0-9_-]+$"
+                           aria-describedby="default-namespace-help" />
+                    <div id="default-namespace-help" class="form-text">@L["DefaultNamespace:Help"]</div>
+                    <span asp-validation-for="Settings.DefaultNamespace" class="text-danger"></span>
+                </div>
                 <div class="mb-3">
                     <label asp-for="Settings.MaxLinksPerUser" class="form-label">@L["MaxLinksPerUser"]</label>
                     <input asp-for="Settings.MaxLinksPerUser" class="form-control" min="1" max="100000" />

@@ -28,6 +28,36 @@ public class ShortLinkCapabilitiesDto
     public bool CanUseCustomCode => IsCustomCodeQuotaGranted &&
         (IsCustomCodeUnlimited || RemainingCustomCodes > 0);
 
+    public string DefaultNamespace { get; set; } = string.Empty;
+
+    public bool NamespacesEnabled { get; set; }
+
+    public long UsedNamespaces { get; set; }
+
+    public bool IsNamespaceQuotaGranted { get; set; }
+
+    public bool IsNamespaceUnlimited { get; set; }
+
+    public long? MaxNamespaces { get; set; }
+
+    public long? RemainingNamespaces { get; set; }
+
+    public bool CanCreateNamespace => NamespacesEnabled && IsNamespaceQuotaGranted &&
+        (IsNamespaceUnlimited || RemainingNamespaces > 0);
+
+    public long UsedRootLinks { get; set; }
+
+    public bool IsRootLinkQuotaGranted { get; set; }
+
+    public bool IsRootLinkUnlimited { get; set; }
+
+    public long? MaxRootLinks { get; set; }
+
+    public long? RemainingRootLinks { get; set; }
+
+    public bool CanCreateRootLink => IsRootLinkQuotaGranted &&
+        (IsRootLinkUnlimited || RemainingRootLinks > 0);
+
     public ShortLinkStatisticsLevel StatisticsLevel { get; set; }
 
     public bool StatisticsEnabled => StatisticsLevel != ShortLinkStatisticsLevel.None;

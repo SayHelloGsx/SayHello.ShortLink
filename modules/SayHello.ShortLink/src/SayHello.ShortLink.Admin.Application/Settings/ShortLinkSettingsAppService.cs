@@ -8,6 +8,7 @@ using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.SettingManagement;
 using Volo.Abp.Settings;
+using Volo.Abp.Uow;
 
 namespace SayHello.ShortLink.Admin.Settings;
 
@@ -20,15 +21,21 @@ public class ShortLinkSettingsAppService :
     private readonly ISettingProvider _settingProvider;
     private readonly ISettingManager _settingManager;
     private readonly IShortLinkCapabilityProvider _capabilityProvider;
+    private readonly ShortLinkDefaultNamespaceProvider _defaultNamespaceProvider;
+    private readonly ShortLinkNamespaceSettingsManager _namespaceSettingsManager;
 
     public ShortLinkSettingsAppService(
         ISettingProvider settingProvider,
         ISettingManager settingManager,
-        IShortLinkCapabilityProvider capabilityProvider)
+        IShortLinkCapabilityProvider capabilityProvider,
+        ShortLinkDefaultNamespaceProvider defaultNamespaceProvider,
+        ShortLinkNamespaceSettingsManager namespaceSettingsManager)
     {
         _settingProvider = settingProvider;
         _settingManager = settingManager;
         _capabilityProvider = capabilityProvider;
+        _defaultNamespaceProvider = defaultNamespaceProvider;
+        _namespaceSettingsManager = namespaceSettingsManager;
     }
 
     public virtual async Task<ShortLinkSettingsDto> GetAsync()
@@ -36,6 +43,7 @@ public class ShortLinkSettingsAppService :
         return new ShortLinkSettingsDto
         {
             IsQuotaExternallyManaged = _capabilityProvider.IsQuotaExternallyManaged,
+            DefaultNamespace = await _defaultNamespaceProvider.GetAsync(CancellationTokenProvider.Token),
             MaxLinksPerUser = await GetValueAsync(
                 ShortLinkSettings.MaxLinksPerUser,
                 ShortLinkDefaults.MaxLinksPerUser),
@@ -54,6 +62,7 @@ public class ShortLinkSettingsAppService :
         };
     }
 
+    [UnitOfWork(isTransactional: true)]
     public virtual async Task<ShortLinkSettingsDto> UpdateAsync(ShortLinkSettingsDto input)
     {
         ValidateRange(input.MaxLinksPerUser, 1, 100_000, ShortLinkSettings.MaxLinksPerUser);
@@ -69,6 +78,15 @@ public class ShortLinkSettingsAppService :
             ShortLinkConsts.MinCodeLength,
             ShortLinkConsts.MaxCodeLength,
             ShortLinkSettings.GeneratedCodeLength);
+
+        var defaultNamespace = await _namespaceSettingsManager.ReserveAsync(
+            input.DefaultNamespace, CancellationTokenProvider.Token);
+        await _settingManager.SetAsync(
+            ShortLinkSettings.DefaultNamespace,
+            defaultNamespace,
+            GlobalSettingValueProvider.ProviderName,
+            null,
+            forceToSet: true);
 
         await _settingManager.SetGlobalAsync(
             ShortLinkSettings.MaxLinksPerUser,

@@ -11,6 +11,13 @@ public static class ShortLinkPublicPermissions
     public const string Delete = Default + ".Delete";
     public const string ViewStatistics = Default + ".ViewStatistics";
 
+    public static class Namespaces
+    {
+        public const string Default = GroupName + ".Namespaces";
+        public const string Create = Default + ".Create";
+        public const string Delete = Default + ".Delete";
+    }
+
     public static string[] GetAll()
     {
         return ReflectionHelper.GetPublicConstantsRecursively(typeof(ShortLinkPublicPermissions));

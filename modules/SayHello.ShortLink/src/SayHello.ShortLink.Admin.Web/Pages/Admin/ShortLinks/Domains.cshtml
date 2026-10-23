@@ -72,7 +72,13 @@
                                 <span class="badge text-bg-primary">@L["ShortLinkDomains:Default"]</span>
                             }
                         </td>
-                        <td>@item.ShortLinkReferenceCount</td>
+                        <td>
+                            @item.ShortLinkReferenceCount
+                            @if (item.HasNamespaceReferences)
+                            {
+                                <span class="badge text-bg-secondary ms-2">@L["ShortLinkDomains:NamespaceReferences"]</span>
+                            }
+                        </td>
                         <td class="text-end">
                             @if (Model.CanEnableDisable && !item.IsDefault)
                             {

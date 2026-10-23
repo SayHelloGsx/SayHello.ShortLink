@@ -5,6 +5,9 @@
     "Subscription:Statistics": "访问统计等级",
     "Subscription:Domains": "额外短链接域名",
     "Subscription:MaxLinks": "链接数量上限",
-    "Subscription:MaxCustomCodes": "自定义短码数量上限"
+    "Subscription:MaxCustomCodes": "自定义短码数量上限",
+    "Subscription:Namespaces": "短链接命名空间",
+    "Subscription:MaxNamespaces": "命名空间数量上限",
+    "Subscription:MaxRootLinks": "根链接数量上限"
   }
 }

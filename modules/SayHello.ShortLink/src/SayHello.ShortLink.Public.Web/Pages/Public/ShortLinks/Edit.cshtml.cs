@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.Public.ShortLinks;
+using SayHello.ShortLink.ShortLinks;
 
 namespace SayHello.ShortLink.Public.Web.Pages.Public.ShortLinks;
 
@@ -14,7 +15,9 @@ public class EditModel : ShortLinkPublicPageModel
 
     public Guid Id { get; private set; }
 
-    public string Code { get; private set; } = string.Empty;
+    public ShortLinkDto Link { get; private set; } = new();
+
+    public string Code => Link.Code;
 
     [BindProperty]
     public UpdateShortLinkDto Input { get; set; } = new();
@@ -28,7 +31,7 @@ public class EditModel : ShortLinkPublicPageModel
     {
         Id = id;
         var item = await _appService.GetAsync(id);
-        Code = item.Code;
+        Link = item;
         Input = new UpdateShortLinkDto
         {
             TargetUrl = item.TargetUrl,
@@ -43,7 +46,7 @@ public class EditModel : ShortLinkPublicPageModel
         if (!ModelState.IsValid)
         {
             Id = id;
-            Code = (await _appService.GetAsync(id)).Code;
+            Link = await _appService.GetAsync(id);
             return Page();
         }
 

@@ -25,6 +25,8 @@ else
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h1 class="h3">@L["Statistics"]: @Model.Statistics.Code</h1>
+                <a href="@Model.Link.ShortUrl" target="_blank" rel="noopener noreferrer">@Model.Link.ShortUrl</a>
+                <partial name="_ShortLinkPath" model="Model.Link" />
                 <div class="text-muted">@L["TotalVisits"]: @Model.Statistics.TotalVisitCount</div>
             </div>
             <a asp-page="./Index" class="btn btn-outline-secondary">@L["Back"]</a>

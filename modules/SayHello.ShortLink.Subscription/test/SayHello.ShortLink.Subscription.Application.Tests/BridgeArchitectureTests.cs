@@ -10,6 +10,7 @@ using SayHello.Subscription.Public;
 using SayHello.Subscription.Public.Entitlements;
 using Shouldly;
 using Volo.Abp.Modularity;
+using Volo.Abp.Users;
 using Xunit;
 
 namespace SayHello.ShortLink.Subscription;
@@ -74,6 +75,28 @@ public class BridgeArchitectureTests
         typeof(ShortLinkSubscriptionApplicationModule).Assembly.GetReferencedAssemblies()
             .Select(reference => reference.Name)
             .ShouldNotContain(name => forbiddenReferences.Contains(name!));
+    }
+
+    [Fact]
+    public void Capability_bridge_uses_only_the_current_user_contract_without_standalone_fallback()
+    {
+        var constructor = typeof(SubscriptionShortLinkCapabilityProvider)
+            .GetConstructors().ShouldHaveSingleItem();
+        constructor.GetParameters().Select(parameter => parameter.ParameterType)
+            .ShouldBe(new[]
+            {
+                typeof(ICurrentUserEntitlementAppService),
+                typeof(ICurrentUser)
+            });
+
+        var source = File.ReadAllText(Path.Combine(
+            BridgeRoot(), "src", "SayHello.ShortLink.Subscription.Application",
+            "SubscriptionShortLinkCapabilityProvider.cs"));
+        source.ShouldNotContain("SettingShortLinkCapabilityProvider");
+        source.ShouldNotContain("ShortLinkDefaults");
+        source.ShouldNotContain("ISettingProvider");
+        source.ShouldNotContain("SubscriptionPlan");
+        source.ShouldNotContain("UserSubscription");
     }
 
     [Fact]

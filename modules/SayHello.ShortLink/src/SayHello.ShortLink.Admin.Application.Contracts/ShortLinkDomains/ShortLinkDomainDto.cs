@@ -14,9 +14,11 @@ public class ShortLinkDomainDto : AuditedEntityDto<Guid>, IHasConcurrencyStamp
 
     public long ShortLinkReferenceCount { get; set; }
 
+    public bool HasNamespaceReferences { get; set; }
+
     public string ConcurrencyStamp { get; set; } = string.Empty;
 
     public bool CanDisable => IsEnabled && !IsDefault;
 
-    public bool CanDelete => !IsDefault && ShortLinkReferenceCount == 0;
+    public bool CanDelete => !IsDefault && ShortLinkReferenceCount == 0 && !HasNamespaceReferences;
 }

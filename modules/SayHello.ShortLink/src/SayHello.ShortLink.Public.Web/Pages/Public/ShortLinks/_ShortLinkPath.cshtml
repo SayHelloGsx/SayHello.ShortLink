@@ -1,0 +1,20 @@
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@model SayHello.ShortLink.ShortLinks.ShortLinkDto
+@inject IStringLocalizer<ShortLinkResource> L
+
+<div class="small text-muted">
+    @L["Namespace"]:
+    @if (string.IsNullOrEmpty(Model.Namespace))
+    {
+        <span>@L["RootPath"]</span>
+    }
+    else
+    {
+        <code>@Model.Namespace</code>
+    }
+</div>
+<div class="small text-muted">
+    @L["ShortLinkPath"]:
+    <code>@(string.IsNullOrEmpty(Model.Namespace) ? $"/{Model.Code}" : $"/{Model.Namespace}/{Model.Code}")</code>
+</div>

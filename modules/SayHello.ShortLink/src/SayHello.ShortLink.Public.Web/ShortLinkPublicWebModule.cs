@@ -45,6 +45,8 @@ public class ShortLinkPublicWebModule : AbpModule
         Configure<RouteOptions>(options =>
         {
             options.ConstraintMap["shortCode"] = typeof(ShortCodeRouteConstraint);
+            options.ConstraintMap["shortLinkNamespace"] = typeof(ShortLinkNamespaceRouteConstraint);
+            options.ConstraintMap["shortCodeSegment"] = typeof(ShortCodeSegmentRouteConstraint);
         });
 
         Configure<AbpVirtualFileSystemOptions>(options =>
@@ -56,9 +58,12 @@ public class ShortLinkPublicWebModule : AbpModule
 
         Configure<RazorPagesOptions>(options =>
         {
-            options.Conventions.AuthorizeFolder(
-                "/Public/ShortLinks",
-                ShortLinkPublicPermissions.Default);
+            options.Conventions.AuthorizePage("/Public/ShortLinks/Index", ShortLinkPublicPermissions.Default);
+            options.Conventions.AuthorizePage("/Public/ShortLinks/Edit", ShortLinkPublicPermissions.Default);
+            options.Conventions.AuthorizePage("/Public/ShortLinks/Statistics", ShortLinkPublicPermissions.Default);
+            options.Conventions.AuthorizePage(
+                "/Public/ShortLinks/Namespaces",
+                ShortLinkPublicPermissions.Namespaces.Default);
         });
     }
 }

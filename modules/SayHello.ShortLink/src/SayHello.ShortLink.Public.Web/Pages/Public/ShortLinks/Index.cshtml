@@ -1,5 +1,6 @@
 ﻿@page "/short-links"
 @using Microsoft.Extensions.Localization
+@using System.Linq
 @using SayHello.ShortLink.Localization
 @using SayHello.ShortLink.Public.ShortLinks
 @using SayHello.ShortLink.ShortLinks
@@ -16,6 +17,10 @@
             <h1 class="mb-1">@L["MyShortLinks"]</h1>
             <p class="text-muted mb-0">@L["MyShortLinks:Description"]</p>
         </div>
+        @if (Model.HasNamespacePermission)
+        {
+            <a asp-page="./Namespaces" class="btn btn-outline-secondary">@L["ManageNamespaces"]</a>
+        }
     </div>
 
     <div class="card shadow-sm mb-4" aria-label="@L["Quota:Usage"]">
@@ -34,7 +39,11 @@
             {
                 <span class="me-3">@L["Quota:Limit", Model.Capabilities.MaxLinks!]</span>
                 <span>@L["Quota:Remaining", Model.Capabilities.RemainingLinks!]</span>
-                @if (Model.Capabilities.UsedLinks > Model.Capabilities.MaxLinks)
+                @if (Model.Capabilities.MaxLinks == 0)
+                {
+                    <div class="text-warning mt-2" role="status">@L["Quota:Zero"]</div>
+                }
+                else if (Model.Capabilities.UsedLinks > Model.Capabilities.MaxLinks)
                 {
                     <div class="text-warning mt-2" role="status">@L["Quota:OverLimit"]</div>
                 }
@@ -62,7 +71,11 @@
             {
                 <span class="me-3">@L["Quota:Limit", Model.Capabilities.MaxCustomCodes!]</span>
                 <span>@L["Quota:Remaining", Model.Capabilities.RemainingCustomCodes!]</span>
-                @if (Model.Capabilities.UsedCustomCodes > Model.Capabilities.MaxCustomCodes)
+                @if (Model.Capabilities.MaxCustomCodes == 0)
+                {
+                    <div class="text-warning mt-2" role="status">@L["CustomCodeQuota:Zero"]</div>
+                }
+                else if (Model.Capabilities.UsedCustomCodes > Model.Capabilities.MaxCustomCodes)
                 {
                     <div class="text-warning mt-2" role="status">@L["CustomCodeQuota:OverLimit"]</div>
                 }
@@ -71,6 +84,36 @@
                     <div class="text-warning mt-2" role="status">@L["CustomCodeQuota:Full"]</div>
                 }
             }
+            <hr />
+            <h3 class="h6">@L["RootLinkQuota:Usage"]</h3>
+            <span class="me-3">@L["Quota:Used", Model.Capabilities.UsedRootLinks]</span>
+            @if (!Model.Capabilities.IsRootLinkQuotaGranted)
+            {
+                <div class="text-warning mt-2" role="status">@L["RootLinkQuota:NotGranted"]</div>
+            }
+            else if (Model.Capabilities.IsRootLinkUnlimited)
+            {
+                <span>@L["Quota:Unlimited"]</span>
+            }
+            else
+            {
+                <span class="me-3">@L["Quota:Limit", Model.Capabilities.MaxRootLinks!]</span>
+                <span>@L["Quota:Remaining", Model.Capabilities.RemainingRootLinks!]</span>
+                @if (Model.Capabilities.MaxRootLinks == 0)
+                {
+                    <div class="text-warning mt-2" role="status">@L["RootLinkQuota:Zero"]</div>
+                }
+                else if (Model.Capabilities.UsedRootLinks > Model.Capabilities.MaxRootLinks)
+                {
+                    <div class="text-warning mt-2" role="status">@L["RootLinkQuota:OverLimit"]</div>
+                }
+                else if (Model.Capabilities.RemainingRootLinks == 0)
+                {
+                    <div class="text-warning mt-2" role="status">@L["RootLinkQuota:Full"]</div>
+                }
+            }
+            <hr />
+            <partial name="_NamespaceQuota" model="Model.Capabilities" />
         </div>
     </div>
 
@@ -79,7 +122,14 @@
         <div class="card shadow-sm mb-4">
             <div class="card-body">
                 <h2 class="h5">@L["CreateShortLink"]</h2>
-                <form method="post" asp-page-handler="Create" class="row g-3">
+                <form method="post"
+                      asp-page-handler="Create"
+                      id="create-short-link-form"
+                      class="row g-3"
+                      data-namespace-list-url="@Url.Page(null, "Namespaces")"
+                      data-can-create="@Model.CanCreate.ToString().ToLowerInvariant()"
+                      data-can-use-namespaces="@Model.CanSelectNamespaces.ToString().ToLowerInvariant()"
+                      data-can-create-root="@Model.Capabilities.CanCreateRootLink.ToString().ToLowerInvariant()">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     <div class="col-lg-4">
                         <label asp-for="NewLink.TargetUrl" class="form-label">@L["TargetUrl"]</label>
@@ -93,11 +143,58 @@
                             @foreach (var domain in Model.Capabilities.Domains)
                             {
                                 <option value="@domain.Origin">
-                                    @domain.Origin@(domain.IsDefault ? $" ({L["Default"]})" : string.Empty)
+                                    @domain.Origin@(domain.IsDefault ? $" ({L["ShortLinkDomains:Default"]})" : string.Empty)
                                 </option>
                             }
                         </select>
                         <span asp-validation-for="NewLink.Origin" class="text-danger"></span>
+                    </div>
+                    <div class="col-lg-4">
+                        <label asp-for="NewLink.NamespaceId" class="form-label">@L["Namespace"]</label>
+                        <select asp-for="NewLink.NamespaceId"
+                                class="form-select"
+                                disabled="@(!Model.NewLink.NamespaceId.HasValue && (!Model.CanSelectNamespaces || Model.NewLink.UseRootPath))"
+                                aria-describedby="namespace-options-status">
+                            <option value="">@L["Namespaces:DefaultOption", Model.Capabilities.DefaultNamespace]</option>
+                            @foreach (var item in Model.AvailableNamespaces)
+                            {
+                                <option value="@item.Id">@item.Name (/@item.Name/{code})</option>
+                            }
+                            @if (Model.NewLink.NamespaceId.HasValue &&
+                                !Model.AvailableNamespaces.Any(item => item.Id == Model.NewLink.NamespaceId))
+                            {
+                                <option value="@Model.NewLink.NamespaceId" data-unavailable="true">
+                                    @L["Namespaces:SelectionUnavailable"]
+                                </option>
+                            }
+                        </select>
+                        <div id="namespace-options-status" class="form-text" role="status" aria-live="polite">
+                            @L[!Model.HasNamespacePermission ? "Namespaces:SelectionPermissionRequired" :
+                                !Model.Capabilities.NamespacesEnabled ? "Namespaces:UnavailableHelp" :
+                                "Namespaces:SelectDomainHelp"]
+                        </div>
+                        <button type="button" id="namespace-options-retry" class="btn btn-sm btn-link px-0" hidden>
+                            @L["Retry"]
+                        </button>
+                        <span asp-validation-for="NewLink.NamespaceId" class="text-danger"></span>
+                        <noscript>
+                            <button type="submit" asp-page-handler="RefreshNamespaces" formnovalidate class="btn btn-sm btn-outline-secondary">
+                                @L["Namespaces:Refresh"]
+                            </button>
+                        </noscript>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-check mt-lg-4">
+                            <input asp-for="NewLink.UseRootPath"
+                                   class="form-check-input"
+                                   disabled="@(!Model.Capabilities.CanCreateRootLink && !Model.NewLink.UseRootPath)"
+                                   aria-describedby="root-path-help" />
+                            <label asp-for="NewLink.UseRootPath" class="form-check-label">@L["RootPath:Option"]</label>
+                        </div>
+                        <div id="root-path-help" class="form-text">
+                            @L[Model.Capabilities.CanCreateRootLink ? "RootPath:QuotaHelp" : "RootLinkQuota:InputUnavailable"]
+                        </div>
+                        <span asp-validation-for="NewLink.UseRootPath" class="text-danger"></span>
                     </div>
                     <div class="col-lg-2">
                         <label asp-for="NewLink.CustomCode" class="form-label">@L["CustomCode"]</label>
@@ -122,7 +219,7 @@
                         <input asp-for="NewLink.ExpiresAt" type="datetime-local" class="form-control" />
                     </div>
                     <div class="col-12">
-                        <button type="submit" class="btn btn-primary" disabled="@(!Model.CanCreate)">
+                        <button type="submit" id="create-short-link-button" class="btn btn-primary" disabled="@(!Model.CanCreateSelectedPath)">
                             <i class="fa fa-plus me-1"></i>@L["Create"]
                         </button>
                     </div>
@@ -160,6 +257,7 @@
                         <td>
                             <div class="fw-semibold">@item.Code</div>
                             <a href="@item.ShortUrl" target="_blank" rel="noopener noreferrer">@item.ShortUrl</a>
+                            <partial name="_ShortLinkPath" model="item" />
                         </td>
                         <td class="text-truncate" style="max-width: 340px">
                             @if (!string.IsNullOrWhiteSpace(item.Title))

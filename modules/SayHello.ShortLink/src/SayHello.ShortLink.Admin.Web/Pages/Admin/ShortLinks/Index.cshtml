@@ -17,7 +17,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead>
                 <tr>
-                    <th>@L["Code"]</th>
+                    <th>@L["ShortUrl"]</th>
                     <th>@L["Owner"]</th>
                     <th>@L["TargetUrl"]</th>
                     <th>@L["Status"]</th>
@@ -29,7 +29,25 @@
                 @foreach (var item in Model.Items)
                 {
                     <tr>
-                        <td><a href="@item.ShortUrl" target="_blank">@item.Code</a></td>
+                        <td>
+                            <div class="fw-semibold">@item.Code</div>
+                            <a href="@item.ShortUrl" target="_blank" rel="noopener noreferrer">@item.ShortUrl</a>
+                            <div class="small text-muted">
+                                @L["Namespace"]:
+                                @if (string.IsNullOrEmpty(item.Namespace))
+                                {
+                                    <span>@L["RootPath"]</span>
+                                }
+                                else
+                                {
+                                    <code>@item.Namespace</code>
+                                }
+                            </div>
+                            <div class="small text-muted">
+                                @L["ShortLinkPath"]:
+                                <code>@(string.IsNullOrEmpty(item.Namespace) ? $"/{item.Code}" : $"/{item.Namespace}/{item.Code}")</code>
+                            </div>
+                        </td>
                         <td><code>@item.OwnerUserId</code></td>
                         <td class="text-truncate" style="max-width: 420px">@item.TargetUrl</td>
                         <td>@L[$"Status:{item.Status}"]</td>

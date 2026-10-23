@@ -9,4 +9,10 @@ public interface IShortLinkCacheInvalidator
         string? origin,
         string code,
         CancellationToken cancellationToken = default);
+
+    Task RemoveAsync(
+        string? origin,
+        string pathNamespace,
+        string code,
+        CancellationToken cancellationToken = default);
 }

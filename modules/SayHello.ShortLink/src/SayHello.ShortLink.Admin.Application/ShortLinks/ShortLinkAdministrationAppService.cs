@@ -76,6 +76,7 @@ public class ShortLinkAdministrationAppService :
             cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
             shortLink.Origin!,
+            shortLink.Namespace,
             shortLink.Code,
             CancellationTokenProvider.Token);
         return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
@@ -92,6 +93,7 @@ public class ShortLinkAdministrationAppService :
             cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
             shortLink.Origin!,
+            shortLink.Namespace,
             shortLink.Code,
             CancellationTokenProvider.Token);
     }

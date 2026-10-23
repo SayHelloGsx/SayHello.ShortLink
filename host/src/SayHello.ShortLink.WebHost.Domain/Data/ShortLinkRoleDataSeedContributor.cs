@@ -70,7 +70,10 @@ public class ShortLinkRoleDataSeedContributor : IDataSeedContributor, ITransient
                     ShortLinkPublicPermissions.Create,
                     ShortLinkPublicPermissions.Update,
                     ShortLinkPublicPermissions.Delete,
-                    ShortLinkPublicPermissions.ViewStatistics
+                    ShortLinkPublicPermissions.ViewStatistics,
+                    ShortLinkPublicPermissions.Namespaces.Default,
+                    ShortLinkPublicPermissions.Namespaces.Create,
+                    ShortLinkPublicPermissions.Namespaces.Delete
                 ],
                 context.TenantId);
 

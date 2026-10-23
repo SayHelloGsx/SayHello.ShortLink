@@ -20,7 +20,19 @@ public class ShortLinkRedirectController : Controller
 
     [AcceptVerbs("GET", "HEAD")]
     [Route("{code:shortCode}", Order = 1000)]
-    public async Task<IActionResult> ResolveAsync(string code)
+    public Task<IActionResult> ResolveAsync(string code)
+    {
+        return ResolvePathAsync(code);
+    }
+
+    [AcceptVerbs("GET", "HEAD")]
+    [Route("{pathNamespace:shortLinkNamespace}/{code:shortCodeSegment}", Order = 1000)]
+    public Task<IActionResult> ResolveNamespacedAsync(string pathNamespace, string code)
+    {
+        return ResolvePathAsync(code, pathNamespace);
+    }
+
+    private async Task<IActionResult> ResolvePathAsync(string code, string? pathNamespace = null)
     {
         var isHead = HttpContext.Request.Method == HttpMethods.Head;
         var visit = isHead
@@ -34,7 +46,9 @@ public class ShortLinkRedirectController : Controller
 
         var origin = ShortLinkDomainOrigin.Normalize(
             $"{Request.Scheme}://{Request.Host.Value}");
-        var result = await _redirectAppService.ResolveAsync(origin, code, visit);
+        var result = pathNamespace is null
+            ? await _redirectAppService.ResolveAsync(origin, code, visit)
+            : await _redirectAppService.ResolveAsync(origin, pathNamespace, code, visit);
         Response.Headers.CacheControl = "no-store";
 
         if (result.Status == ShortLinkResolutionStatus.Found)

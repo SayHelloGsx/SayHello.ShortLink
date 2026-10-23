@@ -48,6 +48,24 @@ public class SettingShortLinkCapabilityProvider : IShortLinkCapabilityProvider, 
         return Task.FromResult(ShortLinkQuota.Unlimited);
     }
 
+    public Task<bool> IsNamespaceEnabledAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(true);
+    }
+
+    public Task<ShortLinkQuota> GetNamespaceQuotaAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ShortLinkQuota.Unlimited);
+    }
+
+    public Task<ShortLinkQuota> GetRootLinkQuotaAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ShortLinkQuota.Unlimited);
+    }
+
     public Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

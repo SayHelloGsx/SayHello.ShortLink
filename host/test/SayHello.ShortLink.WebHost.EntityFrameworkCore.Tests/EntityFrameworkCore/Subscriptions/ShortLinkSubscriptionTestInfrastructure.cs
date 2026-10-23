@@ -35,6 +35,7 @@ public class ShortLinkSubscriptionIntegrationTestModule : AbpModule
         Configure<AbpAuditingOptions>(options => options.IsEnabled = false);
         ShortLinkSubscriptionTestData.ConfigureExternalAdapters(context.Services);
         Configure<ShortLinkUrlOptions>(options => options.BaseUrl = "https://short.example.test");
+        Configure<ShortLinkPrivacyOptions>(options => options.VisitorHashKey = "short-link-subscription-integration-test-key");
     }
 }
 
@@ -91,7 +92,12 @@ public static class ShortLinkSubscriptionTestData
         bool setDefault = true,
         IReadOnlyCollection<string>? domains = null,
         long? customCodeLimit = null,
-        bool customCodesUnlimited = true)
+        bool customCodesUnlimited = true,
+        bool? namespaces = null,
+        long? namespaceLimit = null,
+        bool namespacesUnlimited = false,
+        long? rootLinkLimit = null,
+        bool rootLinksUnlimited = false)
     {
         await EnsureDefaultDomainAsync(services);
 
@@ -120,7 +126,12 @@ public static class ShortLinkSubscriptionTestData
                 unlimited,
                 domains,
                 customCodeLimit,
-                customCodesUnlimited));
+                customCodesUnlimited,
+                namespaces,
+                namespaceLimit,
+                namespacesUnlimited,
+                rootLinkLimit,
+                rootLinksUnlimited));
         plan.Publish(product, definition);
         await services.GetRequiredService<ISubscriptionPlanRepository>().InsertAsync(plan, autoSave: true);
         if (setDefault)
@@ -199,7 +210,12 @@ public static class ShortLinkSubscriptionTestData
         bool unlimited = false,
         IReadOnlyCollection<string>? domains = null,
         long? customCodeLimit = null,
-        bool customCodesUnlimited = true)
+        bool customCodesUnlimited = true,
+        bool? namespaces = null,
+        long? namespaceLimit = null,
+        bool namespacesUnlimited = false,
+        long? rootLinkLimit = null,
+        bool rootLinksUnlimited = false)
     {
         var values = new Dictionary<string, EntitlementValue>();
         if (unlimited || limit.HasValue)
@@ -219,6 +235,17 @@ public static class ShortLinkSubscriptionTestData
                 customCodesUnlimited
                     ? EntitlementValue.Unlimited()
                     : EntitlementValue.Numeric(customCodeLimit!.Value);
+        if (namespaces.HasValue)
+            values[ShortLinkSubscriptionDefinitions.Namespaces] =
+                EntitlementValue.Boolean(namespaces.Value);
+        if (namespacesUnlimited || namespaceLimit.HasValue)
+            values[ShortLinkSubscriptionDefinitions.MaxNamespaces] = namespacesUnlimited
+                ? EntitlementValue.Unlimited()
+                : EntitlementValue.Numeric(namespaceLimit!.Value);
+        if (rootLinksUnlimited || rootLinkLimit.HasValue)
+            values[ShortLinkSubscriptionDefinitions.MaxRootLinks] = rootLinksUnlimited
+                ? EntitlementValue.Unlimited()
+                : EntitlementValue.Numeric(rootLinkLimit!.Value);
         return values;
     }
 

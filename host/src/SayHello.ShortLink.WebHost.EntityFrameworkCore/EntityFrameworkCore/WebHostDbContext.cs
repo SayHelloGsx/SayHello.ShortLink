@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.ShortLinkDomains;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using SayHello.ShortLink.ShortLinks;
 using SayHello.ShortLink.EntityFrameworkCore;
 using SayHello.Subscription.Catalog;
@@ -65,6 +66,8 @@ public class WebHostDbContext :
     // ShortLink
     public DbSet<global::SayHello.ShortLink.ShortLinks.ShortLink> ShortLinks { get; set; }
     public DbSet<ShortLinkDomain> ShortLinkDomains { get; set; }
+    public DbSet<ShortLinkNamespace> ShortLinkNamespaces { get; set; }
+    public DbSet<ShortLinkNamespaceReservation> ShortLinkNamespaceReservations { get; set; }
     public DbSet<ShortLinkVisit> ShortLinkVisits { get; set; }
     public DbSet<ShortLinkDailyStatistic> ShortLinkDailyStatistics { get; set; }
     public DbSet<ShortLinkDailyDimensionStatistic> ShortLinkDailyDimensionStatistics { get; set; }

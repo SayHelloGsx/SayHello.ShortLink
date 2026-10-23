@@ -1,0 +1,41 @@
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@model SayHello.ShortLink.Public.ShortLinks.ShortLinkCapabilitiesDto
+@inject IStringLocalizer<ShortLinkResource> L
+
+<h3 class="h6">@L["NamespaceQuota:Usage"]</h3>
+<div class="mb-2">
+    <span class="badge @(Model.NamespacesEnabled ? "bg-success" : "bg-secondary")">
+        @L[Model.NamespacesEnabled ? "Namespaces:Enabled" : "Namespaces:Unavailable"]
+    </span>
+</div>
+<span class="me-3">@L["Quota:Used", Model.UsedNamespaces]</span>
+@if (!Model.IsNamespaceQuotaGranted)
+{
+    <div class="text-warning mt-2" role="status">@L["NamespaceQuota:NotGranted"]</div>
+}
+else if (Model.IsNamespaceUnlimited)
+{
+    <span>@L["Quota:Unlimited"]</span>
+}
+else
+{
+    <span class="me-3">@L["Quota:Limit", Model.MaxNamespaces!]</span>
+    <span>@L["Quota:Remaining", Model.RemainingNamespaces!]</span>
+    @if (Model.MaxNamespaces == 0)
+    {
+        <div class="text-warning mt-2" role="status">@L["NamespaceQuota:Zero"]</div>
+    }
+    else if (Model.UsedNamespaces > Model.MaxNamespaces)
+    {
+        <div class="text-warning mt-2" role="status">@L["NamespaceQuota:OverLimit"]</div>
+    }
+    else if (Model.RemainingNamespaces == 0)
+    {
+        <div class="text-warning mt-2" role="status">@L["NamespaceQuota:Full"]</div>
+    }
+}
+@if (!Model.NamespacesEnabled)
+{
+    <div class="text-muted mt-2">@L["Namespaces:UnavailableHelp"]</div>
+}

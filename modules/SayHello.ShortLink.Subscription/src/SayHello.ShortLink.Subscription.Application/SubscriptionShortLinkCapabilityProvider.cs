@@ -25,6 +25,60 @@ public sealed class SubscriptionShortLinkCapabilityProvider : IShortLinkCapabili
 
     public bool IsQuotaExternallyManaged => true;
 
+    public async Task<bool> IsNamespaceEnabledAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCurrentSubject(userId);
+        var result = await _entitlements.GetBooleanAsync(
+            ShortLinkSubscriptionDefinitions.ProductCode,
+            ShortLinkSubscriptionDefinitions.Namespaces,
+            cancellationToken);
+        return result.IsGranted;
+    }
+
+    public async Task<ShortLinkQuota> GetNamespaceQuotaAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCurrentSubject(userId);
+        var result = await _entitlements.GetNumericAsync(
+            ShortLinkSubscriptionDefinitions.ProductCode,
+            ShortLinkSubscriptionDefinitions.MaxNamespaces,
+            cancellationToken);
+        if (!result.IsGranted)
+        {
+            return ShortLinkQuota.Denied;
+        }
+
+        return result.IsUnlimited
+            ? ShortLinkQuota.Unlimited
+            : ShortLinkQuota.Limited(result.Limit ??
+                throw new InvalidOperationException(
+                    "A granted finite namespace quota must have a limit."));
+    }
+
+    public async Task<ShortLinkQuota> GetRootLinkQuotaAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCurrentSubject(userId);
+        var result = await _entitlements.GetNumericAsync(
+            ShortLinkSubscriptionDefinitions.ProductCode,
+            ShortLinkSubscriptionDefinitions.MaxRootLinks,
+            cancellationToken);
+        if (!result.IsGranted)
+        {
+            return ShortLinkQuota.Denied;
+        }
+
+        return result.IsUnlimited
+            ? ShortLinkQuota.Unlimited
+            : ShortLinkQuota.Limited(result.Limit ??
+                throw new InvalidOperationException(
+                    "A granted finite root-link quota must have a limit."));
+    }
+
     public async Task<ShortLinkQuota> GetQuotaAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

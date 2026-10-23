@@ -319,11 +319,175 @@ public class ShortLinkQuotaTests :
         (await CustomCodeCountAsync()).ShouldBe(1);
     }
 
-    private Task<ShortLink> CreateAsync(DateTime? expiresAt = null, string target = "https://example.com/path") =>
-        _manager.CreateAndSaveAsync(Guid.NewGuid(), _owner, "https://go.example.test", target,
-            "Q" + Guid.NewGuid().ToString("N"), null, expiresAt);
+    [Fact]
+    public async Task Root_Quota_Should_Distinguish_Denied_Zero_Finite_And_Unlimited_Without_Blocking_Default_Links()
+    {
+        _capabilities.RootLinkQuota = ShortLinkQuota.Denied;
+        (await Should.ThrowAsync<BusinessException>(() => CreateGeneratedAsync(useRootPath: true))).Code
+            .ShouldBe(ShortLinkErrorCodes.RootLinkQuotaNotGranted);
+        var defaultLink = await CreateGeneratedAsync();
+        defaultLink.Namespace.ShouldBe("s");
 
-    private Task<ShortLink> CreateGeneratedAsync() =>
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(0);
+        (await Should.ThrowAsync<BusinessException>(() => CreateGeneratedAsync(useRootPath: true))).Code
+            .ShouldBe(ShortLinkErrorCodes.RootLinkQuotaExceeded);
+
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(1);
+        var root = await CreateGeneratedAsync(useRootPath: true);
+        root.Namespace.ShouldBe(string.Empty);
+        root.NamespaceId.ShouldBeNull();
+        var full = await Should.ThrowAsync<BusinessException>(() => CreateGeneratedAsync(useRootPath: true));
+        full.Code.ShouldBe(ShortLinkErrorCodes.RootLinkQuotaExceeded);
+        full.Data["Limit"].ShouldBe(1L);
+
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(long.MaxValue);
+        await CreateGeneratedAsync(useRootPath: true);
+        _capabilities.RootLinkQuota = ShortLinkQuota.Unlimited;
+        await CreateGeneratedAsync(useRootPath: true);
+        (await RootCountAsync()).ShouldBe(3);
+        (await CountAsync()).ShouldBe(4);
+        _locks.ActiveCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Root_Total_And_Custom_Quotas_Should_Apply_Independently()
+    {
+        _capabilities.Quota = ShortLinkQuota.Limited(2);
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(1);
+        _capabilities.CustomCodeQuota = ShortLinkQuota.Limited(1);
+        var root = await CreateAsync(useRootPath: true);
+
+        (await Should.ThrowAsync<BusinessException>(() => CreateAsync())).Code
+            .ShouldBe(ShortLinkErrorCodes.CustomCodeQuotaExceeded);
+        await CreateGeneratedAsync();
+        (await Should.ThrowAsync<BusinessException>(() => CreateGeneratedAsync())).Code
+            .ShouldBe(ShortLinkErrorCodes.LinkQuotaExceeded);
+
+        _capabilities.Quota = ShortLinkQuota.Unlimited;
+        (await Should.ThrowAsync<BusinessException>(() => CreateGeneratedAsync(useRootPath: true))).Code
+            .ShouldBe(ShortLinkErrorCodes.RootLinkQuotaExceeded);
+
+        await WithUnitOfWorkAsync(() => _repository.DeleteAsync(root.Id, autoSave: true));
+        (await RootCountAsync()).ShouldBe(0);
+        (await CustomCodeCountAsync()).ShouldBe(0);
+        await CreateAsync();
+        await CreateGeneratedAsync(useRootPath: true);
+        (await RootCountAsync()).ShouldBe(1);
+        (await CustomCodeCountAsync()).ShouldBe(1);
+        (await CountAsync()).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Root_Usage_Should_Include_Disabled_Expired_And_Legacy_Links_But_Exclude_Deleted_And_Default_Links()
+    {
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(3);
+        var disabled = await CreateAsync(useRootPath: true);
+        var expired = await CreateAsync(expiresAt: DateTime.UtcNow.AddDays(-1), useRootPath: true);
+        var legacy = new ShortLink(
+            Guid.NewGuid(), null, _owner, "LegacyRoot01", "https://example.com/", null, null);
+        await WithUnitOfWorkAsync(async () =>
+        {
+            var current = await _repository.GetAsync(disabled.Id);
+            current.Disable();
+            await _repository.UpdateAsync(current, autoSave: true);
+            await _repository.InsertAsync(legacy, autoSave: true);
+        });
+        await CreateGeneratedAsync();
+        (await RootCountAsync()).ShouldBe(3);
+        (await Should.ThrowAsync<BusinessException>(() => CreateGeneratedAsync(useRootPath: true))).Code
+            .ShouldBe(ShortLinkErrorCodes.RootLinkQuotaExceeded);
+
+        using (var rollback = _units.Begin(requiresNew: true, isTransactional: true))
+        {
+            await _repository.DeleteAsync(expired.Id, autoSave: true);
+            await rollback.RollbackAsync();
+        }
+        (await RootCountAsync()).ShouldBe(3);
+
+        await WithUnitOfWorkAsync(() => _repository.DeleteAsync(expired.Id, autoSave: true));
+        using (GetRequiredService<IDataFilter<ISoftDelete>>().Disable())
+        {
+            (await RootCountAsync()).ShouldBe(2);
+        }
+        await CreateGeneratedAsync(useRootPath: true);
+        (await RootCountAsync()).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_Root_Quota_Failure_Should_Roll_Back_Previous_Creates_In_The_Joined_Transaction()
+    {
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(1);
+        using (var unit = _units.Begin(requiresNew: true, isTransactional: true))
+        {
+            await CreateGeneratedAsync();
+            await CreateGeneratedAsync(useRootPath: true);
+            (await Should.ThrowAsync<BusinessException>(() => CreateGeneratedAsync(useRootPath: true))).Code
+                .ShouldBe(ShortLinkErrorCodes.RootLinkQuotaExceeded);
+            _locks.ActiveCount.ShouldBe(1);
+        }
+
+        (await RootCountAsync()).ShouldBe(0);
+        (await CountAsync()).ShouldBe(0);
+        _locks.ActiveCount.ShouldBe(0);
+        await CreateGeneratedAsync(useRootPath: true);
+    }
+
+    [Fact]
+    public async Task Last_Root_Slot_Should_Be_Claimed_Once_Across_Independent_Scopes()
+    {
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(1);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var contenders = Enumerable.Range(0, 6).Select(_ => Task.Run(async () =>
+        {
+            await start.Task;
+            using var scope = ServiceProvider.CreateScope();
+            var manager = scope.ServiceProvider.GetRequiredService<ShortLinkManager>();
+            try
+            {
+                await CreateWithAsync(manager, _owner, useRootPath: true);
+                return true;
+            }
+            catch (BusinessException exception) when (exception.Code == ShortLinkErrorCodes.RootLinkQuotaExceeded)
+            {
+                return false;
+            }
+        })).ToArray();
+        start.SetResult();
+
+        (await Task.WhenAll(contenders)).Count(success => success).ShouldBe(1);
+        (await RootCountAsync()).ShouldBe(1);
+        _locks.ActiveCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Root_Quota_Should_Be_Isolated_By_Owner_And_Tenant()
+    {
+        _capabilities.RootLinkQuota = ShortLinkQuota.Limited(1);
+        await CreateWithAsync(_manager, _owner, useRootPath: true);
+        await CreateWithAsync(_manager, Guid.NewGuid(), useRootPath: true);
+        using (GetRequiredService<ICurrentTenant>().Change(Guid.NewGuid()))
+        {
+            await CreateDomainAsync();
+            await CreateWithAsync(_manager, _owner, useRootPath: true);
+            (await RootCountAsync()).ShouldBe(1);
+            (await Should.ThrowAsync<BusinessException>(() =>
+                CreateWithAsync(_manager, _owner, useRootPath: true))).Code
+                .ShouldBe(ShortLinkErrorCodes.RootLinkQuotaExceeded);
+        }
+
+        (await RootCountAsync()).ShouldBe(1);
+        (await Should.ThrowAsync<BusinessException>(() => CreateAsync(useRootPath: true))).Code
+            .ShouldBe(ShortLinkErrorCodes.RootLinkQuotaExceeded);
+    }
+
+    private Task<ShortLink> CreateAsync(
+        DateTime? expiresAt = null,
+        string target = "https://example.com/path",
+        bool useRootPath = false) =>
+        _manager.CreateAndSaveAsync(Guid.NewGuid(), _owner, "https://go.example.test", target,
+            "Q" + Guid.NewGuid().ToString("N"), null, expiresAt, useRootPath: useRootPath);
+
+    private Task<ShortLink> CreateGeneratedAsync(bool useRootPath = false) =>
         _manager.CreateAndSaveAsync(
             Guid.NewGuid(),
             _owner,
@@ -331,7 +495,8 @@ public class ShortLinkQuotaTests :
             "https://example.com/path",
             null,
             null,
-            null);
+            null,
+            useRootPath: useRootPath);
 
     private Task CreateDomainAsync()
     {
@@ -343,9 +508,12 @@ public class ShortLinkQuotaTests :
         });
     }
 
-    private static Task<ShortLink> CreateWithAsync(ShortLinkManager manager, Guid owner) =>
+    private static Task<ShortLink> CreateWithAsync(
+        ShortLinkManager manager,
+        Guid owner,
+        bool useRootPath = false) =>
         manager.CreateAndSaveAsync(Guid.NewGuid(), owner, "https://go.example.test", "https://example.com/path",
-            "Q" + Guid.NewGuid().ToString("N"), null, null);
+            "Q" + Guid.NewGuid().ToString("N"), null, null, useRootPath: useRootPath);
 
     private Task<long> CountAsync() =>
         WithUnitOfWorkAsync(() => _repository.GetCountByOwnerAsync(_owner));
@@ -353,6 +521,9 @@ public class ShortLinkQuotaTests :
     private Task<long> CustomCodeCountAsync() =>
         WithUnitOfWorkAsync(() =>
             _repository.GetCustomCodeCountByOwnerAsync(_owner));
+
+    private Task<long> RootCountAsync() =>
+        WithUnitOfWorkAsync(() => _repository.GetRootLinkCountByOwnerAsync(_owner));
 }
 
 [DependsOn(typeof(ShortLinkEntityFrameworkCoreTestModule))]
@@ -373,6 +544,10 @@ public class QuotaCapabilityProvider : IShortLinkCapabilityProvider
 {
     public ShortLinkQuota Quota { get; set; } = ShortLinkQuota.Unlimited;
     public ShortLinkQuota CustomCodeQuota { get; set; } = ShortLinkQuota.Unlimited;
+    public bool NamespacesEnabled { get; set; } = true;
+    public ShortLinkQuota NamespaceQuota { get; set; } = ShortLinkQuota.Unlimited;
+    public ShortLinkQuota RootLinkQuota { get; set; } = ShortLinkQuota.Unlimited;
+    public ShortLinkDomainAccess DomainAccess { get; set; } = ShortLinkDomainAccess.Unrestricted;
     public bool IsQuotaExternallyManaged => true;
     public Task<ShortLinkQuota> GetQuotaAsync(Guid userId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Quota);
@@ -387,7 +562,13 @@ public class QuotaCapabilityProvider : IShortLinkCapabilityProvider
     public Task<ShortLinkDomainAccess> GetDomainAccessAsync(
         Guid userId,
         CancellationToken cancellationToken = default) =>
-        Task.FromResult(ShortLinkDomainAccess.Unrestricted);
+        Task.FromResult(DomainAccess);
+    public Task<bool> IsNamespaceEnabledAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(NamespacesEnabled);
+    public Task<ShortLinkQuota> GetNamespaceQuotaAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(NamespaceQuota);
+    public Task<ShortLinkQuota> GetRootLinkQuotaAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(RootLinkQuota);
 }
 
 public class QuotaTrackingLock : IAbpDistributedLock
@@ -398,6 +579,7 @@ public class QuotaTrackingLock : IAbpDistributedLock
     public int ActiveCount => _activeCount;
     public int Acquisitions => _acquisitions;
     public bool FailAcquisition { get; set; }
+    public Action<string>? OnAttempt { get; set; }
 
     public void ResetAcquisitions()
     {
@@ -407,6 +589,7 @@ public class QuotaTrackingLock : IAbpDistributedLock
     public async Task<IAbpDistributedLockHandle?> TryAcquireAsync(
         string name, TimeSpan timeout = default, CancellationToken cancellationToken = default)
     {
+        OnAttempt?.Invoke(name);
         if (FailAcquisition)
         {
             return null;

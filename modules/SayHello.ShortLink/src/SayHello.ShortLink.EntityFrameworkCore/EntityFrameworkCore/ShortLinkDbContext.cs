@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.ShortLinkDomains;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp.Data;
 using Volo.Abp.EntityFrameworkCore;
@@ -21,6 +22,10 @@ public class ShortLinkDbContext : AbpDbContext<ShortLinkDbContext>, IShortLinkDb
     public DbSet<BlockedDomain> BlockedDomains { get; set; } = null!;
 
     public DbSet<ShortLinkDomain> ShortLinkDomains { get; set; } = null!;
+
+    public DbSet<ShortLinkNamespace> ShortLinkNamespaces { get; set; } = null!;
+
+    public DbSet<ShortLinkNamespaceReservation> ShortLinkNamespaceReservations { get; set; } = null!;
 
     public ShortLinkDbContext(DbContextOptions<ShortLinkDbContext> options)
         : base(options)

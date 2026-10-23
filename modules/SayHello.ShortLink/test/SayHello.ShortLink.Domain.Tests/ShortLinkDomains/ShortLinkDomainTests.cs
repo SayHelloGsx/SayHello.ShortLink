@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NSubstitute;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using Shouldly;
 using Volo.Abp;
 using Xunit;
@@ -88,7 +89,8 @@ public class ShortLinkDomainTests
                 domain.Id,
                 Arg.Any<CancellationToken>())
             .Returns(3);
-        var policy = new ShortLinkDomainDeletionPolicy(repository);
+        var policy = new ShortLinkDomainDeletionPolicy(
+            repository, Substitute.For<IShortLinkNamespaceRepository>());
 
         var exception = await Should.ThrowAsync<BusinessException>(
             () => policy.EnsureCanDeleteAsync(domain));
@@ -96,6 +98,36 @@ public class ShortLinkDomainTests
         exception.Code.ShouldBe(ShortLinkErrorCodes.DomainInUse);
         exception.Data["Origin"].ShouldBe(domain.Origin);
         exception.Data["ReferenceCount"].ShouldBe(3L);
+    }
+
+    [Fact]
+    public async Task A_Namespace_Should_Prevent_Deleting_A_Domain_Without_Links()
+    {
+        var links = Substitute.For<IShortLinkDomainRepository>();
+        var namespaces = Substitute.For<IShortLinkNamespaceRepository>();
+        var domain = new ShortLinkDomain(Guid.NewGuid(), null, "https://go.example.com");
+        using var cancellation = new CancellationTokenSource();
+        namespaces.HasDomainReferencesAsync(domain.Id, cancellation.Token).Returns(true);
+        var policy = new ShortLinkDomainDeletionPolicy(links, namespaces);
+
+        var exception = await Should.ThrowAsync<BusinessException>(() =>
+            policy.EnsureCanDeleteAsync(domain, cancellation.Token));
+
+        exception.Code.ShouldBe(ShortLinkErrorCodes.DomainInUse);
+        exception.Data["Origin"].ShouldBe(domain.Origin);
+        exception.Data["ReferenceCount"].ShouldBe(0L);
+        await namespaces.Received(1).HasDomainReferencesAsync(domain.Id, cancellation.Token);
+    }
+
+    [Fact]
+    public async Task An_Unreferenced_Ordinary_Domain_Should_Remain_Deletable()
+    {
+        var links = Substitute.For<IShortLinkDomainRepository>();
+        var namespaces = Substitute.For<IShortLinkNamespaceRepository>();
+        var domain = new ShortLinkDomain(Guid.NewGuid(), null, "https://go.example.com");
+
+        await new ShortLinkDomainDeletionPolicy(links, namespaces).EnsureCanDeleteAsync(domain);
+        await namespaces.Received(1).HasDomainReferencesAsync(domain.Id, Arg.Any<CancellationToken>());
     }
 
 }

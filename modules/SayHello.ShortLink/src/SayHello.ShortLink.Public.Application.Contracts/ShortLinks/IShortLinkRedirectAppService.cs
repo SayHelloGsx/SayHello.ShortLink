@@ -11,4 +11,10 @@ public interface IShortLinkRedirectAppService : IApplicationService
         string origin,
         string code,
         RecordShortLinkVisitDto? visit = null);
+
+    Task<ShortLinkResolutionDto> ResolveAsync(
+        string origin,
+        string pathNamespace,
+        string code,
+        RecordShortLinkVisitDto? visit = null);
 }

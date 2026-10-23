@@ -60,10 +60,13 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase, IA
             });
 
         created.OwnerUserId.ShouldBe(_currentUser.Id!.Value);
-        created.ShortUrl.ShouldBe("https://go.example.test/Test123");
+        created.Namespace.ShouldBe("s");
+        created.NamespaceId.ShouldBeNull();
+        created.ShortUrl.ShouldBe("https://go.example.test/s/Test123");
 
         var found = await _redirectAppService.ResolveAsync(
             created.Origin!,
+            created.Namespace,
             created.Code,
             new RecordShortLinkVisitDto
             {
@@ -95,12 +98,12 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase, IA
             });
         disabled.Status.ShouldBe(ShortLinkStatus.Disabled);
 
-        (await _redirectAppService.ResolveAsync(created.Origin!, created.Code)).Status
+        (await _redirectAppService.ResolveAsync(created.Origin!, created.Namespace, created.Code)).Status
             .ShouldBe(ShortLinkResolutionStatus.Gone);
 
         await _appService.DeleteAsync(created.Id);
-        (await _repository.CodeExistsAsync(created.Origin!, created.Code)).ShouldBeTrue();
-        (await _redirectAppService.ResolveAsync(created.Origin!, created.Code)).Status
+        (await _repository.CodeExistsAsync(created.Origin!, created.Namespace, created.Code)).ShouldBeTrue();
+        (await _redirectAppService.ResolveAsync(created.Origin!, created.Namespace, created.Code)).Status
             .ShouldBe(ShortLinkResolutionStatus.Gone);
     }
 
@@ -129,6 +132,7 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase, IA
 
         var result = await _redirectAppService.ResolveAsync(
             created.Origin!,
+            created.Namespace,
             created.Code,
             new RecordShortLinkVisitDto
             {

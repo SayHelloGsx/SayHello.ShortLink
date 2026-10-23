@@ -33,6 +33,7 @@ public class EfCoreShortLinkRepository :
 
     public async Task<bool> CodeExistsAsync(
         string origin,
+        string pathNamespace,
         string code,
         CancellationToken cancellationToken = default)
     {
@@ -40,25 +41,33 @@ public class EfCoreShortLinkRepository :
         using (_multiTenantFilter.Disable())
         {
             return await (await GetDbSetAsync()).AnyAsync(
-                x => x.Origin == origin && x.Code == code,
+                x => x.Origin == origin && x.Namespace == pathNamespace && x.Code == code,
                 GetCancellationToken(cancellationToken));
         }
     }
+
+    public Task<bool> CodeExistsAsync(
+        string origin,
+        string code,
+        CancellationToken cancellationToken = default) =>
+        CodeExistsAsync(origin, string.Empty, code, cancellationToken);
 
     public async Task<bool> CodeExistsAsync(
         string code,
         CancellationToken cancellationToken = default)
     {
         using (_softDeleteFilter.Disable())
+        using (_multiTenantFilter.Disable())
         {
             return await (await GetDbSetAsync()).AnyAsync(
-                x => x.Origin == null && x.Code == code,
+                x => x.Origin == null && x.Namespace == string.Empty && x.Code == code,
                 GetCancellationToken(cancellationToken));
         }
     }
 
     public async Task<ShortLink?> FindByCodeAsync(
         string origin,
+        string pathNamespace,
         string code,
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
@@ -69,13 +78,20 @@ public class EfCoreShortLinkRepository :
             {
                 using (_softDeleteFilter.Disable())
                 {
-                    return await FindByCodeInternalAsync(origin, code, cancellationToken);
+                    return await FindByCodeInternalAsync(origin, pathNamespace, code, cancellationToken);
                 }
             }
 
-            return await FindByCodeInternalAsync(origin, code, cancellationToken);
+            return await FindByCodeInternalAsync(origin, pathNamespace, code, cancellationToken);
         }
     }
+
+    public Task<ShortLink?> FindByCodeAsync(
+        string origin,
+        string code,
+        bool includeDeleted = false,
+        CancellationToken cancellationToken = default) =>
+        FindByCodeAsync(origin, string.Empty, code, includeDeleted, cancellationToken);
 
     public async Task<ShortLink?> FindLegacyByCodeAsync(
         string code,
@@ -108,6 +124,15 @@ public class EfCoreShortLinkRepository :
     {
         return await (await GetDbSetAsync()).LongCountAsync(
             x => x.OwnerUserId == ownerUserId && !x.IsDeleted,
+            GetCancellationToken(cancellationToken));
+    }
+
+    public async Task<long> GetRootLinkCountByOwnerAsync(
+        Guid ownerUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (await GetDbSetAsync()).LongCountAsync(
+            x => x.OwnerUserId == ownerUserId && x.Namespace == string.Empty && !x.IsDeleted,
             GetCancellationToken(cancellationToken));
     }
 
@@ -182,7 +207,8 @@ public class EfCoreShortLinkRepository :
         using (_softDeleteFilter.Disable())
         {
             return await (await GetDbSetAsync())
-                .Where(x => x.DomainId == null)
+                .Where(x => x.DomainId == null && x.Origin == null &&
+                            x.Namespace == string.Empty && x.NamespaceId == null)
                 .ExecuteUpdateAsync(
                     setters => setters
                         .SetProperty(x => x.DomainId, domainId)
@@ -193,11 +219,12 @@ public class EfCoreShortLinkRepository :
 
     private async Task<ShortLink?> FindByCodeInternalAsync(
         string origin,
+        string pathNamespace,
         string code,
         CancellationToken cancellationToken)
     {
         return await (await GetDbSetAsync()).FirstOrDefaultAsync(
-            x => x.Origin == origin && x.Code == code,
+            x => x.Origin == origin && x.Namespace == pathNamespace && x.Code == code,
             GetCancellationToken(cancellationToken));
     }
 
@@ -206,7 +233,7 @@ public class EfCoreShortLinkRepository :
         CancellationToken cancellationToken)
     {
         return await (await GetDbSetAsync()).FirstOrDefaultAsync(
-            x => x.Origin == null && x.Code == code,
+            x => x.Origin == null && x.Namespace == string.Empty && x.Code == code,
             GetCancellationToken(cancellationToken));
     }
 

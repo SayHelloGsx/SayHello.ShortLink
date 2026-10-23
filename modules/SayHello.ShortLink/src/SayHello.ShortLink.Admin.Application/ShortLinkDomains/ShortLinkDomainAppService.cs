@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.ShortLinkDomains;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Uow;
@@ -18,15 +19,18 @@ public class ShortLinkDomainAppService :
     IShortLinkDomainAppService
 {
     private readonly IShortLinkDomainRepository _repository;
+    private readonly IShortLinkNamespaceRepository _namespaceRepository;
     private readonly ShortLinkDomainManager _manager;
     private readonly ShortLinkDomainConfigurationLock _configurationLock;
 
     public ShortLinkDomainAppService(
         IShortLinkDomainRepository repository,
+        IShortLinkNamespaceRepository namespaceRepository,
         ShortLinkDomainManager manager,
         ShortLinkDomainConfigurationLock configurationLock)
     {
         _repository = repository;
+        _namespaceRepository = namespaceRepository;
         _manager = manager;
         _configurationLock = configurationLock;
     }
@@ -150,6 +154,9 @@ public class ShortLinkDomainAppService :
                 await _repository.GetShortLinkReferenceCountAsync(
                     entity.Id,
                     CancellationTokenProvider.Token),
+            HasNamespaceReferences = await _namespaceRepository.HasDomainReferencesAsync(
+                entity.Id,
+                CancellationTokenProvider.Token),
             ConcurrencyStamp = entity.ConcurrencyStamp,
             CreationTime = entity.CreationTime,
             CreatorId = entity.CreatorId,

@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.ShortLinkDomains;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
+using Volo.Abp.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore.Modeling;
 
 namespace SayHello.ShortLink.EntityFrameworkCore;
@@ -14,18 +16,32 @@ public static class ShortLinkDbContextModelCreatingExtensions
     {
         Check.NotNull(builder, nameof(builder));
 
+        var namespaceCollation = builder.IsUsingPostgreSql()
+            ? "C"
+            : builder.IsUsingSqlite() ? "BINARY" : null;
+
         builder.Entity<ShortLinks.ShortLink>(b =>
         {
-            b.ToTable(ShortLinkDbProperties.DbTablePrefix + "Links", ShortLinkDbProperties.DbSchema);
+            b.ToTable(
+                ShortLinkDbProperties.DbTablePrefix + "Links",
+                ShortLinkDbProperties.DbSchema,
+                table => table.HasCheckConstraint(
+                    "CK_ShortLinkLinks_LegacyNamespace",
+                    "\"Origin\" IS NOT NULL OR (\"Namespace\" = '' AND \"NamespaceId\" IS NULL)"));
             b.ConfigureByConvention();
             b.Property(x => x.Code).IsRequired().HasMaxLength(ShortLinkConsts.MaxCodeLength);
             b.Property(x => x.Origin).HasMaxLength(ShortLinkDomainConsts.MaxOriginLength);
+            b.Property(x => x.Namespace)
+                .IsRequired()
+                .HasMaxLength(ShortLinkNamespaceConsts.MaxNameLength)
+                .HasDefaultValue(string.Empty)
+                .UseCollation(namespaceCollation);
             b.Property(x => x.TargetUrl).IsRequired().HasMaxLength(ShortLinkConsts.MaxTargetUrlLength);
             b.Property(x => x.Title).HasMaxLength(ShortLinkConsts.MaxTitleLength);
             b.Property(x => x.Status).IsRequired();
             b.Property(x => x.IsCustomCode).IsRequired();
             b.Property(x => x.TotalVisitCount).IsRequired();
-            b.HasIndex(x => new { x.Origin, x.Code })
+            b.HasIndex(x => new { x.Origin, x.Namespace, x.Code })
                 .IsUnique()
                 .HasFilter("\"Origin\" IS NOT NULL");
             b.HasIndex(x => x.Code)
@@ -35,8 +51,13 @@ public static class ShortLinkDbContextModelCreatingExtensions
                 .WithMany()
                 .HasForeignKey(x => x.DomainId)
                 .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<ShortLinkNamespace>()
+                .WithMany()
+                .HasForeignKey(x => x.NamespaceId)
+                .OnDelete(DeleteBehavior.Restrict);
             b.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.IsDeleted, x.CreationTime });
             b.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.IsDeleted, x.IsCustomCode });
+            b.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.IsDeleted, x.Namespace });
             b.HasIndex(x => new { x.Status, x.ExpiresAt });
         });
 
@@ -121,6 +142,41 @@ public static class ShortLinkDbContextModelCreatingExtensions
             b.HasIndex(x => new { x.TenantScopeKey, x.Origin }).IsUnique();
             b.HasIndex(x => x.DefaultUniquenessKey).IsUnique();
             b.HasIndex(x => new { x.TenantId, x.IsEnabled, x.Origin });
+        });
+
+        builder.Entity<ShortLinkNamespace>(b =>
+        {
+            b.ToTable(
+                ShortLinkDbProperties.DbTablePrefix + "Namespaces",
+                ShortLinkDbProperties.DbSchema);
+            b.ConfigureByConvention();
+            b.Property(x => x.Origin)
+                .IsRequired()
+                .HasMaxLength(ShortLinkDomainConsts.MaxOriginLength)
+                .UseCollation(namespaceCollation);
+            b.Property(x => x.Name)
+                .IsRequired()
+                .HasMaxLength(ShortLinkNamespaceConsts.MaxNameLength)
+                .UseCollation(namespaceCollation);
+            b.HasIndex(x => new { x.Origin, x.Name }).IsUnique();
+            b.HasIndex(x => new { x.TenantId, x.OwnerUserId, x.Origin });
+            b.HasOne<ShortLinkDomain>()
+                .WithMany()
+                .HasForeignKey(x => x.DomainId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ShortLinkNamespaceReservation>(b =>
+        {
+            b.ToTable(
+                ShortLinkDbProperties.DbTablePrefix + "NamespaceReservations",
+                ShortLinkDbProperties.DbSchema);
+            b.ConfigureByConvention();
+            b.Property(x => x.Id)
+                .IsRequired()
+                .HasMaxLength(ShortLinkNamespaceConsts.MaxNameLength)
+                .UseCollation(namespaceCollation);
+            b.HasData(new ShortLinkNamespaceReservation(ShortLinkNamespaceConsts.DefaultNamespace));
         });
     }
 }

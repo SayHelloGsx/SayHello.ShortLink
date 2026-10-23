@@ -28,10 +28,10 @@ public static class ShortLinkDtoMapper
             OwnerUserId = shortLink.OwnerUserId,
             DomainId = shortLink.DomainId,
             Origin = shortLink.Origin,
+            Namespace = shortLink.Namespace,
+            NamespaceId = shortLink.NamespaceId,
             Code = shortLink.Code,
-            ShortUrl = string.IsNullOrWhiteSpace(shortLink.Origin)
-                ? urlBuilder.Build(shortLink.Code)
-                : urlBuilder.Build(shortLink.Origin, shortLink.Code),
+            ShortUrl = urlBuilder.Build(shortLink.Origin, shortLink.Namespace, shortLink.Code),
             TargetUrl = shortLink.TargetUrl,
             Title = shortLink.Title,
             Status = shortLink.Status,

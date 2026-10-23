@@ -11,7 +11,8 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
 - Authenticated link creation with mandatory email confirmation.
 - Seven-character cryptographically random Base62 codes or custom aliases.
 - Link editing, activation, expiration, soft deletion, and a 180-day code cooldown.
-- Root-path redirects with 302, 404, and 410 behavior.
+- Namespace redirects at `/{namespace}/{code}`, with backward-compatible root paths.
+- User-owned namespaces and independent subscription quotas for namespaces and root links.
 - Privacy-friendly visit analytics without persisted raw IP addresses or user agents.
 - QR codes, per-user quotas, distributed creation rate limits, configurable short-link
   Origins, and target-domain blocking.
@@ -43,10 +44,56 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
 The single host exposes:
 
 - Public UI: `/short-links`
+- Namespace management: `/short-links/namespaces`
 - Admin UI: `/admin/short-links`
 - Public API: `/api/short-link/public/*`
 - Admin API: `/api/short-link/admin/*`
-- Anonymous redirect: `/{code}`
+- Anonymous redirects: `/{namespace}/{code}` and legacy/explicit root `/{code}`
+
+## Short-link namespaces
+
+New links use the nonempty global setting `ShortLink.DefaultNamespace`, initially
+`s`: omitting namespace selection creates `https://example.com/s/{code}`, not a
+root-path link. Administrators change this value through the existing short-link
+settings page/API. The setting accepts only default/global providers, not tenant,
+user, or configuration overrides. Blank, invalid, protected, or user-occupied
+values are rejected. Current and historical defaults remain globally reserved;
+changing the setting never changes an existing link or its QR code.
+
+Users manage their own namespaces at `/short-links/namespaces` or
+`/api/short-link/public/namespaces`:
+
+- `GET` lists owned namespaces, optionally filtered by `origin`.
+- `POST` accepts `origin` and `name`.
+- `DELETE /{id}` requires a JSON body containing the read `concurrencyStamp`.
+  Stale deletion fails as a concurrency conflict.
+
+Creating a link at `/api/short-link/public/links` still requires `origin`.
+Set `namespaceId` to an owned namespace on that Origin, or set `useRootPath: true`
+to request `/{code}`. These selections are mutually exclusive. Omitting both uses
+the current default; update inputs cannot change a link's path identity.
+
+Namespace names contain 1-64 ASCII letters, digits, underscores, or hyphens.
+Names and codes are case-sensitive (`Foo` and `foo` differ), while system-prefix
+protection is case-insensitive. Namespace uniqueness spans all users and tenants
+on the normalized Origin; different Origins may reuse a name. Code uniqueness
+is `(Origin, namespace, code)`, so root paths and different namespaces may reuse a
+code. Namespaces cannot be renamed or moved. Any link reference, including a
+soft-deleted link, prevents namespace deletion; even an empty namespace prevents
+its domain from being deleted.
+
+Protected first segments include API, administration, subscription, account,
+authentication, health, and static-resource routes. Hosts with additional routes
+must extend `ShortLinkNamespaceRouteOptions.ReservedPrefixes`. Protection does not
+apply to the second segment: `/s/api` is a valid short-link path.
+
+Deploy the new schema and namespace-aware application together. The migration
+backfills existing links with an empty namespace, preserving every old `/{code}`
+address; it does not prepend `s`. Do not run an older namespace-unaware build once
+namespaced data exists. Downgrade is explicitly blocked when it would lose link
+identity, user namespaces, or historical default reservations. Origin-null legacy
+fallback is root-only on the configured legacy Origin; namespaced requests never
+fall back to another namespace or to root links.
 
 ## Application query boundary
 
@@ -140,8 +187,10 @@ package, allowing the composing Host to supply either a local application servic
 HTTP client proxy. Numeric checks do not reserve or consume quota.
 
 The ShortLink Subscription shared integration package registers product `short-link`,
-Enum feature `statistics`, String-Set feature `domains`, and numeric feature `max-links`
-(including unlimited values). `statistics` accepts `none`, `basic`, or `advanced`;
+Enum feature `statistics`, String-Set feature `domains`, Boolean feature `namespaces`,
+and numeric features `max-links`, `max-custom-codes`, `max-namespaces`, and
+`max-root-links` (including explicit unlimited values).
+`statistics` accepts `none`, `basic`, or `advanced`;
 the domain choices come from the current tenant's configured Origin pool. This host's
 database seeding creates only missing draft product metadata and preserves
 administrative edits. Publish the product and configure/publish its plans in
@@ -186,9 +235,22 @@ for another subject requires a separate, explicitly authorized integration contr
 - Free 20 and Pro 100 therefore reject the 21st and 101st owned links respectively.
   A downgrade below current usage blocks further creation, not editing, deletion,
   QR codes, or existing redirects.
+- `namespaces=true` permits new user namespaces and new links in owned namespaces.
+  `max-namespaces` limits the current tenant/user's namespaces across all Origins.
+  Missing/false feature rights deny new user namespaces and their new links;
+  default-namespace links do not require this feature. A quantity-only downgrade
+  blocks additional namespaces but leaves existing namespaces usable.
+- `max-root-links` independently limits all non-deleted root-path links, including
+  historical links, disabled links, expired links, and Origin-null legacy rows.
+  Every root link also consumes `max-links`; custom aliases additionally consume
+  `max-custom-codes`. Denied, zero, finite, and unlimited grants remain distinct.
+  Committed link deletion releases link quotas; rollback does not. Existing
+  redirects and link management never require a namespace/root grant.
 - Creation is serialized per tenant/owner through ABP distributed locking and a
   transactional UOW. `ShortLinkManager.CreateAndSaveAsync` checks and inserts under
   that lock; an ambient transaction retains the lock until commit or rollback/disposal.
+  Compound workflows acquire namespace-configuration, domain-configuration, owner,
+  then namespace locks; reverse acquisition is explicitly rejected.
   The older `CreateAsync` only constructs an entity and is not an atomic persistence API.
   Nontransactional, read-uncommitted, repeatable-read, and snapshot UOWs are rejected
   by the atomic entry point; use read-committed or serializable transactions.
@@ -204,15 +266,16 @@ for another subject requires a separate, explicitly authorized integration contr
   Origin. The default is available to every otherwise eligible creator. The `domains`
   Set grants additional enabled Origins; stale or disabled values do not authorize
   new links. Creation requires an explicit Origin, and a link's Origin is immutable.
-  Codes are unique per Origin, so the same code can be reused on another Origin.
+  Codes are unique per Origin/namespace, so the same code can be reused on another path.
   Disabling an Origin blocks new links but leaves existing redirects working. Any
-  Origin referenced by a link, including a soft-deleted link, can only be disabled
+  Origin referenced by a namespace or a link, including a soft-deleted link, can only be disabled
   and cannot be deleted.
 - Redirects continue collecting visits without consulting subscriptions. Restored
   statistics access includes history that remains within the original retention policy.
 - `GET /api/short-link/public/links/capabilities` returns the authenticated user's
   current usage, quota state, finite limit/remaining capacity or unlimited flag,
-  statistics level, and currently selectable Origins. The ShortLink page displays
+  statistics level, the default namespace, namespace/root quota usage, and currently
+  selectable Origins. The ShortLink page displays
   these values; the Subscription UI stays generic. A displayed capability is not a
   reservation or a substitute for server-side authorization and quota checks.
 - Each server-side entitlement check uses then-effective rights. Later checks see
@@ -224,8 +287,14 @@ plan or assign explicit subscriptions. Seeding does **not** grant quota or stati
 rights automatically. Without a usable quota grant, creation is denied; without a
 statistics value, statistics are denied. The tenant's default Origin remains available
 without a `domains` grant, while existing links continue to resolve.
+Existing plans and subscription snapshots are not automatically granted the new
+namespace/root benefits. Configure those benefits explicitly in the existing typed
+subscription administration UI; missing benefits never fall back to standalone grants.
+Host role seeding adds namespace management permissions to the default `user` role,
+but permissions alone do not grant subscription benefits.
 Removing `ShortLinkSubscriptionApplicationModule` from a Host restores ShortLink's
-setting-backed quota and normal statistics behavior without a database migration. Both
+setting-backed total quota, normal statistics, enabled namespaces, and unlimited
+additional namespace/root quotas without a database migration. Both
 modules remain usable on their own. Multi-instance ShortLink deployments must configure
 a shared ABP lock provider; this host uses Redis. Process-local locks cannot enforce a
 cross-instance quota.

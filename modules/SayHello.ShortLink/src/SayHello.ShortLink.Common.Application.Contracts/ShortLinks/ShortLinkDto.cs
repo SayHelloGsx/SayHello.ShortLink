@@ -11,6 +11,10 @@ public class ShortLinkDto : FullAuditedEntityDto<Guid>
 
     public string? Origin { get; set; }
 
+    public string Namespace { get; set; } = string.Empty;
+
+    public Guid? NamespaceId { get; set; }
+
     public string Code { get; set; } = string.Empty;
 
     public string ShortUrl { get; set; } = string.Empty;

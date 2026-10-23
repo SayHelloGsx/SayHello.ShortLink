@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SayHello.ShortLink.Admin.Settings;
 using SayHello.ShortLink.Permissions;
+using Volo.Abp;
+using Volo.Abp.AspNetCore.ExceptionHandling;
+using Volo.Abp.Uow;
 
 namespace SayHello.ShortLink.Admin.Web.Pages.Admin.ShortLinks;
 
@@ -32,7 +35,31 @@ public class SettingsModel : ShortLinkAdminPageModel
             return Page();
         }
 
-        Settings = await _appService.UpdateAsync(Settings);
+        try
+        {
+            Settings = await _appService.UpdateAsync(Settings);
+        }
+        catch (BusinessException exception) when (exception.Code is
+            ShortLinkErrorCodes.InvalidNamespace or
+            ShortLinkErrorCodes.ReservedNamespace or
+            ShortLinkErrorCodes.NamespaceAlreadyExists or
+            ShortLinkErrorCodes.NamespaceLockUnavailable or
+            ShortLinkErrorCodes.DomainConfigurationLockUnavailable)
+        {
+            var unitOfWorkManager = LazyServiceProvider.LazyGetRequiredService<IUnitOfWorkManager>();
+            if (unitOfWorkManager.Current != null)
+            {
+                await unitOfWorkManager.Current.RollbackAsync();
+            }
+            var converter = LazyServiceProvider.LazyGetRequiredService<IExceptionToErrorInfoConverter>();
+            ModelState.AddModelError(
+                $"{nameof(Settings)}.{nameof(Settings.DefaultNamespace)}",
+                converter.Convert(exception).Message ?? exception.Message);
+            using var readUnitOfWork = unitOfWorkManager.Begin(requiresNew: true, isTransactional: false);
+            Settings.IsQuotaExternallyManaged = (await _appService.GetAsync()).IsQuotaExternallyManaged;
+            await readUnitOfWork.CompleteAsync();
+            return Page();
+        }
         Alerts.Success(L["SettingsSaved"]);
         return Page();
     }

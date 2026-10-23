@@ -44,8 +44,49 @@ public class BridgeCompositionTests
                 .IsUnlimited.ShouldBeTrue();
             (await capability.GetStatisticsLevelAsync(BridgeTestSubject.UserId))
                 .ShouldBe(ShortLinkStatisticsLevel.Advanced);
+            (await capability.IsNamespaceEnabledAsync(BridgeTestSubject.UserId))
+                .ShouldBeTrue();
+            (await capability.GetNamespaceQuotaAsync(BridgeTestSubject.UserId))
+                .Limit.ShouldBe(3);
+            (await capability.GetRootLinkQuotaAsync(BridgeTestSubject.UserId))
+                .Limit.ShouldBe(5);
             services.GetRequiredService<ISubscriptionDefinitionRegistry>()
-                .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode).Features.Count.ShouldBe(4);
+                .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode).Features.Count.ShouldBe(7);
+        });
+
+    [Fact]
+    public Task Legacy_entitlements_do_not_gain_namespace_or_root_benefits() =>
+        WithApplication<BridgeContractTestModule>(async services =>
+        {
+            var client = services.GetRequiredService<ICurrentUserEntitlementAppService>();
+            client.GetBooleanAsync(
+                    ShortLinkSubscriptionDefinitions.ProductCode,
+                    ShortLinkSubscriptionDefinitions.Namespaces,
+                    Arg.Any<CancellationToken>())
+                .Returns(new BooleanEntitlementResultDto());
+            foreach (var featureKey in new[]
+                     {
+                         ShortLinkSubscriptionDefinitions.MaxNamespaces,
+                         ShortLinkSubscriptionDefinitions.MaxRootLinks
+                     })
+            {
+                client.GetNumericAsync(
+                        ShortLinkSubscriptionDefinitions.ProductCode,
+                        featureKey,
+                        Arg.Any<CancellationToken>())
+                    .Returns(new NumericEntitlementResultDto());
+            }
+
+            var capability = services.GetRequiredService<IShortLinkCapabilityProvider>();
+
+            (await capability.IsNamespaceEnabledAsync(BridgeTestSubject.UserId))
+                .ShouldBeFalse();
+            (await capability.GetNamespaceQuotaAsync(BridgeTestSubject.UserId))
+                .ShouldBeSameAs(ShortLinkQuota.Denied);
+            (await capability.GetRootLinkQuotaAsync(BridgeTestSubject.UserId))
+                .ShouldBeSameAs(ShortLinkQuota.Denied);
+            (await capability.GetQuotaAsync(BridgeTestSubject.UserId))
+                .Limit.ShouldBe(20);
         });
 
     private static async Task AssertIndependentCapabilitiesAsync(IServiceProvider services)
@@ -61,6 +102,12 @@ public class BridgeCompositionTests
             .IsUnlimited.ShouldBeTrue();
         (await capability.GetStatisticsLevelAsync(Guid.NewGuid()))
             .ShouldBe(ShortLinkStatisticsLevel.Advanced);
+        (await capability.IsNamespaceEnabledAsync(Guid.NewGuid()))
+            .ShouldBeTrue();
+        (await capability.GetNamespaceQuotaAsync(Guid.NewGuid()))
+            .ShouldBeSameAs(ShortLinkQuota.Unlimited);
+        (await capability.GetRootLinkQuotaAsync(Guid.NewGuid()))
+            .ShouldBeSameAs(ShortLinkQuota.Unlimited);
     }
 
     private static async Task WithApplication<TModule>(Func<IServiceProvider, Task> action)
@@ -130,6 +177,21 @@ public class BridgeContractTestModule : AbpModule
                 IsGranted = true,
                 IsUnlimited = true
             });
+        client.GetBooleanAsync(
+                ShortLinkSubscriptionDefinitions.ProductCode,
+                ShortLinkSubscriptionDefinitions.Namespaces,
+                Arg.Any<CancellationToken>())
+            .Returns(new BooleanEntitlementResultDto { IsGranted = true });
+        client.GetNumericAsync(
+                ShortLinkSubscriptionDefinitions.ProductCode,
+                ShortLinkSubscriptionDefinitions.MaxNamespaces,
+                Arg.Any<CancellationToken>())
+            .Returns(new NumericEntitlementResultDto { IsGranted = true, Limit = 3 });
+        client.GetNumericAsync(
+                ShortLinkSubscriptionDefinitions.ProductCode,
+                ShortLinkSubscriptionDefinitions.MaxRootLinks,
+                Arg.Any<CancellationToken>())
+            .Returns(new NumericEntitlementResultDto { IsGranted = true, Limit = 5 });
         context.Services.Replace(ServiceDescriptor.Singleton(client));
 
         var currentUser = Substitute.For<ICurrentUser>();

@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using QRCoder;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
+using SayHello.ShortLink.Settings;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
@@ -28,6 +30,8 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     private readonly IShortLinkCacheInvalidator _cacheInvalidator;
     private readonly IShortLinkCapabilityProvider _capabilityProvider;
     private readonly IPermissionChecker _permissionChecker;
+    private readonly IShortLinkNamespaceRepository _namespaceRepository;
+    private readonly ShortLinkDefaultNamespaceProvider _defaultNamespaceProvider;
 
     public ShortLinkAppService(
         IShortLinkRepository shortLinkRepository,
@@ -38,7 +42,9 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         IShortLinkUrlBuilder urlBuilder,
         IShortLinkCacheInvalidator cacheInvalidator,
         IShortLinkCapabilityProvider capabilityProvider,
-        IPermissionChecker permissionChecker)
+        IPermissionChecker permissionChecker,
+        IShortLinkNamespaceRepository namespaceRepository,
+        ShortLinkDefaultNamespaceProvider defaultNamespaceProvider)
     {
         _shortLinkRepository = shortLinkRepository;
         _statisticsRepository = statisticsRepository;
@@ -49,6 +55,8 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         _cacheInvalidator = cacheInvalidator;
         _capabilityProvider = capabilityProvider;
         _permissionChecker = permissionChecker;
+        _namespaceRepository = namespaceRepository;
+        _defaultNamespaceProvider = defaultNamespaceProvider;
     }
 
     public virtual async Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync()
@@ -70,9 +78,26 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             ownerUserId, cancellationToken);
         var domains = await _shortLinkManager.GetAvailableDomainsAsync(
             ownerUserId, cancellationToken);
+        var namespacesEnabled = await _capabilityProvider.IsNamespaceEnabledAsync(ownerUserId, cancellationToken);
+        var namespaceQuota = await _capabilityProvider.GetNamespaceQuotaAsync(ownerUserId, cancellationToken);
+        var rootQuota = await _capabilityProvider.GetRootLinkQuotaAsync(ownerUserId, cancellationToken);
+        var usedNamespaces = await _namespaceRepository.GetCountByOwnerAsync(ownerUserId, cancellationToken);
+        var usedRootLinks = await _shortLinkRepository.GetRootLinkCountByOwnerAsync(ownerUserId, cancellationToken);
 
         return new ShortLinkCapabilitiesDto
         {
+            DefaultNamespace = await _defaultNamespaceProvider.GetAsync(cancellationToken),
+            NamespacesEnabled = namespacesEnabled,
+            UsedNamespaces = usedNamespaces,
+            IsNamespaceQuotaGranted = namespaceQuota.IsGranted,
+            IsNamespaceUnlimited = namespaceQuota.IsUnlimited,
+            MaxNamespaces = namespaceQuota.Limit,
+            RemainingNamespaces = Remaining(namespaceQuota, usedNamespaces),
+            UsedRootLinks = usedRootLinks,
+            IsRootLinkQuotaGranted = rootQuota.IsGranted,
+            IsRootLinkUnlimited = rootQuota.IsUnlimited,
+            MaxRootLinks = rootQuota.Limit,
+            RemainingRootLinks = Remaining(rootQuota, usedRootLinks),
             UsedLinks = usedLinks,
             IsQuotaGranted = quota.IsGranted,
             IsUnlimited = quota.IsUnlimited,
@@ -150,10 +175,13 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             input.CustomCode,
             input.Title,
             NormalizeExpiration(input.ExpiresAt),
-            CancellationTokenProvider.Token);
+            CancellationTokenProvider.Token,
+            namespaceId: input.NamespaceId,
+            useRootPath: input.UseRootPath);
 
         await _cacheInvalidator.RemoveAsync(
             shortLink.Origin!,
+            shortLink.Namespace,
             shortLink.Code,
             CancellationTokenProvider.Token);
         return await ToPublicDtoAsync(shortLink);
@@ -178,6 +206,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
             shortLink.Origin!,
+            shortLink.Namespace,
             shortLink.Code,
             CancellationTokenProvider.Token);
         return await ToPublicDtoAsync(shortLink);
@@ -205,6 +234,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
             shortLink.Origin!,
+            shortLink.Namespace,
             shortLink.Code,
             CancellationTokenProvider.Token);
         return await ToPublicDtoAsync(shortLink);
@@ -221,6 +251,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             cancellationToken: CancellationTokenProvider.Token);
         await _cacheInvalidator.RemoveAsync(
             shortLink.Origin!,
+            shortLink.Namespace,
             shortLink.Code,
             CancellationTokenProvider.Token);
     }
@@ -275,9 +306,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     public virtual async Task<ShortLinkQrCodeDto> GetQrCodeAsync(Guid id)
     {
         var shortLink = await GetOwnedAsync(id);
-        var shortUrl = shortLink.Origin.IsNullOrWhiteSpace()
-            ? _urlBuilder.Build(shortLink.Code)
-            : _urlBuilder.Build(shortLink.Origin, shortLink.Code);
+        var shortUrl = _urlBuilder.Build(shortLink.Origin, shortLink.Namespace, shortLink.Code);
 
         using var generator = new QRCodeGenerator();
         using var data = generator.CreateQrCode(shortUrl, QRCodeGenerator.ECCLevel.Q);
@@ -294,6 +323,9 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         return _capabilityProvider.GetStatisticsLevelAsync(
             CurrentUser.GetId(), CancellationTokenProvider.Token);
     }
+
+    private static long? Remaining(ShortLinkQuota quota, long used) =>
+        !quota.IsGranted ? 0 : quota.IsUnlimited ? null : Math.Max(0, quota.Limit!.Value - used);
 
     private async Task<ShortLinkStatisticsLevel> GetSummaryStatisticsLevelAsync()
     {

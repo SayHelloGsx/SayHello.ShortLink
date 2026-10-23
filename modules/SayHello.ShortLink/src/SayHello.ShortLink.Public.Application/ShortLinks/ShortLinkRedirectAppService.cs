@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using SayHello.ShortLink.Common.BlockedDomains;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.ShortLinkDomains;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Caching;
@@ -49,25 +50,35 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
     }
 
     [UnitOfWork(isTransactional: true)]
+    public virtual Task<ShortLinkResolutionDto> ResolveAsync(
+        string origin,
+        string code,
+        RecordShortLinkVisitDto? visit = null)
+    {
+        return ResolveAsync(origin, string.Empty, code, visit);
+    }
+
+    [UnitOfWork(isTransactional: true)]
     public virtual async Task<ShortLinkResolutionDto> ResolveAsync(
         string origin,
+        string pathNamespace,
         string code,
         RecordShortLinkVisitDto? visit = null)
     {
         var cancellationToken = CancellationTokenProvider.Token;
 
-        if (code.IsNullOrWhiteSpace() ||
-            code.Length is < ShortLinkConsts.MinCodeLength or > ShortLinkConsts.MaxCodeLength)
+        if (!ShortCodeFormat.IsValid(code) ||
+            (pathNamespace != string.Empty && !ShortLinkNamespaceFormat.IsValid(pathNamespace)))
         {
             return new ShortLinkResolutionDto { Status = ShortLinkResolutionStatus.NotFound };
         }
 
         var normalizedOrigin = ShortLinkDomainOrigin.Normalize(origin);
-        var cacheKey = ShortLinkResolutionCacheKey.Create(normalizedOrigin, code);
-        var cacheItem = await _cache.GetAsync(cacheKey, token: cancellationToken);
+        var cacheKey = ShortLinkResolutionCacheKey.Create(normalizedOrigin, pathNamespace, code);
+        var cacheItem = await _cache.GetAsync(cacheKey, considerUow: true, token: cancellationToken);
         if (cacheItem is null)
         {
-            cacheItem = await CreateCacheItemAsync(normalizedOrigin, code, cancellationToken);
+            cacheItem = await CreateCacheItemAsync(normalizedOrigin, pathNamespace, code, cancellationToken);
             await _cache.SetAsync(
                 cacheKey,
                 cacheItem,
@@ -77,6 +88,7 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
                         ? FoundCacheDuration
                         : MissingCacheDuration
                 },
+                considerUow: true,
                 token: cancellationToken);
         }
 
@@ -141,15 +153,17 @@ public class ShortLinkRedirectAppService : ShortLinkApplicationService, IShortLi
 
     private async Task<ShortLinkResolutionCacheItem> CreateCacheItemAsync(
         string origin,
+        string pathNamespace,
         string code,
         CancellationToken cancellationToken)
     {
         var shortLink = await _shortLinkRepository.FindByCodeAsync(
             origin,
+            pathNamespace,
             code,
             includeDeleted: true,
             cancellationToken);
-        if (shortLink is null && IsConfiguredLegacyOrigin(origin))
+        if (shortLink is null && pathNamespace.Length == 0 && IsConfiguredLegacyOrigin(origin))
         {
             shortLink = await _shortLinkRepository.FindLegacyByCodeAsync(
                 code,

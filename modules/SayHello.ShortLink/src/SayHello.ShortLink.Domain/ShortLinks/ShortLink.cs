@@ -1,5 +1,6 @@
 using System;
 using SayHello.ShortLink.ShortLinkDomains;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities.Auditing;
 using Volo.Abp.MultiTenancy;
@@ -15,6 +16,10 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
     public Guid? DomainId { get; protected set; }
 
     public string? Origin { get; protected set; }
+
+    public string Namespace { get; protected set; } = string.Empty;
+
+    public Guid? NamespaceId { get; protected set; }
 
     public string Code { get; protected set; } = string.Empty;
 
@@ -44,7 +49,9 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
         string targetUrl,
         string? title,
         DateTime? expiresAt,
-        bool isCustomCode = false)
+        bool isCustomCode = false,
+        string pathNamespace = "",
+        Guid? namespaceId = null)
         : base(id)
     {
         TenantId = tenantId;
@@ -53,6 +60,16 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
             ? throw new ArgumentException("A short-link domain ID is required.", nameof(domainId))
             : domainId;
         Origin = ShortLinkDomainOrigin.Normalize(origin);
+        if (pathNamespace != string.Empty && !ShortLinkNamespaceFormat.IsValid(pathNamespace))
+        {
+            throw new BusinessException(ShortLinkErrorCodes.InvalidNamespace);
+        }
+        if (namespaceId.HasValue && (namespaceId == Guid.Empty || pathNamespace.Length == 0))
+        {
+            throw new BusinessException(ShortLinkErrorCodes.NamespaceSelectionConflict);
+        }
+        Namespace = pathNamespace;
+        NamespaceId = namespaceId;
         Code = Check.NotNullOrWhiteSpace(code, nameof(code), ShortLinkConsts.MaxCodeLength);
         IsCustomCode = isCustomCode;
         Status = ShortLinkStatus.Active;

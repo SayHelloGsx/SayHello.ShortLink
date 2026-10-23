@@ -8,6 +8,12 @@ public interface IShortLinkCapabilityProvider
 {
     bool IsQuotaExternallyManaged { get; }
 
+    Task<bool> IsNamespaceEnabledAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task<ShortLinkQuota> GetNamespaceQuotaAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task<ShortLinkQuota> GetRootLinkQuotaAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<ShortLinkQuota> GetQuotaAsync(
         Guid userId,
         CancellationToken cancellationToken = default);

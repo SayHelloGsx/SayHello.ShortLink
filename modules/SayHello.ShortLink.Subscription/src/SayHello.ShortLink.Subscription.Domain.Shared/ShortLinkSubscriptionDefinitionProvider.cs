@@ -30,6 +30,20 @@ public class ShortLinkSubscriptionDefinitionProvider : SubscriptionDefinitionPro
                     ShortLinkSubscriptionDefinitions.MaxCustomCodes,
                     LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxCustomCodes"),
                     SubscriptionEntitlementType.Numeric,
+                    allowUnlimited: true),
+                new FeatureDefinition(
+                    ShortLinkSubscriptionDefinitions.Namespaces,
+                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:Namespaces"),
+                    SubscriptionEntitlementType.Boolean),
+                new FeatureDefinition(
+                    ShortLinkSubscriptionDefinitions.MaxNamespaces,
+                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxNamespaces"),
+                    SubscriptionEntitlementType.Numeric,
+                    allowUnlimited: true),
+                new FeatureDefinition(
+                    ShortLinkSubscriptionDefinitions.MaxRootLinks,
+                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxRootLinks"),
+                    SubscriptionEntitlementType.Numeric,
                     allowUnlimited: true)
             ]));
     }

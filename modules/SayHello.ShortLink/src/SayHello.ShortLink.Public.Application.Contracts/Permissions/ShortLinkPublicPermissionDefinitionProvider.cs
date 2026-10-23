@@ -21,6 +21,10 @@ public class ShortLinkPublicPermissionDefinitionProvider : PermissionDefinitionP
         links.AddChild(
             ShortLinkPublicPermissions.ViewStatistics,
             L("Permission:Links.ViewStatistics"));
+        var namespaces = group.AddPermission(
+            ShortLinkPublicPermissions.Namespaces.Default, L("Permission:Namespaces"));
+        namespaces.AddChild(ShortLinkPublicPermissions.Namespaces.Create, L("Permission:Namespaces.Create"));
+        namespaces.AddChild(ShortLinkPublicPermissions.Namespaces.Delete, L("Permission:Namespaces.Delete"));
     }
 
     private static LocalizableString L(string name)

@@ -25,8 +25,17 @@ public class ShortLinkCacheInvalidator : IShortLinkCacheInvalidator, ITransientD
         string code,
         CancellationToken cancellationToken = default)
     {
+        return RemoveAsync(origin, string.Empty, code, cancellationToken);
+    }
+
+    public Task RemoveAsync(
+        string? origin,
+        string pathNamespace,
+        string code,
+        CancellationToken cancellationToken = default)
+    {
         return _cache.RemoveAsync(
-            ShortLinkResolutionCacheKey.Create(origin ?? _options.BaseUrl, code),
+            ShortLinkResolutionCacheKey.Create(origin ?? _options.BaseUrl, pathNamespace, code),
             considerUow: true,
             token: cancellationToken);
     }

@@ -1,0 +1,128 @@
+@page "/short-links/namespaces"
+@using Microsoft.Extensions.Localization
+@using SayHello.ShortLink.Localization
+@using SayHello.ShortLink.ShortLinkNamespaces
+@model SayHello.ShortLink.Public.Web.Pages.Public.ShortLinks.NamespacesModel
+@inject IStringLocalizer<ShortLinkResource> L
+
+@{
+    ViewData["Title"] = L["MyNamespaces"];
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">@L["MyNamespaces"]</h1>
+            <p class="text-muted mb-0">@L["Namespaces:Description"]</p>
+        </div>
+        @if (Model.CanViewLinks)
+        {
+            <a asp-page="./Index" class="btn btn-outline-secondary">@L["Back"]</a>
+        }
+    </div>
+
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+    @if (Model.Capabilities != null)
+    {
+        <div class="card shadow-sm mb-4" aria-label="@L["NamespaceQuota:Usage"]">
+            <div class="card-body">
+                <partial name="_NamespaceQuota" model="Model.Capabilities" />
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info" role="status">@L["Namespaces:CapabilitiesUnavailable"]</div>
+    }
+
+    @if (Model.HasCreatePermission)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="h5">@L["CreateNamespace"]</h2>
+                <form method="post" asp-page-handler="Create" class="row g-3">
+                    <div class="col-lg-5">
+                        <label asp-for="NewNamespace.Origin" class="form-label">@L["Origin"]</label>
+                        @if (Model.Capabilities != null)
+                        {
+                            <select asp-for="NewNamespace.Origin" class="form-select" required>
+                                <option value="">@L["SelectDomain"]</option>
+                                @foreach (var domain in Model.Capabilities.Domains)
+                                {
+                                    <option value="@domain.Origin">
+                                        @domain.Origin@(domain.IsDefault ? $" ({L["ShortLinkDomains:Default"]})" : string.Empty)
+                                    </option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <input asp-for="NewNamespace.Origin" class="form-control" required placeholder="https://short.example.com" />
+                        }
+                        <span asp-validation-for="NewNamespace.Origin" class="text-danger"></span>
+                    </div>
+                    <div class="col-lg-5">
+                        <label asp-for="NewNamespace.Name" class="form-label">@L["NamespaceName"]</label>
+                        <input asp-for="NewNamespace.Name"
+                               class="form-control"
+                               required
+                               minlength="@ShortLinkNamespaceConsts.MinNameLength"
+                               maxlength="@ShortLinkNamespaceConsts.MaxNameLength"
+                               pattern="[A-Za-z0-9_-]+"
+                               data-val-regex-pattern="^[A-Za-z0-9_-]+$"
+                               aria-describedby="namespace-name-help" />
+                        <span asp-validation-for="NewNamespace.Name" class="text-danger"></span>
+                    </div>
+                    <div class="col-lg-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary" disabled="@(!Model.CanCreate)">@L["Create"]</button>
+                    </div>
+                    <div id="namespace-name-help" class="col-12 form-text">@L["Namespaces:NameHelp"]</div>
+                </form>
+            </div>
+        </div>
+    }
+
+    <div class="alert alert-info" role="status">@L["Namespaces:DeletionHelp"]</div>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>@L["NamespaceName"]</th>
+                    <th>@L["Origin"]</th>
+                    <th>@L["CreationTime"]</th>
+                    <th class="text-end">@L["Actions"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-5">@L["Namespaces:Empty"]</td>
+                    </tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    <tr data-namespace-id="@item.Id">
+                        <td><code>@item.Name</code></td>
+                        <td>@item.Origin</td>
+                        <td>@item.CreationTime.ToString("u")</td>
+                        <td class="text-end text-nowrap">
+                            @if (Model.CanDelete)
+                            {
+                                <form method="post" asp-page-handler="Delete" class="d-inline delete-namespace-form">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="concurrencyStamp" value="@item.ConcurrencyStamp" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">@L["Delete"]</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<abp-script src="/Pages/Public/ShortLinks/Namespaces.js" />

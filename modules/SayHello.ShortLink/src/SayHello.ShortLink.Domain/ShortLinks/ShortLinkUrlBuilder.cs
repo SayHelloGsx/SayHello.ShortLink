@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.Options;
 using SayHello.ShortLink.ShortLinkDomains;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using Volo.Abp;
 using Volo.Abp.DependencyInjection;
 
@@ -27,10 +28,20 @@ public class ShortLinkUrlBuilder : IShortLinkUrlBuilder, ITransientDependency
 
     public string Build(string origin, string code)
     {
+        return Build(origin, string.Empty, code);
+    }
+
+    public string Build(string? origin, string pathNamespace, string code)
+    {
+        if (pathNamespace != string.Empty && !ShortLinkNamespaceFormat.IsValid(pathNamespace))
+        {
+            throw new BusinessException(ShortLinkErrorCodes.InvalidNamespace);
+        }
+
         string normalizedOrigin;
         try
         {
-            normalizedOrigin = ShortLinkDomainOrigin.Normalize(origin);
+            normalizedOrigin = ShortLinkDomainOrigin.Normalize(origin ?? _options.BaseUrl);
         }
         catch (BusinessException)
         {
@@ -38,8 +49,11 @@ public class ShortLinkUrlBuilder : IShortLinkUrlBuilder, ITransientDependency
         }
 
         var baseUri = new Uri(normalizedOrigin + "/", UriKind.Absolute);
+        var path = pathNamespace.Length == 0
+            ? Uri.EscapeDataString(code)
+            : $"{Uri.EscapeDataString(pathNamespace)}/{Uri.EscapeDataString(code)}";
         return new Uri(
             baseUri,
-            Uri.EscapeDataString(code)).AbsoluteUri;
+            path).AbsoluteUri;
     }
 }

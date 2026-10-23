@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.ShortLinks;
 using SayHello.ShortLink.WebHost.EntityFrameworkCore.Subscriptions;
@@ -59,13 +60,17 @@ public class ShortLinkSubscriptionWebFactory : WebApplicationFactory<Program>, I
                      {
                          ShortLinkPublicPermissions.Default, ShortLinkPublicPermissions.Create,
                          ShortLinkPublicPermissions.Update, ShortLinkPublicPermissions.Delete,
-                         ShortLinkPublicPermissions.ViewStatistics
+                         ShortLinkPublicPermissions.ViewStatistics,
+                         ShortLinkPublicPermissions.Namespaces.Default,
+                         ShortLinkPublicPermissions.Namespaces.Create,
+                         ShortLinkPublicPermissions.Namespaces.Delete
                      })
             {
                 if (id == NoStatisticsPermissionOwner && permission != ShortLinkPublicPermissions.Default) continue;
                 await permissions.SetForUserAsync(id, permission, true);
             }
         }
+        await permissions.SetForUserAsync(Administrator, ShortLinkAdminPermissions.Default, true);
         await permissions.SetForUserAsync(Administrator, ShortLinkAdminPermissions.ManageAllLinks, true);
         var free = await ShortLinkSubscriptionTestData.CreatePlanAsync(services, 20, false, setDefault: false);
         var pro = await ShortLinkSubscriptionTestData.CreatePlanAsync(services, 100, true, setDefault: false);
@@ -105,6 +110,8 @@ public class ShortLinkSubscriptionWebFactory : WebApplicationFactory<Program>, I
         builder.ConfigureTestServices(services =>
         {
             ShortLinkSubscriptionTestData.ConfigureExternalAdapters(services);
+            services.Replace(
+                ServiceDescriptor.Transient<IShortLinkCacheInvalidator, ShortLinkCacheInvalidator>());
             services.Replace(ServiceDescriptor.Transient<IAuthorizationService, AbpAuthorizationService>());
             services.Replace(ServiceDescriptor.Transient<IAbpAuthorizationService, AbpAuthorizationService>());
             services.Replace(ServiceDescriptor.Transient<IMethodInvocationAuthorizationService, MethodInvocationAuthorizationService>());

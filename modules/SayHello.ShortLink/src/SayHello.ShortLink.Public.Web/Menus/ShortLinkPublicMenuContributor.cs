@@ -33,5 +33,14 @@ public class ShortLinkPublicMenuContributor : IMenuContributor
                     "/short-links",
                     "fa fa-link"));
         }
+        if (await context.IsGrantedAsync(ShortLinkPublicPermissions.Namespaces.Default))
+        {
+            context.Menu.AddItem(
+                new ApplicationMenuItem(
+                    ShortLinkPublicMenus.Namespaces,
+                    localizer["Menu:ShortLinkNamespaces"],
+                    "/short-links/namespaces",
+                    "fa fa-folder"));
+        }
     }
 }

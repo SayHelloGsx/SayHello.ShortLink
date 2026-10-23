@@ -19,6 +19,14 @@ namespace SayHello.ShortLink.Subscription;
 public class ShortLinkSubscriptionDefinitionTests
 {
     [Fact]
+    public void Namespace_and_root_feature_keys_are_stable()
+    {
+        ShortLinkSubscriptionDefinitions.Namespaces.ShouldBe("namespaces");
+        ShortLinkSubscriptionDefinitions.MaxNamespaces.ShouldBe("max-namespaces");
+        ShortLinkSubscriptionDefinitions.MaxRootLinks.ShouldBe("max-root-links");
+    }
+
+    [Fact]
     public void Definition_has_the_expected_typed_features()
     {
         var context = new DefinitionContext();
@@ -44,6 +52,28 @@ public class ShortLinkSubscriptionDefinitionTests
         customCodeLimit.AllowUnlimited.ShouldBeTrue();
         customCodeLimit.Validate(EntitlementValue.Numeric(0));
         customCodeLimit.Validate(EntitlementValue.Unlimited());
+        var namespaces = product.GetFeature(ShortLinkSubscriptionDefinitions.Namespaces);
+        namespaces.Type.ShouldBe(SubscriptionEntitlementType.Boolean);
+        namespaces.AllowUnlimited.ShouldBeFalse();
+        namespaces.Validate(EntitlementValue.Boolean(false));
+        namespaces.Validate(EntitlementValue.Boolean(true));
+        Should.Throw<BusinessException>(() => namespaces.Validate(EntitlementValue.Unlimited()));
+        foreach (var featureKey in new[]
+                 {
+                     ShortLinkSubscriptionDefinitions.MaxNamespaces,
+                     ShortLinkSubscriptionDefinitions.MaxRootLinks
+                 })
+        {
+            var quota = product.GetFeature(featureKey);
+            quota.Type.ShouldBe(SubscriptionEntitlementType.Numeric);
+            quota.AllowUnlimited.ShouldBeTrue();
+            quota.Maximum.ShouldBeNull();
+            quota.Validate(EntitlementValue.Numeric(0));
+            quota.Validate(EntitlementValue.Numeric(20));
+            quota.Validate(EntitlementValue.Numeric(long.MaxValue));
+            quota.Validate(EntitlementValue.Unlimited());
+            Should.Throw<BusinessException>(() => quota.Validate(EntitlementValue.Boolean(true)));
+        }
     }
 
     [Fact]
@@ -57,7 +87,7 @@ public class ShortLinkSubscriptionDefinitionTests
             var product = application.ServiceProvider.GetRequiredService<ISubscriptionDefinitionRegistry>()
                 .GetProduct(ShortLinkSubscriptionDefinitions.ProductCode);
 
-            product.Features.Count.ShouldBe(4);
+            product.Features.Count.ShouldBe(7);
         }
         finally
         {
@@ -66,15 +96,21 @@ public class ShortLinkSubscriptionDefinitionTests
     }
 
     [Theory]
-    [InlineData("en", "ShortLink", "Visit statistics level", "Additional short-link domains", "Maximum number of links", "Maximum number of custom codes")]
-    [InlineData("zh-Hans", "短链接", "访问统计等级", "额外短链接域名", "链接数量上限", "自定义短码数量上限")]
+    [InlineData("en", "ShortLink", "Visit statistics level", "Additional short-link domains",
+        "Maximum number of links", "Maximum number of custom codes", "Short-link namespaces",
+        "Maximum number of namespaces", "Maximum number of root links")]
+    [InlineData("zh-Hans", "短链接", "访问统计等级", "额外短链接域名", "链接数量上限",
+        "自定义短码数量上限", "短链接命名空间", "命名空间数量上限", "根链接数量上限")]
     public void Bridge_owns_matching_localized_definition_texts(
         string culture,
         string product,
         string statistics,
         string domains,
         string maxLinks,
-        string maxCustomCodes)
+        string maxCustomCodes,
+        string namespaces,
+        string maxNamespaces,
+        string maxRootLinks)
     {
         var assembly = typeof(ShortLinkSubscriptionResource).Assembly;
         var resourceName = assembly.GetManifestResourceNames().Single(name =>
@@ -89,6 +125,9 @@ public class ShortLinkSubscriptionDefinitionTests
         texts.GetProperty("Subscription:MaxLinks").GetString().ShouldBe(maxLinks);
         texts.GetProperty("Subscription:MaxCustomCodes").GetString()
             .ShouldBe(maxCustomCodes);
+        texts.GetProperty("Subscription:Namespaces").GetString().ShouldBe(namespaces);
+        texts.GetProperty("Subscription:MaxNamespaces").GetString().ShouldBe(maxNamespaces);
+        texts.GetProperty("Subscription:MaxRootLinks").GetString().ShouldBe(maxRootLinks);
     }
 
     private sealed class DefinitionContext : ISubscriptionDefinitionContext

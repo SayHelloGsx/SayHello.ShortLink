@@ -36,4 +36,16 @@ public static class ShortLinkErrorCodes
     public const string DefaultDomainRequired = "ShortLink:010032";
     public const string CustomCodeQuotaNotGranted = "ShortLink:010033";
     public const string CustomCodeQuotaExceeded = "ShortLink:010034";
+    public const string InvalidNamespace = "ShortLink:010035";
+    public const string ReservedNamespace = "ShortLink:010036";
+    public const string NamespaceAlreadyExists = "ShortLink:010037";
+    public const string NamespaceAccessDenied = "ShortLink:010038";
+    public const string NamespacesNotGranted = "ShortLink:010039";
+    public const string NamespaceQuotaNotGranted = "ShortLink:010040";
+    public const string NamespaceQuotaExceeded = "ShortLink:010041";
+    public const string NamespaceInUse = "ShortLink:010042";
+    public const string RootLinkQuotaNotGranted = "ShortLink:010043";
+    public const string RootLinkQuotaExceeded = "ShortLink:010044";
+    public const string NamespaceLockUnavailable = "ShortLink:010045";
+    public const string NamespaceSelectionConflict = "ShortLink:010046";
 }

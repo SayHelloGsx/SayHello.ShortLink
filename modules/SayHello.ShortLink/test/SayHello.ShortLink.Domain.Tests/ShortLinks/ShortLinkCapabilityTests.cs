@@ -46,6 +46,11 @@ public class ShortLinkCapabilityTests
             .ShouldBe(ShortLinkStatisticsLevel.Advanced);
         (await provider.GetDomainAccessAsync(Guid.NewGuid()))
             .ShouldBeSameAs(ShortLinkDomainAccess.Unrestricted);
+        (await provider.IsNamespaceEnabledAsync(Guid.NewGuid())).ShouldBeTrue();
+        (await provider.GetNamespaceQuotaAsync(Guid.NewGuid()))
+            .ShouldBeSameAs(ShortLinkQuota.Unlimited);
+        (await provider.GetRootLinkQuotaAsync(Guid.NewGuid()))
+            .ShouldBeSameAs(ShortLinkQuota.Unlimited);
     }
 
     [Theory]
@@ -70,5 +75,25 @@ public class ShortLinkCapabilityTests
             provider.GetQuotaAsync(Guid.NewGuid(), new CancellationToken(true)));
         await Should.ThrowAsync<OperationCanceledException>(() =>
             provider.GetDomainAccessAsync(Guid.NewGuid(), new CancellationToken(true)));
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            provider.IsNamespaceEnabledAsync(Guid.NewGuid(), new CancellationToken(true)));
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            provider.GetNamespaceQuotaAsync(Guid.NewGuid(), new CancellationToken(true)));
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            provider.GetRootLinkQuotaAsync(Guid.NewGuid(), new CancellationToken(true)));
+    }
+
+    [Fact]
+    public async Task Standalone_Namespace_And_Root_Grants_Should_Not_Read_The_Total_Link_Setting()
+    {
+        var settings = Substitute.For<ISettingProvider>();
+        settings.GetOrNullAsync(ShortLinkSettings.MaxLinksPerUser).Returns("invalid");
+        var provider = new SettingShortLinkCapabilityProvider(settings);
+        var owner = Guid.NewGuid();
+
+        (await provider.IsNamespaceEnabledAsync(owner)).ShouldBeTrue();
+        (await provider.GetNamespaceQuotaAsync(owner)).AllowsCreation(long.MaxValue).ShouldBeTrue();
+        (await provider.GetRootLinkQuotaAsync(owner)).AllowsCreation(long.MaxValue).ShouldBeTrue();
+        await settings.DidNotReceive().GetOrNullAsync(Arg.Any<string>());
     }
 }

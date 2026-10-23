@@ -168,6 +168,91 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.ToTable("ShortLinkDomains", (string)null);
                 });
 
+            modelBuilder.Entity("SayHello.ShortLink.ShortLinkNamespaces.ShortLinkNamespace", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("ConcurrencyStamp");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("CreationTime");
+
+                    b.Property<Guid?>("CreatorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("CreatorId");
+
+                    b.Property<Guid>("DomainId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExtraProperties")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ExtraProperties");
+
+                    b.Property<DateTime?>("LastModificationTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("LastModificationTime");
+
+                    b.Property<Guid?>("LastModifierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("LastModifierId");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .UseCollation("C");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .UseCollation("C");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("TenantId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DomainId");
+
+                    b.HasIndex("Origin", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "OwnerUserId", "Origin");
+
+                    b.ToTable("ShortLinkNamespaces", (string)null);
+                });
+
+            modelBuilder.Entity("SayHello.ShortLink.ShortLinkNamespaces.ShortLinkNamespaceReservation", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .UseCollation("C");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ShortLinkNamespaceReservations", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = "s"
+                        });
+                });
+
             modelBuilder.Entity("SayHello.ShortLink.ShortLinks.ShortLink", b =>
                 {
                     b.Property<Guid>("Id")
@@ -229,6 +314,17 @@ namespace SayHello.ShortLink.WebHost.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("LastModifierId");
 
+                    b.Property<string>("Namespace")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("")
+                        .UseCollation("C");
+
+                    b.Property<Guid?>("NamespaceId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Origin")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
@@ -263,17 +359,24 @@ namespace SayHello.ShortLink.WebHost.Migrations
 
                     b.HasIndex("DomainId");
 
-                    b.HasIndex("Origin", "Code")
-                        .IsUnique()
-                        .HasFilter("\"Origin\" IS NOT NULL");
+                    b.HasIndex("NamespaceId");
 
                     b.HasIndex("Status", "ExpiresAt");
+
+                    b.HasIndex("Origin", "Namespace", "Code")
+                        .IsUnique()
+                        .HasFilter("\"Origin\" IS NOT NULL");
 
                     b.HasIndex("TenantId", "OwnerUserId", "IsDeleted", "CreationTime");
 
                     b.HasIndex("TenantId", "OwnerUserId", "IsDeleted", "IsCustomCode");
 
-                    b.ToTable("ShortLinkLinks", (string)null);
+                    b.HasIndex("TenantId", "OwnerUserId", "IsDeleted", "Namespace");
+
+                    b.ToTable("ShortLinkLinks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortLinkLinks_LegacyNamespace", "\"Origin\" IS NOT NULL OR (\"Namespace\" = '' AND \"NamespaceId\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("SayHello.ShortLink.ShortLinks.ShortLinkDailyDimensionStatistic", b =>
@@ -2725,11 +2828,25 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.ToTable("AbpTenantConnectionStrings", (string)null);
                 });
 
+            modelBuilder.Entity("SayHello.ShortLink.ShortLinkNamespaces.ShortLinkNamespace", b =>
+                {
+                    b.HasOne("SayHello.ShortLink.ShortLinkDomains.ShortLinkDomain", null)
+                        .WithMany()
+                        .HasForeignKey("DomainId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SayHello.ShortLink.ShortLinks.ShortLink", b =>
                 {
                     b.HasOne("SayHello.ShortLink.ShortLinkDomains.ShortLinkDomain", null)
                         .WithMany()
                         .HasForeignKey("DomainId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SayHello.ShortLink.ShortLinkNamespaces.ShortLinkNamespace", null)
+                        .WithMany()
+                        .HasForeignKey("NamespaceId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

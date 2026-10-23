@@ -4,6 +4,8 @@ public static class ShortLinkSettings
 {
     public const string GroupName = "ShortLink";
 
+    public const string DefaultNamespace = GroupName + ".DefaultNamespace";
+
     public const string MaxLinksPerUser = GroupName + ".MaxLinksPerUser";
     public const string CreateLimitPerHour = GroupName + ".CreateLimitPerHour";
     public const string VisitRetentionDays = GroupName + ".VisitRetentionDays";

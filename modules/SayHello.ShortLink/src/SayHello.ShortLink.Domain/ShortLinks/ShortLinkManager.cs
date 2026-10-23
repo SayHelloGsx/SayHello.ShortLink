@@ -1,12 +1,11 @@
 using System;
-using System.Data;
 using System.Globalization;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.Settings;
+using SayHello.ShortLink.ShortLinkNamespaces;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
 using Volo.Abp.Settings;
@@ -18,7 +17,10 @@ namespace SayHello.ShortLink.ShortLinks;
 public class ShortLinkManager : DomainService
 {
     private readonly IShortLinkRepository _shortLinkRepository;
-    private readonly IShortLinkDomainRepository _shortLinkDomainRepository;
+    private readonly ShortLinkDomainAccessPolicy _domainAccessPolicy;
+    private readonly ShortLinkDefaultNamespaceProvider _defaultNamespaceProvider;
+    private readonly IShortLinkNamespaceRepository _namespaceRepository;
+    private readonly ShortLinkNamespaceLock _namespaceLock;
     private readonly IShortCodeGenerator _shortCodeGenerator;
     private readonly ShortCodePolicy _shortCodePolicy;
     private readonly ITargetUrlValidator _targetUrlValidator;
@@ -30,7 +32,7 @@ public class ShortLinkManager : DomainService
 
     public ShortLinkManager(
         IShortLinkRepository shortLinkRepository,
-        IShortLinkDomainRepository shortLinkDomainRepository,
+        ShortLinkDomainAccessPolicy domainAccessPolicy,
         IShortCodeGenerator shortCodeGenerator,
         ShortCodePolicy shortCodePolicy,
         ITargetUrlValidator targetUrlValidator,
@@ -38,10 +40,16 @@ public class ShortLinkManager : DomainService
         IShortLinkCapabilityProvider capabilityProvider,
         ShortLinkCreationLock creationLock,
         IUnitOfWorkManager unitOfWorkManager,
-        ICurrentTenant currentTenant)
+        ICurrentTenant currentTenant,
+        ShortLinkDefaultNamespaceProvider defaultNamespaceProvider,
+        IShortLinkNamespaceRepository namespaceRepository,
+        ShortLinkNamespaceLock namespaceLock)
     {
         _shortLinkRepository = shortLinkRepository;
-        _shortLinkDomainRepository = shortLinkDomainRepository;
+        _domainAccessPolicy = domainAccessPolicy;
+        _defaultNamespaceProvider = defaultNamespaceProvider;
+        _namespaceRepository = namespaceRepository;
+        _namespaceLock = namespaceLock;
         _shortCodeGenerator = shortCodeGenerator;
         _shortCodePolicy = shortCodePolicy;
         _targetUrlValidator = targetUrlValidator;
@@ -60,24 +68,26 @@ public class ShortLinkManager : DomainService
         string? customCode,
         string? title,
         DateTime? expiresAt,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? namespaceId = null,
+        bool useRootPath = false)
     {
         using var owned = _unitOfWorkManager.Current is null
             ? _unitOfWorkManager.Begin(requiresNew: true, isTransactional: true)
             : null;
         var unit = owned ?? _unitOfWorkManager.Current!;
-        if (!unit.Options.IsTransactional ||
-            unit.Options.IsolationLevel is IsolationLevel.RepeatableRead or
-                IsolationLevel.Snapshot or IsolationLevel.ReadUncommitted)
-        {
-            throw new AbpException("Short-link creation requires a transactional, read-committed or serializable unit of work.");
-        }
+        ShortLinkUnitOfWorkLock.EnsureTransactional(unit);
 
         try
         {
             await _creationLock.AcquireAsync(unit, ownerUserId, cancellationToken);
+            if (namespaceId.HasValue)
+            {
+                await _namespaceLock.AcquireAsync(namespaceId.Value, cancellationToken);
+            }
             var shortLink = await CreateAsync(
-                id, ownerUserId, origin, targetUrl, customCode, title, expiresAt, cancellationToken);
+                id, ownerUserId, origin, targetUrl, customCode, title, expiresAt, cancellationToken,
+                namespaceId, useRootPath);
             await _shortLinkRepository.InsertAsync(shortLink, autoSave: true, cancellationToken);
             if (owned is not null)
             {
@@ -102,8 +112,14 @@ public class ShortLinkManager : DomainService
         string? customCode,
         string? title,
         DateTime? expiresAt,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? namespaceId = null,
+        bool useRootPath = false)
     {
+        if (namespaceId.HasValue && useRootPath)
+        {
+            throw new BusinessException(ShortLinkErrorCodes.NamespaceSelectionConflict);
+        }
         if (ownerUserId == Guid.Empty)
         {
             throw new BusinessException(ShortLinkErrorCodes.LinkAccessDenied);
@@ -150,16 +166,49 @@ public class ShortLinkManager : DomainService
             }
         }
 
-        var domain = await GetAuthorizedDomainAsync(
+        if (useRootPath)
+        {
+            var rootQuota = await _capabilityProvider.GetRootLinkQuotaAsync(ownerUserId, cancellationToken);
+            if (!rootQuota.IsGranted)
+            {
+                throw new BusinessException(ShortLinkErrorCodes.RootLinkQuotaNotGranted);
+            }
+            var rootCount = await _shortLinkRepository.GetRootLinkCountByOwnerAsync(ownerUserId, cancellationToken);
+            if (rootQuota.Limit is { } rootLimit && rootCount >= rootLimit)
+            {
+                throw new BusinessException(ShortLinkErrorCodes.RootLinkQuotaExceeded).WithData("Limit", rootLimit);
+            }
+        }
+
+        var domain = await _domainAccessPolicy.GetAuthorizedAsync(
             ownerUserId,
             origin,
             cancellationToken);
+        string pathNamespace;
+        if (namespaceId.HasValue)
+        {
+            if (!await _capabilityProvider.IsNamespaceEnabledAsync(ownerUserId, cancellationToken))
+            {
+                throw new BusinessException(ShortLinkErrorCodes.NamespacesNotGranted);
+            }
+            var selected = await _namespaceRepository.FindAsync(namespaceId.Value, cancellationToken: cancellationToken);
+            if (selected is null || selected.OwnerUserId != ownerUserId || selected.TenantId != _currentTenant.Id ||
+                selected.DomainId != domain.Id || !string.Equals(selected.Origin, domain.Origin, StringComparison.Ordinal))
+            {
+                throw new BusinessException(ShortLinkErrorCodes.NamespaceAccessDenied);
+            }
+            pathNamespace = selected.Name;
+        }
+        else
+        {
+            pathNamespace = useRootPath ? string.Empty : await _defaultNamespaceProvider.GetAsync(cancellationToken);
+        }
         var validatedTarget = await _targetUrlValidator.ValidateAsync(
             targetUrl,
             cancellationToken);
         var code = customCode.IsNullOrWhiteSpace()
-            ? await GenerateAvailableCodeAsync(domain.Origin, cancellationToken)
-            : await ValidateAvailableCustomCodeAsync(domain.Origin, customCode!, cancellationToken);
+            ? await GenerateAvailableCodeAsync(domain.Origin, pathNamespace, cancellationToken)
+            : await ValidateAvailableCustomCodeAsync(domain.Origin, pathNamespace, customCode!, cancellationToken);
 
         return new ShortLink(
             id,
@@ -171,30 +220,15 @@ public class ShortLinkManager : DomainService
             validatedTarget.NormalizedUrl,
             title,
             expiresAt,
-            isCustomCode);
+            isCustomCode,
+            pathNamespace,
+            namespaceId);
     }
     public async Task<IReadOnlyList<ShortLinkDomain>> GetAvailableDomainsAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        if (userId == Guid.Empty)
-        {
-            throw new BusinessException(ShortLinkErrorCodes.DomainAccessDenied);
-        }
-
-        var domains = (await _shortLinkDomainRepository.GetListAsync(cancellationToken))
-            .Where(x => x.IsEnabled)
-            .ToList();
-        if (domains.Count(x => x.IsDefault) != 1)
-        {
-            throw new BusinessException(ShortLinkErrorCodes.DefaultDomainRequired);
-        }
-        var access = await _capabilityProvider.GetDomainAccessAsync(
-            userId,
-            cancellationToken);
-        return domains
-            .Where(domain => domain.IsDefault || access.Allows(domain.Origin))
-            .ToList();
+        return await _domainAccessPolicy.GetAvailableAsync(userId, cancellationToken);
     }
 
     public async Task UpdateAsync(
@@ -213,11 +247,12 @@ public class ShortLinkManager : DomainService
 
     private async Task<string> ValidateAvailableCustomCodeAsync(
         string origin,
+        string pathNamespace,
         string customCode,
         CancellationToken cancellationToken)
     {
-        var code = _shortCodePolicy.ValidateCustomCode(customCode);
-        if (await _shortLinkRepository.CodeExistsAsync(origin, code, cancellationToken))
+        var code = _shortCodePolicy.ValidateCustomCode(customCode, allowReserved: pathNamespace.Length > 0);
+        if (await _shortLinkRepository.CodeExistsAsync(origin, pathNamespace, code, cancellationToken))
         {
             throw new BusinessException(ShortLinkErrorCodes.CodeAlreadyExists)
                 .WithData("Code", code);
@@ -228,6 +263,7 @@ public class ShortLinkManager : DomainService
 
     private async Task<string> GenerateAvailableCodeAsync(
         string origin,
+        string pathNamespace,
         CancellationToken cancellationToken)
     {
         var length = await GetPositiveSettingAsync(
@@ -244,8 +280,8 @@ public class ShortLinkManager : DomainService
         for (var attempt = 0; attempt < ShortLinkConsts.MaxCodeGenerationAttempts; attempt++)
         {
             var code = _shortCodeGenerator.Generate(length);
-            if (!ShortLinkReservedCodes.Contains(code) &&
-                !await _shortLinkRepository.CodeExistsAsync(origin, code, cancellationToken))
+            if ((pathNamespace.Length > 0 || !ShortLinkReservedCodes.Contains(code)) &&
+                !await _shortLinkRepository.CodeExistsAsync(origin, pathNamespace, code, cancellationToken))
             {
                 return code;
             }
@@ -254,38 +290,6 @@ public class ShortLinkManager : DomainService
         throw new AbpException(
             $"Unable to generate an available short code after {ShortLinkConsts.MaxCodeGenerationAttempts} attempts.");
     }
-    private async Task<ShortLinkDomain> GetAuthorizedDomainAsync(
-        Guid userId,
-        string origin,
-        CancellationToken cancellationToken)
-    {
-        var normalizedOrigin = ShortLinkDomainOrigin.Normalize(origin);
-        var domain = await _shortLinkDomainRepository.FindByOriginAsync(
-            normalizedOrigin,
-            enabledOnly: true,
-            cancellationToken);
-        if (domain is null)
-        {
-            throw new BusinessException(ShortLinkErrorCodes.DomainAccessDenied)
-                .WithData("Origin", normalizedOrigin);
-        }
-
-        if (domain.IsDefault)
-        {
-            return domain;
-        }
-        var access = await _capabilityProvider.GetDomainAccessAsync(
-            userId,
-            cancellationToken);
-        if (!access.Allows(domain.Origin))
-        {
-            throw new BusinessException(ShortLinkErrorCodes.DomainAccessDenied)
-                .WithData("Origin", normalizedOrigin);
-        }
-
-        return domain;
-    }
-
     private async Task<int> GetPositiveSettingAsync(string name, int defaultValue)
     {
         var value = await _settingProvider.GetOrNullAsync(name);

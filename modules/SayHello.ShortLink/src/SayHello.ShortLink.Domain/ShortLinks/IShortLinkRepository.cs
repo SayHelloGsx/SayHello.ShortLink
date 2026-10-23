@@ -10,6 +10,23 @@ public interface IShortLinkRepository : IRepository<ShortLink, Guid>
 {
     Task<bool> CodeExistsAsync(
         string origin,
+        string pathNamespace,
+        string code,
+        CancellationToken cancellationToken = default);
+
+    Task<ShortLink?> FindByCodeAsync(
+        string origin,
+        string pathNamespace,
+        string code,
+        bool includeDeleted = false,
+        CancellationToken cancellationToken = default);
+
+    Task<long> GetRootLinkCountByOwnerAsync(
+        Guid ownerUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> CodeExistsAsync(
+        string origin,
         string code,
         CancellationToken cancellationToken = default);
 

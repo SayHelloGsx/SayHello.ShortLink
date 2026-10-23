@@ -69,6 +69,12 @@ public class ShortLinkCapabilitiesTests :
         _capabilities.GetDomainAccessAsync(
                 Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(ShortLinkDomainAccess.Unrestricted);
+        _capabilities.IsNamespaceEnabledAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        _capabilities.GetNamespaceQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ShortLinkQuota.Unlimited);
+        _capabilities.GetRootLinkQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(ShortLinkQuota.Unlimited);
         _permissions = Substitute.For<IPermissionChecker>();
         _permissions.IsGrantedAsync(Arg.Any<string>())
             .Returns(call =>
@@ -198,7 +204,7 @@ public class ShortLinkCapabilitiesTests :
         var redirect = GetRequiredService<IShortLinkRedirectAppService>();
         foreach (var code in new[] { first.Code, first.Code, second.Code })
         {
-            (await redirect.ResolveAsync(first.Origin!, code, new RecordShortLinkVisitDto
+            (await redirect.ResolveAsync(first.Origin!, first.Namespace, code, new RecordShortLinkVisitDto
             {
                 IpAddress = "203.0.113.10",
                 UserAgent = "Mozilla/5.0 Chrome/120.0"
@@ -256,7 +262,7 @@ public class ShortLinkCapabilitiesTests :
     {
         var created = await CreateAsync();
         var redirect = GetRequiredService<IShortLinkRedirectAppService>();
-        await redirect.ResolveAsync(created.Origin!, created.Code, new RecordShortLinkVisitDto
+        await redirect.ResolveAsync(created.Origin!, created.Namespace, created.Code, new RecordShortLinkVisitDto
         {
             IpAddress = "203.0.113.10",
             UserAgent = "Mozilla/5.0 Chrome/120.0"
@@ -442,11 +448,11 @@ public class ShortLinkCapabilitiesTests :
             CustomCode = sharedCode
         });
         var redirect = GetRequiredService<IShortLinkRedirectAppService>();
-        (await redirect.ResolveAsync(defaultLink.Origin!, sharedCode)).TargetUrl
+        (await redirect.ResolveAsync(defaultLink.Origin!, defaultLink.Namespace, sharedCode)).TargetUrl
             .ShouldBe("https://example.com/default");
-        (await redirect.ResolveAsync(extraLink.Origin!, sharedCode)).TargetUrl
+        (await redirect.ResolveAsync(extraLink.Origin!, extraLink.Namespace, sharedCode)).TargetUrl
             .ShouldBe("https://example.org/extra");
-        (await redirect.ResolveAsync("https://wrong.example.test", sharedCode)).Status
+        (await redirect.ResolveAsync("https://wrong.example.test", defaultLink.Namespace, sharedCode)).Status
             .ShouldBe(ShortLinkResolutionStatus.NotFound);
 
         await WithUnitOfWorkAsync(async () =>
@@ -465,7 +471,7 @@ public class ShortLinkCapabilitiesTests :
                 CustomCode = "Extra02"
             }));
         denied.Code.ShouldBe(ShortLinkErrorCodes.DomainAccessDenied);
-        (await redirect.ResolveAsync(extraLink.Origin!, sharedCode)).Status
+        (await redirect.ResolveAsync(extraLink.Origin!, extraLink.Namespace, sharedCode)).Status
             .ShouldBe(ShortLinkResolutionStatus.Found);
 
         await _appService.DeleteAsync(extraLink.Id);
@@ -593,8 +599,15 @@ public class ShortLinkCapabilitiesTests :
         IShortLinkRepository repository,
         Func<bool> shouldSeed) : IShortLinkCacheInvalidator
     {
+        public Task RemoveAsync(
+            string? origin,
+            string code,
+            CancellationToken cancellationToken = default) =>
+            RemoveAsync(origin, string.Empty, code, cancellationToken);
+
         public async Task RemoveAsync(
             string? origin,
+            string pathNamespace,
             string code,
             CancellationToken cancellationToken = default)
         {
@@ -603,6 +616,7 @@ public class ShortLinkCapabilitiesTests :
                 // Persist a nonzero counter after insertion but before the create response is mapped.
                 var entity = await repository.FindByCodeAsync(
                     origin!,
+                    pathNamespace,
                     code,
                     cancellationToken: cancellationToken);
                 if (entity is { TotalVisitCount: 0 })
@@ -613,7 +627,7 @@ public class ShortLinkCapabilitiesTests :
                 }
             }
 
-            await inner.RemoveAsync(origin, code, cancellationToken);
+            await inner.RemoveAsync(origin, pathNamespace, code, cancellationToken);
         }
     }
 
