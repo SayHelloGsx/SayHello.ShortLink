@@ -37,12 +37,12 @@ public class DomainsModel : ShortLinkAdminPageModel
         _authorizationService = authorizationService;
     }
 
-    public Task OnGetAsync()
+    public virtual Task OnGetAsync()
     {
         return LoadAsync();
     }
 
-    public async Task<IActionResult> OnPostCreateAsync()
+    public virtual async Task<IActionResult> OnPostCreateAsync()
     {
         if (!ModelState.IsValid)
         {
@@ -54,7 +54,7 @@ public class DomainsModel : ShortLinkAdminPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostSetEnabledAsync(
+    public virtual async Task<IActionResult> OnPostSetEnabledAsync(
         Guid id,
         bool isEnabled,
         string concurrencyStamp)
@@ -69,7 +69,7 @@ public class DomainsModel : ShortLinkAdminPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostSetDefaultAsync(
+    public virtual async Task<IActionResult> OnPostSetDefaultAsync(
         Guid id,
         string concurrencyStamp)
     {
@@ -82,7 +82,7 @@ public class DomainsModel : ShortLinkAdminPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(Guid id)
+    public virtual async Task<IActionResult> OnPostDeleteAsync(Guid id)
     {
         await _appService.DeleteAsync(id);
         return RedirectToPage();

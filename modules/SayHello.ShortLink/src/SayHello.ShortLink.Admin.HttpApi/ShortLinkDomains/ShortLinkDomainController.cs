@@ -21,19 +21,19 @@ public class ShortLinkDomainController :
     }
 
     [HttpGet]
-    public Task<ListResultDto<ShortLinkDomainDto>> GetListAsync()
+    public virtual Task<ListResultDto<ShortLinkDomainDto>> GetListAsync()
     {
         return _appService.GetListAsync();
     }
 
     [HttpPost]
-    public Task<ShortLinkDomainDto> CreateAsync(CreateShortLinkDomainDto input)
+    public virtual Task<ShortLinkDomainDto> CreateAsync(CreateShortLinkDomainDto input)
     {
         return _appService.CreateAsync(input);
     }
 
     [HttpPut("{id:guid}/enabled")]
-    public Task<ShortLinkDomainDto> SetEnabledAsync(
+    public virtual Task<ShortLinkDomainDto> SetEnabledAsync(
         Guid id,
         SetShortLinkDomainEnabledDto input)
     {
@@ -41,7 +41,7 @@ public class ShortLinkDomainController :
     }
 
     [HttpPut("{id:guid}/default")]
-    public Task<ShortLinkDomainDto> SetDefaultAsync(
+    public virtual Task<ShortLinkDomainDto> SetDefaultAsync(
         Guid id,
         ShortLinkDomainVersionDto input)
     {
@@ -49,7 +49,7 @@ public class ShortLinkDomainController :
     }
 
     [HttpDelete("{id:guid}")]
-    public Task DeleteAsync(Guid id)
+    public virtual Task DeleteAsync(Guid id)
     {
         return _appService.DeleteAsync(id);
     }

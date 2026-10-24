@@ -90,9 +90,14 @@ namespace SayHello.ShortLink.WebHost.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Domain")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"TenantId\" IS NULL AND NOT \"IsDeleted\"");
 
                     b.HasIndex("IsActive", "Domain");
+
+                    b.HasIndex("TenantId", "Domain")
+                        .IsUnique()
+                        .HasFilter("\"TenantId\" IS NOT NULL AND NOT \"IsDeleted\"");
 
                     b.ToTable("ShortLinkBlockedDomains", (string)null);
                 });

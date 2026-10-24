@@ -26,37 +26,37 @@ public class CurrentUserEntitlementController : AbpControllerBase, ICurrentUserE
     }
 
     [HttpGet]
-    public Task<EffectiveSubscriptionDto> GetAsync(
+    public virtual Task<EffectiveSubscriptionDto> GetAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode) =>
         _service.GetAsync(productCode);
 
     [HttpGet("/api/subscription/public/default-entitlements")]
-    public Task<PagedResultDto<DefaultSubscriptionPlanDto>> GetDefaultPlansAsync([FromQuery] GetPublicCatalogInput input) =>
+    public virtual Task<PagedResultDto<DefaultSubscriptionPlanDto>> GetDefaultPlansAsync([FromQuery] GetPublicCatalogInput input) =>
         _service.GetDefaultPlansAsync(input);
 
     [HttpGet("boolean/{featureKey}")]
-    public Task<BooleanEntitlementResultDto> GetBooleanAsync(
+    public virtual Task<BooleanEntitlementResultDto> GetBooleanAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
         [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
         CancellationToken cancellationToken = default) =>
         _service.GetBooleanAsync(productCode, featureKey, cancellationToken);
 
     [HttpGet("numeric/{featureKey}")]
-    public Task<NumericEntitlementResultDto> GetNumericAsync(
+    public virtual Task<NumericEntitlementResultDto> GetNumericAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
         [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
         CancellationToken cancellationToken = default) =>
         _service.GetNumericAsync(productCode, featureKey, cancellationToken);
 
     [HttpGet("enum/{featureKey}")]
-    public Task<EnumEntitlementResultDto> GetEnumAsync(
+    public virtual Task<EnumEntitlementResultDto> GetEnumAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
         [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
         CancellationToken cancellationToken = default) =>
         _service.GetEnumAsync(productCode, featureKey, cancellationToken);
 
     [HttpGet("string-set/{featureKey}")]
-    public Task<StringSetEntitlementResultDto> GetStringSetAsync(
+    public virtual Task<StringSetEntitlementResultDto> GetStringSetAsync(
         [Required, StringLength(SubscriptionConsts.MaxCodeLength)] string productCode,
         [Required, StringLength(SubscriptionConsts.MaxFeatureKeyLength)] string featureKey,
         CancellationToken cancellationToken = default) =>

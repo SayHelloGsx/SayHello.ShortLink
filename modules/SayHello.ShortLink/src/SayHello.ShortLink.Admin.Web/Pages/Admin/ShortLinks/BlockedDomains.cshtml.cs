@@ -30,12 +30,12 @@ public class BlockedDomainsModel : ShortLinkAdminPageModel
         _appService = appService;
     }
 
-    public async Task OnGetAsync()
+    public virtual async Task OnGetAsync()
     {
         await LoadAsync();
     }
 
-    public async Task<IActionResult> OnPostCreateAsync()
+    public virtual async Task<IActionResult> OnPostCreateAsync()
     {
         if (!ModelState.IsValid)
         {
@@ -47,7 +47,7 @@ public class BlockedDomainsModel : ShortLinkAdminPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostToggleAsync(
+    public virtual async Task<IActionResult> OnPostToggleAsync(
         Guid id,
         string? reason,
         bool isActive,
@@ -64,13 +64,13 @@ public class BlockedDomainsModel : ShortLinkAdminPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(Guid id)
+    public virtual async Task<IActionResult> OnPostDeleteAsync(Guid id)
     {
         await _appService.DeleteAsync(id);
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostImportAsync()
+    public virtual async Task<IActionResult> OnPostImportAsync()
     {
         if (CsvFile is null)
         {

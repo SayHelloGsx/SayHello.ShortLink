@@ -19,13 +19,13 @@ public class ShortLinkSettingsController :
     }
 
     [HttpGet]
-    public Task<ShortLinkSettingsDto> GetAsync()
+    public virtual Task<ShortLinkSettingsDto> GetAsync()
     {
         return _appService.GetAsync();
     }
 
     [HttpPut]
-    public Task<ShortLinkSettingsDto> UpdateAsync(ShortLinkSettingsDto input)
+    public virtual Task<ShortLinkSettingsDto> UpdateAsync(ShortLinkSettingsDto input)
     {
         return _appService.UpdateAsync(input);
     }

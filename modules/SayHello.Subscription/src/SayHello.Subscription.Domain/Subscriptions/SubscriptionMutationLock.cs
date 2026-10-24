@@ -23,7 +23,7 @@ public class SubscriptionMutationLock : ITransientDependency
         _currentTenant = currentTenant;
     }
 
-    public Task AcquireAsync(IUnitOfWork unitOfWork, Guid userId, CancellationToken cancellationToken) =>
+    public virtual Task AcquireAsync(IUnitOfWork unitOfWork, Guid userId, CancellationToken cancellationToken) =>
         AcquireKeyAsync(
             unitOfWork,
             $"Subscription:Mutation:{_currentTenant.Id?.ToString("N") ?? "host"}:{userId:N}",
@@ -31,7 +31,7 @@ public class SubscriptionMutationLock : ITransientDependency
 
     // Catalog commands may change several aggregate roots in one transaction.
     // Lock the tenant catalog before database access to keep their lock ordering consistent.
-    public Task AcquireCatalogAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+    public virtual Task AcquireCatalogAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         AcquireKeyAsync(
             unitOfWork,
             $"Subscription:Catalog:{_currentTenant.Id?.ToString("N") ?? "host"}",

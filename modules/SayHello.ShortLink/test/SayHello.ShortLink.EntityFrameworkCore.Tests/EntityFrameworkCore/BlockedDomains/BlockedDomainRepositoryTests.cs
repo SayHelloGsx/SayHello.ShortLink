@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using SayHello.ShortLink.EntityFrameworkCore;
 using Shouldly;
 using Volo.Abp.Guids;
@@ -68,5 +70,33 @@ public class BlockedDomainRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
             (await WithUnitOfWorkAsync(() => _repository.GetListAsync(CancellationToken.None)))
                 .Single().Id.ShouldBe(tenantDomain.Id);
         }
+    }
+
+    [Fact]
+    public async Task Domain_Uniqueness_Should_Be_Per_Tenant_And_Ignore_Soft_Deleted_Rows()
+    {
+        var tenantId = Guid.NewGuid();
+        var deleted = new BlockedDomain(_guidGenerator.Create(), null, "unique.example");
+
+        await WithUnitOfWorkAsync(async () =>
+        {
+            await _repository.InsertAsync(deleted, autoSave: true);
+            await _repository.DeleteAsync(deleted, autoSave: true);
+        });
+        await WithUnitOfWorkAsync(() => _repository.InsertAsync(
+            new BlockedDomain(_guidGenerator.Create(), null, "unique.example"),
+            autoSave: true));
+        using (_currentTenant.Change(tenantId))
+        {
+            await WithUnitOfWorkAsync(() => _repository.InsertAsync(
+                new BlockedDomain(_guidGenerator.Create(), tenantId, "unique.example"),
+                autoSave: true));
+        }
+
+        var duplicate = await Should.ThrowAsync<DbUpdateException>(() => WithUnitOfWorkAsync(() =>
+            _repository.InsertAsync(
+                new BlockedDomain(_guidGenerator.Create(), null, "unique.example"),
+                autoSave: true)));
+        duplicate.InnerException.ShouldBeOfType<SqliteException>().SqliteExtendedErrorCode.ShouldBe(2067);
     }
 }

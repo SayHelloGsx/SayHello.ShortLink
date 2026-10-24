@@ -32,7 +32,7 @@ public class TargetUrlValidator : DomainService, ITargetUrlValidator
         _securityOptions = securityOptions.Value;
     }
 
-    public async Task<TargetUrlValidationResult> ValidateAsync(
+    public virtual async Task<TargetUrlValidationResult> ValidateAsync(
         string targetUrl,
         CancellationToken cancellationToken = default)
     {

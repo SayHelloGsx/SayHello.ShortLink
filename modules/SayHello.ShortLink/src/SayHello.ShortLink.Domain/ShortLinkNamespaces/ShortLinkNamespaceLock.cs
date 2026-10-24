@@ -12,14 +12,14 @@ public class ShortLinkNamespaceLock(
     ShortLinkUnitOfWorkLock unitOfWorkLock,
     IUnitOfWorkManager unitOfWorkManager) : ITransientDependency
 {
-    public Task AcquireConfigurationAsync(CancellationToken cancellationToken = default)
+    public virtual Task AcquireConfigurationAsync(CancellationToken cancellationToken = default)
     {
         return unitOfWorkLock.AcquireAsync(
             GetUnit(), "ShortLink:NamespaceConfiguration", ShortLinkErrorCodes.NamespaceLockUnavailable, cancellationToken,
             ShortLinkLockOrder.NamespaceConfiguration);
     }
 
-    public Task AcquireAsync(Guid namespaceId, CancellationToken cancellationToken = default)
+    public virtual Task AcquireAsync(Guid namespaceId, CancellationToken cancellationToken = default)
     {
         return unitOfWorkLock.AcquireAsync(
             GetUnit(), $"ShortLink:Namespace:{namespaceId:N}", ShortLinkErrorCodes.NamespaceLockUnavailable, cancellationToken,

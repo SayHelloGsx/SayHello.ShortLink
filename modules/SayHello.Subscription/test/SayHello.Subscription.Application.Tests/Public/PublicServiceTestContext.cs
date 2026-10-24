@@ -6,6 +6,7 @@ using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Subscriptions;
 using Volo.Abp.DependencyInjection;
+using Volo.Abp.Domain.Services;
 using Volo.Abp.Localization;
 using Volo.Abp.MultiTenancy;
 using Volo.Abp.Threading;
@@ -33,13 +34,24 @@ internal sealed class PublicServiceTestContext
 
     public T Configure<T>(T service) where T : SubscriptionApplicationService
     {
+        service.LazyServiceProvider = CreateLazyServiceProvider();
+        return service;
+    }
+
+    public T ConfigureDomainService<T>(T service) where T : DomainService
+    {
+        service.LazyServiceProvider = CreateLazyServiceProvider();
+        return service;
+    }
+
+    private IAbpLazyServiceProvider CreateLazyServiceProvider()
+    {
         var lazy = Substitute.For<IAbpLazyServiceProvider>();
         lazy.LazyGetRequiredService<ICurrentUser>().Returns(CurrentUser);
         lazy.LazyGetRequiredService<ICurrentTenant>().Returns(CurrentTenant);
         lazy.LazyGetRequiredService<IClock>().Returns(Clock);
         lazy.LazyGetRequiredService<ICancellationTokenProvider>().Returns(Substitute.For<ICancellationTokenProvider>());
-        service.LazyServiceProvider = lazy;
-        return service;
+        return lazy;
     }
 
     public (ProductDefinition Definition, SubscriptionProduct Product, SubscriptionPlan Plan) Catalog(string code)

@@ -24,9 +24,9 @@ public class MySubscriptionController : AbpControllerBase, IMySubscriptionAppSer
     }
 
     [HttpGet]
-    public Task<PagedResultDto<UserSubscriptionDto>> GetListAsync([FromQuery] GetMySubscriptionsInput input) =>
+    public virtual Task<PagedResultDto<UserSubscriptionDto>> GetListAsync([FromQuery] GetMySubscriptionsInput input) =>
         _service.GetListAsync(input);
 
     [HttpGet("{id:guid}")]
-    public Task<UserSubscriptionDto> GetAsync(Guid id) => _service.GetAsync(id);
+    public virtual Task<UserSubscriptionDto> GetAsync(Guid id) => _service.GetAsync(id);
 }

@@ -39,7 +39,7 @@ public class BlockedDomainCsvImporter : ITransientDependency
         _currentTenant = currentTenant;
     }
 
-    public async Task<BlockedDomainCsvImportExecutionResult> ImportAsync(
+    public virtual async Task<BlockedDomainCsvImportExecutionResult> ImportAsync(
         IRemoteStreamContent file,
         CancellationToken cancellationToken = default)
     {

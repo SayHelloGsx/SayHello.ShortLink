@@ -29,7 +29,7 @@ public class EfCoreShortLinkDomainRepository :
         _multiTenantFilter = multiTenantFilter;
     }
 
-    public async Task<List<ShortLinkDomain>> GetListAsync(
+    public virtual async Task<List<ShortLinkDomain>> GetListAsync(
         CancellationToken cancellationToken = default)
     {
         return await (await GetDbSetAsync())
@@ -39,7 +39,7 @@ public class EfCoreShortLinkDomainRepository :
             .ToListAsync(GetCancellationToken(cancellationToken));
     }
 
-    public async Task<ShortLinkDomain?> FindByOriginAsync(
+    public virtual async Task<ShortLinkDomain?> FindByOriginAsync(
         string normalizedOrigin,
         bool enabledOnly = false,
         CancellationToken cancellationToken = default)
@@ -51,7 +51,7 @@ public class EfCoreShortLinkDomainRepository :
                 GetCancellationToken(cancellationToken));
     }
 
-    public async Task<ShortLinkDomain?> FindDefaultAsync(
+    public virtual async Task<ShortLinkDomain?> FindDefaultAsync(
         CancellationToken cancellationToken = default)
     {
         return await (await GetDbSetAsync())
@@ -60,7 +60,7 @@ public class EfCoreShortLinkDomainRepository :
                 GetCancellationToken(cancellationToken));
     }
 
-    public async Task<bool> OriginExistsAsync(
+    public virtual async Task<bool> OriginExistsAsync(
         string normalizedOrigin,
         bool enabledOnly = false,
         CancellationToken cancellationToken = default)
@@ -71,7 +71,7 @@ public class EfCoreShortLinkDomainRepository :
             GetCancellationToken(cancellationToken));
     }
 
-    public async Task<bool> IsHostConfiguredAsync(
+    public virtual async Task<bool> IsHostConfiguredAsync(
         string normalizedHost,
         CancellationToken cancellationToken = default)
     {
@@ -89,7 +89,7 @@ public class EfCoreShortLinkDomainRepository :
         }
     }
 
-    public async Task<long> GetShortLinkReferenceCountAsync(
+    public virtual async Task<long> GetShortLinkReferenceCountAsync(
         Guid domainId,
         CancellationToken cancellationToken = default)
     {

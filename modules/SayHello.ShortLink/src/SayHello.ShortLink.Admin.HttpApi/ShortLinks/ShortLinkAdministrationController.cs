@@ -22,19 +22,19 @@ public class ShortLinkAdministrationController :
     }
 
     [HttpGet]
-    public Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
+    public virtual Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
     {
         return _appService.GetListAsync(input);
     }
 
     [HttpPut("{id:guid}/status")]
-    public Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
+    public virtual Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
     {
         return _appService.SetStatusAsync(id, input);
     }
 
     [HttpDelete("{id:guid}")]
-    public Task DeleteAsync(Guid id)
+    public virtual Task DeleteAsync(Guid id)
     {
         return _appService.DeleteAsync(id);
     }

@@ -118,7 +118,13 @@ public static class ShortLinkDbContextModelCreatingExtensions
             b.ConfigureByConvention();
             b.Property(x => x.Domain).IsRequired().HasMaxLength(ShortLinkConsts.MaxHostLength);
             b.Property(x => x.Reason).HasMaxLength(BlockedDomainConsts.MaxReasonLength);
-            b.HasIndex(x => x.Domain).IsUnique();
+            // Unique per tenant (host rows have a NULL TenantId) and ignoring soft-deleted rows.
+            b.HasIndex(x => new { x.TenantId, x.Domain })
+                .IsUnique()
+                .HasFilter("\"TenantId\" IS NOT NULL AND NOT \"IsDeleted\"");
+            b.HasIndex(x => x.Domain)
+                .IsUnique()
+                .HasFilter("\"TenantId\" IS NULL AND NOT \"IsDeleted\"");
             b.HasIndex(x => new { x.IsActive, x.Domain });
         });
 

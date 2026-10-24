@@ -44,9 +44,9 @@ public class NamespacesModel : ShortLinkPublicPageModel
         _linkAppService = linkAppService;
     }
 
-    public Task OnGetAsync() => LoadAsync();
+    public virtual Task OnGetAsync() => LoadAsync();
 
-    public async Task<IActionResult> OnPostCreateAsync()
+    public virtual async Task<IActionResult> OnPostCreateAsync()
     {
         await AuthorizationService.CheckAsync(ShortLinkPublicPermissions.Namespaces.Create);
         if (!ModelState.IsValid)
@@ -90,7 +90,7 @@ public class NamespacesModel : ShortLinkPublicPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(Guid id, string concurrencyStamp)
+    public virtual async Task<IActionResult> OnPostDeleteAsync(Guid id, string concurrencyStamp)
     {
         await AuthorizationService.CheckAsync(ShortLinkPublicPermissions.Namespaces.Delete);
         var unitOfWorkManager = LazyServiceProvider.LazyGetRequiredService<IUnitOfWorkManager>();

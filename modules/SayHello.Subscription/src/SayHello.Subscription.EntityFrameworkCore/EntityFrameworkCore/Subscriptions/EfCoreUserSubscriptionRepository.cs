@@ -18,17 +18,17 @@ public class EfCoreUserSubscriptionRepository : SubscriptionEfRepository<UserSub
     public override async Task<IQueryable<UserSubscription>> WithDetailsAsync() =>
         (await GetQueryableAsync()).Include(x => x.Entitlements);
 
-    public Task<UserSubscription> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
+    public virtual Task<UserSubscription> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
         base.GetAsync(id, includeDetails: true, cancellationToken);
 
-    public async Task<UserSubscription?> FindCurrentAsync(Guid userId, Guid productId,
+    public virtual async Task<UserSubscription?> FindCurrentAsync(Guid userId, Guid productId,
         CancellationToken cancellationToken = default)
     {
         return await (await WithDetailsAsync()).SingleOrDefaultAsync(
             x => x.UserId == userId && x.ProductId == productId && x.IsCurrent, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<UserSubscription>> GetCurrentListAsync(Guid userId,
+    public virtual async Task<IReadOnlyList<UserSubscription>> GetCurrentListAsync(Guid userId,
         IReadOnlyCollection<Guid>? productIds = null, CancellationToken cancellationToken = default)
     {
         var data = (await WithDetailsAsync()).Where(x => x.UserId == userId && x.IsCurrent);
@@ -36,7 +36,7 @@ public class EfCoreUserSubscriptionRepository : SubscriptionEfRepository<UserSub
         return await data.OrderBy(x => x.ProductCode).ToListAsync(cancellationToken);
     }
 
-    public async Task<UserSubscription?> FindEffectiveAsync(Guid userId, string productCode, DateTime now,
+    public virtual async Task<UserSubscription?> FindEffectiveAsync(Guid userId, string productCode, DateTime now,
         CancellationToken cancellationToken = default)
     {
         SubscriptionGuard.Utc(now);
@@ -46,7 +46,7 @@ public class EfCoreUserSubscriptionRepository : SubscriptionEfRepository<UserSub
                 x.IsCurrent && x.EndedAt == null && x.StartsAt <= now && (x.ExpiresAt == null || x.ExpiresAt > now), cancellationToken);
     }
 
-    public async Task<SubscriptionPage<UserSubscription>> GetPageAsync(UserSubscriptionQuery query,
+    public virtual async Task<SubscriptionPage<UserSubscription>> GetPageAsync(UserSubscriptionQuery query,
         CancellationToken cancellationToken = default)
     {
         query.Validate();

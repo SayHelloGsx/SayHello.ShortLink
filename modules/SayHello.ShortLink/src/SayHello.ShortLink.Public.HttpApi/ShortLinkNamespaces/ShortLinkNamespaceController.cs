@@ -13,14 +13,14 @@ public class ShortLinkNamespaceController(IShortLinkNamespaceAppService appServi
     ShortLinkPublicController, IShortLinkNamespaceAppService
 {
     [HttpGet]
-    public Task<ListResultDto<ShortLinkNamespaceDto>> GetListAsync(string? origin = null) =>
+    public virtual Task<ListResultDto<ShortLinkNamespaceDto>> GetListAsync(string? origin = null) =>
         appService.GetListAsync(origin);
 
     [HttpPost]
-    public Task<ShortLinkNamespaceDto> CreateAsync(CreateShortLinkNamespaceDto input) =>
+    public virtual Task<ShortLinkNamespaceDto> CreateAsync(CreateShortLinkNamespaceDto input) =>
         appService.CreateAsync(input);
 
     [HttpDelete("{id:guid}")]
-    public Task DeleteAsync(Guid id, [FromBody] DeleteShortLinkNamespaceDto input) =>
+    public virtual Task DeleteAsync(Guid id, [FromBody] DeleteShortLinkNamespaceDto input) =>
         appService.DeleteAsync(id, input);
 }

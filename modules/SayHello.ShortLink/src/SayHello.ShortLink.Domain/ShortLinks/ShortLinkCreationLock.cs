@@ -20,7 +20,7 @@ public class ShortLinkCreationLock : ITransientDependency
         _currentTenant = currentTenant;
     }
 
-    public async Task AcquireAsync(
+    public virtual async Task AcquireAsync(
         IUnitOfWork unitOfWork,
         Guid userId,
         CancellationToken cancellationToken)

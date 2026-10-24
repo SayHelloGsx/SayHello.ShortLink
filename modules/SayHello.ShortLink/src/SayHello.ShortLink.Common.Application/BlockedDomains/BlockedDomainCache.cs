@@ -40,7 +40,7 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
         _currentTenant = currentTenant;
     }
 
-    public async Task<BlockedDomainResolutionCacheItem> GetAsync(
+    public virtual async Task<BlockedDomainResolutionCacheItem> GetAsync(
         string host,
         CancellationToken cancellationToken = default)
     {
@@ -81,7 +81,7 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
         return result;
     }
 
-    public Task InvalidateAsync(
+    public virtual Task InvalidateAsync(
         string domain,
         CancellationToken cancellationToken = default)
     {
@@ -89,7 +89,7 @@ public class BlockedDomainCache : IBlockedDomainCache, ITransientDependency
         return InvalidateManyAsync(domains, cancellationToken);
     }
 
-    public async Task InvalidateManyAsync(
+    public virtual async Task InvalidateManyAsync(
         IReadOnlyCollection<string> domains,
         CancellationToken cancellationToken = default)
     {

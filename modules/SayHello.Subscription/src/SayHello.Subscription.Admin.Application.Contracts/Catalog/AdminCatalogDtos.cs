@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Entitlements;
+using Volo.Abp.Domain.Entities;
 
 namespace SayHello.Subscription.Admin.Catalog;
 
@@ -27,7 +28,7 @@ public class CatalogDetailsDto
     public int DisplayOrder { get; set; }
 }
 
-public class VersionInputDto
+public class VersionInputDto : IHasConcurrencyStamp
 {
     [Required, StringLength(SubscriptionConsts.MaxConcurrencyStampLength)]
     public string ConcurrencyStamp { get; set; } = string.Empty;
@@ -62,7 +63,7 @@ public class CreateProductDto : CatalogDetailsDto
     public string Code { get; set; } = string.Empty;
 }
 
-public class UpdateProductDto : CatalogDetailsDto
+public class UpdateProductDto : CatalogDetailsDto, IHasConcurrencyStamp
 {
     [Required, StringLength(SubscriptionConsts.MaxConcurrencyStampLength)]
     public string ConcurrencyStamp { get; set; } = string.Empty;
@@ -111,7 +112,7 @@ internal static class BundleValidation
     }
 }
 
-public class AdminProductDto : SubscriptionProductDto
+public class AdminProductDto : SubscriptionProductDto, IHasConcurrencyStamp
 {
     public SubscriptionCatalogState State { get; set; }
     public string ConcurrencyStamp { get; set; } = string.Empty;
@@ -119,13 +120,13 @@ public class AdminProductDto : SubscriptionProductDto
     public bool HasDefaultPlan => DefaultPlanId.HasValue;
 }
 
-public class AdminPlanDto : SubscriptionPlanDto
+public class AdminPlanDto : SubscriptionPlanDto, IHasConcurrencyStamp
 {
     public SubscriptionCatalogState State { get; set; }
     public string ConcurrencyStamp { get; set; } = string.Empty;
 }
 
-public class AdminBundleDto : SubscriptionBundleDto
+public class AdminBundleDto : SubscriptionBundleDto, IHasConcurrencyStamp
 {
     public SubscriptionCatalogState State { get; set; }
     public string ConcurrencyStamp { get; set; } = string.Empty;

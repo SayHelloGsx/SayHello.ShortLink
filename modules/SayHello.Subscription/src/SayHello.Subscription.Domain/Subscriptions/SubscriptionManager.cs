@@ -9,8 +9,6 @@ using SayHello.Subscription.Definitions;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Services;
-using Volo.Abp.Guids;
-using Volo.Abp.Timing;
 
 namespace SayHello.Subscription.Subscriptions;
 
@@ -21,16 +19,13 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
     private readonly ISubscriptionBundleRepository _bundles;
     private readonly IUserSubscriptionRepository _subscriptions;
     private readonly ISubscriptionDefinitionRegistry _definitions;
-    private readonly IClock _clock;
-    private readonly IGuidGenerator _guids;
     private readonly IStringLocalizerFactory _localizers;
     private readonly SubscriptionTransactionRunner _transactions;
     private readonly SubscriptionMutationLock _mutationLock;
 
     public SubscriptionManager(ISubscriptionProductRepository products, ISubscriptionPlanRepository plans,
         ISubscriptionBundleRepository bundles, IUserSubscriptionRepository subscriptions,
-        ISubscriptionDefinitionRegistry definitions,
-        IClock clock, IGuidGenerator guids, IStringLocalizerFactory localizers,
+        ISubscriptionDefinitionRegistry definitions, IStringLocalizerFactory localizers,
         SubscriptionTransactionRunner transactions, SubscriptionMutationLock mutationLock)
     {
         _products = products;
@@ -38,8 +33,6 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
         _bundles = bundles;
         _subscriptions = subscriptions;
         _definitions = definitions;
-        _clock = clock;
-        _guids = guids;
         _localizers = localizers;
         _transactions = transactions;
         _mutationLock = mutationLock;
@@ -111,8 +104,8 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
                 throw new BusinessException(SubscriptionErrorCodes.InvalidAssignment);
             if (bundle != null) EnsureBundle(bundle, plans, products);
             var currents = await _subscriptions.GetCurrentListAsync(userId, products.Select(x => x.Id).ToArray(), token);
-            var now = _clock.Now.ToUniversalTime();
-            var assignmentId = _guids.Create();
+            var now = Clock.Now.ToUniversalTime();
+            var assignmentId = GuidGenerator.Create();
             var replacements = new List<UserSubscription>();
 
             foreach (var target in targets)
@@ -124,7 +117,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
                 SubscriptionCatalogManager.EnsureStamp(plan.ConcurrencyStamp, target.PlanConcurrencyStamp);
                 CheckExpectedCurrent(currents.SingleOrDefault(x => x.ProductId == target.ProductId), target.ExpectedCurrent);
                 SubscriptionGuard.FutureExpiration(now, target.ExpiresAt);
-                replacements.Add(new UserSubscription(_guids.Create(), userId, product, plan, Snapshot(plan),
+                replacements.Add(new UserSubscription(GuidGenerator.Create(), userId, product, plan, Snapshot(plan),
                     now, target.ExpiresAt, assignmentId, bundle));
             }
 
@@ -153,7 +146,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
             SubscriptionCatalogManager.ApplyStamp(subscription, concurrencyStamp);
-            subscription.End(_clock.Now.ToUniversalTime(), SubscriptionEndReason.Revoked, reason);
+            subscription.End(Clock.Now.ToUniversalTime(), SubscriptionEndReason.Revoked, reason);
             return await _subscriptions.UpdateAsync(subscription, true, cancellationToken);
         }, cancellationToken);
     }
@@ -168,7 +161,7 @@ public class SubscriptionManager : DomainService, ISubscriptionManager
             var subscription = await _subscriptions.GetAsync(subscriptionId, cancellationToken);
             unitOfWork.Items[OwnerKey(subscriptionId)] = userId;
             SubscriptionCatalogManager.ApplyStamp(subscription, concurrencyStamp);
-            subscription.AdjustExpiration(_clock.Now.ToUniversalTime(), expiresAt);
+            subscription.AdjustExpiration(Clock.Now.ToUniversalTime(), expiresAt);
             return await _subscriptions.UpdateAsync(subscription, true, cancellationToken);
         }, cancellationToken);
     }

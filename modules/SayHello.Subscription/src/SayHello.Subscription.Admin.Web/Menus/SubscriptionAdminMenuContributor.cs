@@ -7,7 +7,7 @@ namespace SayHello.Subscription.Admin.Web.Menus;
 
 public class SubscriptionAdminMenuContributor : IMenuContributor
 {
-    public async Task ConfigureMenuAsync(MenuConfigurationContext context)
+    public virtual async Task ConfigureMenuAsync(MenuConfigurationContext context)
     {
         if (context.Menu.Name != StandardMenus.Main) return;
         var localizer = context.GetLocalizer<SubscriptionAdminResource>();

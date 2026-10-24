@@ -22,12 +22,12 @@ public class SettingsModel : ShortLinkAdminPageModel
         _appService = appService;
     }
 
-    public async Task OnGetAsync()
+    public virtual async Task OnGetAsync()
     {
         Settings = await _appService.GetAsync();
     }
 
-    public async Task<IActionResult> OnPostAsync()
+    public virtual async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
         {

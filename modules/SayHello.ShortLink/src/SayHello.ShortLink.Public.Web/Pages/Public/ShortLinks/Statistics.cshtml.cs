@@ -26,7 +26,7 @@ public class StatisticsModel : ShortLinkPublicPageModel
         _appService = appService;
     }
 
-    public async Task OnGetAsync(Guid id, int days = 30)
+    public virtual async Task OnGetAsync(Guid id, int days = 30)
     {
         try
         {

@@ -6,7 +6,7 @@ namespace SayHello.ShortLink.ShortLinkNamespaces;
 
 public class ShortLinkNamespacePolicy(IOptions<ShortLinkNamespaceRouteOptions> options) : ITransientDependency
 {
-    public string Validate(string name)
+    public virtual string Validate(string name)
     {
         if (!ShortLinkNamespaceFormat.IsValid(name))
         {

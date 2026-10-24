@@ -18,7 +18,7 @@ public class PlansModel : CatalogPageModel
     {
     }
 
-    public async Task<IActionResult> OnGetAsync()
+    public virtual async Task<IActionResult> OnGetAsync()
     {
         if (!ModelState.IsValid)
         {

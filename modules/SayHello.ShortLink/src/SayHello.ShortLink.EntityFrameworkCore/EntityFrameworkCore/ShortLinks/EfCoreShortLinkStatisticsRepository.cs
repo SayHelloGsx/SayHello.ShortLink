@@ -22,7 +22,7 @@ public class EfCoreShortLinkStatisticsRepository :
         _dbContextProvider = dbContextProvider;
     }
 
-    public async Task<ShortLinkStatisticsData> GetAsync(
+    public virtual async Task<ShortLinkStatisticsData> GetAsync(
         Guid shortLinkId,
         DateOnly startDate,
         DateOnly endDate,

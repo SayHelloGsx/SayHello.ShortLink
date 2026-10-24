@@ -22,7 +22,7 @@ public class SubscriptionUserLookupService : ISubscriptionUserLookupService, ITr
         _currentTenant = currentTenant;
     }
 
-    public async Task<SubscriptionUser> FindByIdAsync(
+    public virtual async Task<SubscriptionUser> FindByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)
     {
@@ -42,7 +42,7 @@ public class SubscriptionUserLookupService : ISubscriptionUserLookupService, ITr
         return new SubscriptionUser(user);
     }
 
-    public async Task<SubscriptionUser> FindByUserNameAsync(
+    public virtual async Task<SubscriptionUser> FindByUserNameAsync(
         string userName,
         CancellationToken cancellationToken = default)
     {
@@ -56,7 +56,7 @@ public class SubscriptionUserLookupService : ISubscriptionUserLookupService, ITr
         return new SubscriptionUser(user);
     }
 
-    public async Task<List<IUserData>> SearchAsync(
+    public virtual async Task<List<IUserData>> SearchAsync(
         string? sorting = null,
         string? filter = null,
         int maxResultCount = int.MaxValue,
@@ -87,7 +87,7 @@ public class SubscriptionUserLookupService : ISubscriptionUserLookupService, ITr
         return users;
     }
 
-    public async Task<long> GetCountAsync(
+    public virtual async Task<long> GetCountAsync(
         string? filter = null,
         CancellationToken cancellationToken = default)
     {

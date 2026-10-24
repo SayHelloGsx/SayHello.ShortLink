@@ -8,8 +8,6 @@ using SayHello.Subscription.Subscriptions;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Services;
-using Volo.Abp.Guids;
-using Volo.Abp.MultiTenancy;
 
 namespace SayHello.Subscription.Catalog;
 
@@ -20,14 +18,12 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
     private readonly ISubscriptionBundleRepository _bundles;
     private readonly ISubscriptionDefinitionRegistry _definitions;
     private readonly IEnumerable<ISubscriptionEntitlementOptionProvider> _optionProviders;
-    private readonly ICurrentTenant _tenant;
-    private readonly IGuidGenerator _guids;
     private readonly SubscriptionTransactionRunner _transactions;
     private readonly SubscriptionMutationLock _mutationLock;
 
     public SubscriptionCatalogManager(ISubscriptionProductRepository products, ISubscriptionPlanRepository plans,
-        ISubscriptionBundleRepository bundles, ISubscriptionDefinitionRegistry definitions, ICurrentTenant tenant,
-        IEnumerable<ISubscriptionEntitlementOptionProvider> optionProviders, IGuidGenerator guids,
+        ISubscriptionBundleRepository bundles, ISubscriptionDefinitionRegistry definitions,
+        IEnumerable<ISubscriptionEntitlementOptionProvider> optionProviders,
         SubscriptionTransactionRunner transactions, SubscriptionMutationLock mutationLock)
     {
         _products = products;
@@ -35,8 +31,6 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         _bundles = bundles;
         _definitions = definitions;
         _optionProviders = optionProviders;
-        _tenant = tenant;
-        _guids = guids;
         _transactions = transactions;
         _mutationLock = mutationLock;
     }
@@ -49,7 +43,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             var definition = _definitions.GetProduct(registeredProductCode);
             if (await _products.FindByCodeAsync(definition.Code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
-            return await _products.InsertAsync(new SubscriptionProduct(_guids.Create(), _tenant.Id, definition,
+            return await _products.InsertAsync(new SubscriptionProduct(GuidGenerator.Create(), CurrentTenant.Id, definition,
                 details.Name, details.Description, details.DisplayOrder), true, cancellationToken);
         }, cancellationToken);
 
@@ -119,7 +113,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
             var definition = _definitions.GetProduct(product.Code);
             await ValidateEntitlementsAsync(definition, entitlements, null, false, cancellationToken);
-            var plan = new SubscriptionPlan(_guids.Create(), product, code, details.Name, details.Description, details.DisplayOrder);
+            var plan = new SubscriptionPlan(GuidGenerator.Create(), product, code, details.Name, details.Description, details.DisplayOrder);
             plan.ReplaceEntitlements(definition, entitlements);
             return await _plans.InsertAsync(plan, true, cancellationToken);
         }, cancellationToken);
@@ -182,7 +176,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             if (await _bundles.FindByCodeAsync(code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
             var plans = await GetBundlePlansAsync(planIds, cancellationToken);
-            return await _bundles.InsertAsync(new SubscriptionBundle(_guids.Create(), _tenant.Id, code,
+            return await _bundles.InsertAsync(new SubscriptionBundle(GuidGenerator.Create(), CurrentTenant.Id, code,
                 details.Name, plans, details.Description, details.DisplayOrder), true, cancellationToken);
         }, cancellationToken);
 

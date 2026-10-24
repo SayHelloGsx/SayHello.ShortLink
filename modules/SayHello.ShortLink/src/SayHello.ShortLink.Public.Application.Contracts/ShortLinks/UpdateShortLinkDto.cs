@@ -1,10 +1,11 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using SayHello.ShortLink.ShortLinks;
+using Volo.Abp.Domain.Entities;
 
 namespace SayHello.ShortLink.Public.ShortLinks;
 
-public class UpdateShortLinkDto
+public class UpdateShortLinkDto : IHasConcurrencyStamp
 {
     [Required]
     [StringLength(ShortLinkConsts.MaxTargetUrlLength)]

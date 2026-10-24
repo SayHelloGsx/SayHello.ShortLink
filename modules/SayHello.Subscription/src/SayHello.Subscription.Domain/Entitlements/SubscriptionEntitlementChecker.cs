@@ -8,8 +8,6 @@ using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Subscriptions;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
-using Volo.Abp.MultiTenancy;
-using Volo.Abp.Timing;
 
 namespace SayHello.Subscription.Entitlements;
 
@@ -17,17 +15,13 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
 {
     private readonly ISubscriptionDefinitionRegistry _definitions;
     private readonly IUserSubscriptionRepository _subscriptions;
-    private readonly ICurrentTenant _tenant;
-    private readonly IClock _clock;
     private readonly IDefaultSubscriptionPlanRepository _defaults;
 
     public SubscriptionEntitlementChecker(ISubscriptionDefinitionRegistry definitions, IUserSubscriptionRepository subscriptions,
-        ICurrentTenant tenant, IClock clock, IDefaultSubscriptionPlanRepository defaults)
+        IDefaultSubscriptionPlanRepository defaults)
     {
         _definitions = definitions;
         _subscriptions = subscriptions;
-        _tenant = tenant;
-        _clock = clock;
         _defaults = defaults;
     }
 
@@ -35,7 +29,7 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
         CancellationToken cancellationToken = default)
     {
         var subscription = await FindEffectiveSubscriptionAsync(userId, productCode, cancellationToken);
-        if (subscription != null && subscription.IsEffectiveAt(_clock.Now.ToUniversalTime()))
+        if (subscription != null && subscription.IsEffectiveAt(Clock.Now.ToUniversalTime()))
             return EffectiveEntitlementContext.FromSubscription(subscription);
         var product = _definitions.GetProduct(productCode);
         var plan = await _defaults.FindAsync(product.Code, cancellationToken);
@@ -49,7 +43,7 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
     {
         SubscriptionGuard.Id(userId, nameof(userId));
         query.Validate();
-        var page = await _defaults.GetPageAsync(query, userId, _clock.Now.ToUniversalTime(), cancellationToken);
+        var page = await _defaults.GetPageAsync(query, userId, Clock.Now.ToUniversalTime(), cancellationToken);
         foreach (var plan in page.Items) ValidateDefault(plan, plan.Product.Code);
         return page;
     }
@@ -59,7 +53,7 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
     {
         SubscriptionGuard.Id(userId, nameof(userId));
         var product = _definitions.GetProduct(productCode);
-        return _subscriptions.FindEffectiveAsync(userId, product.Code, _clock.Now.ToUniversalTime(), cancellationToken);
+        return _subscriptions.FindEffectiveAsync(userId, product.Code, Clock.Now.ToUniversalTime(), cancellationToken);
     }
 
     public virtual async Task<BooleanEntitlementResult> GetBooleanAsync(Guid userId, string productCode,
@@ -199,8 +193,8 @@ public class SubscriptionEntitlementChecker : DomainService, ISubscriptionEntitl
 
     private void ValidateDefault(DefaultSubscriptionPlan value, string productCode)
     {
-        SubscriptionGuard.SameTenant(_tenant.Id, value.Product.TenantId);
-        SubscriptionGuard.SameTenant(_tenant.Id, value.Plan.TenantId);
+        SubscriptionGuard.SameTenant(CurrentTenant.Id, value.Product.TenantId);
+        SubscriptionGuard.SameTenant(CurrentTenant.Id, value.Plan.TenantId);
         if (value.Product.DefaultPlanId != value.Plan.Id || value.Plan.ProductId != value.Product.Id ||
             value.Product.Code != productCode || value.Plan.ProductCode != productCode ||
             value.Product.State != SubscriptionCatalogState.Published || value.Plan.State != SubscriptionCatalogState.Published)

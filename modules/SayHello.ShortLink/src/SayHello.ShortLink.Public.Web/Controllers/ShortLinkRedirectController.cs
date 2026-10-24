@@ -20,14 +20,14 @@ public class ShortLinkRedirectController : Controller
 
     [AcceptVerbs("GET", "HEAD")]
     [Route("{code:shortCode}", Order = 1000)]
-    public Task<IActionResult> ResolveAsync(string code)
+    public virtual Task<IActionResult> ResolveAsync(string code)
     {
         return ResolvePathAsync(code);
     }
 
     [AcceptVerbs("GET", "HEAD")]
     [Route("{pathNamespace:shortLinkNamespace}/{code:shortCodeSegment}", Order = 1000)]
-    public Task<IActionResult> ResolveNamespacedAsync(string pathNamespace, string code)
+    public virtual Task<IActionResult> ResolveNamespacedAsync(string pathNamespace, string code)
     {
         return ResolvePathAsync(code, pathNamespace);
     }

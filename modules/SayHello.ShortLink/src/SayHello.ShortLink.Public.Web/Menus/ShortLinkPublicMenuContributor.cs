@@ -7,7 +7,7 @@ namespace SayHello.ShortLink.Public.Web.Menus;
 
 public class ShortLinkPublicMenuContributor : IMenuContributor
 {
-    public async Task ConfigureMenuAsync(MenuConfigurationContext context)
+    public virtual async Task ConfigureMenuAsync(MenuConfigurationContext context)
     {
         if (context.Menu.Name == StandardMenus.Main)
         {

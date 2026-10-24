@@ -31,7 +31,7 @@ public class EfCoreShortLinkMaintenanceRepository :
         _guidGenerator = guidGenerator;
     }
 
-    public async Task ArchiveVisitsBeforeAsync(
+    public virtual async Task ArchiveVisitsBeforeAsync(
         DateTime cutoff,
         CancellationToken cancellationToken = default)
     {
@@ -138,7 +138,7 @@ public class EfCoreShortLinkMaintenanceRepository :
         await visits.ExecuteDeleteAsync(cancellationToken);
     }
 
-    public async Task PurgeDeletedLinksBeforeAsync(
+    public virtual async Task PurgeDeletedLinksBeforeAsync(
         DateTime cutoff,
         CancellationToken cancellationToken = default)
     {

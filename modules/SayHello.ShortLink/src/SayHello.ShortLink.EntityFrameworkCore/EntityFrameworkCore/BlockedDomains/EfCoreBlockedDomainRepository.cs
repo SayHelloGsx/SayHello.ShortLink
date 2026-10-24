@@ -20,7 +20,7 @@ public class EfCoreBlockedDomainRepository :
     {
     }
 
-    public async Task<List<BlockedDomain>> GetListAsync(
+    public virtual async Task<List<BlockedDomain>> GetListAsync(
         CancellationToken cancellationToken = default)
     {
         return await (await GetDbSetAsync())
@@ -29,7 +29,7 @@ public class EfCoreBlockedDomainRepository :
             .ToListAsync(GetCancellationToken(cancellationToken));
     }
 
-    public async Task<bool> IsBlockedAsync(
+    public virtual async Task<bool> IsBlockedAsync(
         string normalizedHost,
         CancellationToken cancellationToken = default)
     {
@@ -38,7 +38,7 @@ public class EfCoreBlockedDomainRepository :
             cancellationToken) is not null;
     }
 
-    public async Task<BlockedDomain?> FindMatchingActiveAsync(
+    public virtual async Task<BlockedDomain?> FindMatchingActiveAsync(
         string normalizedHost,
         CancellationToken cancellationToken = default)
     {
@@ -53,7 +53,7 @@ public class EfCoreBlockedDomainRepository :
             .FirstOrDefaultAsync(GetCancellationToken(cancellationToken));
     }
 
-    public async Task<List<string>> GetExistingDomainsAsync(
+    public virtual async Task<List<string>> GetExistingDomainsAsync(
         IReadOnlyCollection<string> normalizedDomains,
         CancellationToken cancellationToken = default)
     {
@@ -70,7 +70,7 @@ public class EfCoreBlockedDomainRepository :
             .ToListAsync(GetCancellationToken(cancellationToken));
     }
 
-    public async Task<bool> ExistsAsync(
+    public virtual async Task<bool> ExistsAsync(
         string normalizedDomain,
         Guid? excludingId = null,
         CancellationToken cancellationToken = default)

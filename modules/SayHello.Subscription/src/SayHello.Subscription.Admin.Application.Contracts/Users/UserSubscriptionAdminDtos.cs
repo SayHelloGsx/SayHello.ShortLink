@@ -5,6 +5,7 @@ using System.Linq;
 using SayHello.Subscription.Admin.Catalog;
 using SayHello.Subscription.Entitlements;
 using SayHello.Subscription.Subscriptions;
+using Volo.Abp.Domain.Entities;
 
 namespace SayHello.Subscription.Admin.Users;
 
@@ -34,7 +35,7 @@ public class SubscriptionUserDto
     public bool IsActive { get; set; }
 }
 
-public class AdminUserSubscriptionDto : UserSubscriptionDto
+public class AdminUserSubscriptionDto : UserSubscriptionDto, IHasConcurrencyStamp
 {
     public Guid UserId { get; set; }
     public string ConcurrencyStamp { get; set; } = string.Empty;

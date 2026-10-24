@@ -5,7 +5,7 @@ namespace SayHello.ShortLink.ShortLinks;
 
 public class ShortCodePolicy : ITransientDependency
 {
-    public string ValidateCustomCode(string code, bool allowReserved = false)
+    public virtual string ValidateCustomCode(string code, bool allowReserved = false)
     {
         var normalizedCode = code.Trim();
 

@@ -9,7 +9,6 @@ using SayHello.ShortLink.ShortLinkNamespaces;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
 using Volo.Abp.Settings;
-using Volo.Abp.MultiTenancy;
 using Volo.Abp.Uow;
 
 namespace SayHello.ShortLink.ShortLinks;
@@ -28,7 +27,6 @@ public class ShortLinkManager : DomainService
     private readonly IShortLinkCapabilityProvider _capabilityProvider;
     private readonly ShortLinkCreationLock _creationLock;
     private readonly IUnitOfWorkManager _unitOfWorkManager;
-    private readonly ICurrentTenant _currentTenant;
 
     public ShortLinkManager(
         IShortLinkRepository shortLinkRepository,
@@ -40,7 +38,6 @@ public class ShortLinkManager : DomainService
         IShortLinkCapabilityProvider capabilityProvider,
         ShortLinkCreationLock creationLock,
         IUnitOfWorkManager unitOfWorkManager,
-        ICurrentTenant currentTenant,
         ShortLinkDefaultNamespaceProvider defaultNamespaceProvider,
         IShortLinkNamespaceRepository namespaceRepository,
         ShortLinkNamespaceLock namespaceLock)
@@ -57,7 +54,6 @@ public class ShortLinkManager : DomainService
         _capabilityProvider = capabilityProvider;
         _creationLock = creationLock;
         _unitOfWorkManager = unitOfWorkManager;
-        _currentTenant = currentTenant;
     }
 
     public virtual async Task<ShortLink> CreateAndSaveAsync(
@@ -104,7 +100,7 @@ public class ShortLinkManager : DomainService
     }
 
     // Constructs an entity only. Persist through CreateAndSaveAsync to serialize quota checks.
-    public async Task<ShortLink> CreateAsync(
+    public virtual async Task<ShortLink> CreateAsync(
         Guid id,
         Guid ownerUserId,
         string origin,
@@ -193,7 +189,7 @@ public class ShortLinkManager : DomainService
                 throw new BusinessException(ShortLinkErrorCodes.NamespacesNotGranted);
             }
             var selected = await _namespaceRepository.FindAsync(namespaceId.Value, cancellationToken: cancellationToken);
-            if (selected is null || selected.OwnerUserId != ownerUserId || selected.TenantId != _currentTenant.Id ||
+            if (selected is null || selected.OwnerUserId != ownerUserId || selected.TenantId != CurrentTenant.Id ||
                 selected.DomainId != domain.Id || !string.Equals(selected.Origin, domain.Origin, StringComparison.Ordinal))
             {
                 throw new BusinessException(ShortLinkErrorCodes.NamespaceAccessDenied);
@@ -213,7 +209,7 @@ public class ShortLinkManager : DomainService
 
         return new ShortLink(
             id,
-            _currentTenant.Id,
+            CurrentTenant.Id,
             ownerUserId,
             domain.Id,
             domain.Origin,
@@ -225,14 +221,14 @@ public class ShortLinkManager : DomainService
             pathNamespace,
             namespaceId);
     }
-    public async Task<IReadOnlyList<ShortLinkDomain>> GetAvailableDomainsAsync(
+    public virtual async Task<IReadOnlyList<ShortLinkDomain>> GetAvailableDomainsAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
         return await _domainAccessPolicy.GetAvailableAsync(userId, cancellationToken);
     }
 
-    public async Task UpdateAsync(
+    public virtual async Task UpdateAsync(
         ShortLink shortLink,
         string targetUrl,
         string? title,

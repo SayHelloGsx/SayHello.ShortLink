@@ -22,6 +22,7 @@ using Microsoft.Extensions.Options;
 using SayHello.ShortLink.Subscription;
 using SayHello.Subscription;
 using SayHello.Subscription.Admin.Catalog;
+using SayHello.Subscription.Admin.Permissions;
 using SayHello.Subscription.Catalog;
 using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Subscriptions;
@@ -29,6 +30,7 @@ using Shouldly;
 using Volo.Abp.Authorization;
 using Volo.Abp.Authorization.Permissions;
 using Volo.Abp.Identity;
+using Volo.Abp.PermissionManagement;
 using Volo.Abp.Security.Claims;
 using Volo.Abp.Timing;
 using Volo.Abp.Uow;
@@ -328,6 +330,28 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
         json.RootElement.GetProperty("name").GetString().ShouldBe("Authorization product");
     }
 
+    [Fact]
+    public async Task Stale_Admin_Mutation_Should_Return_Conflict()
+    {
+        using var client = CreateClient(authenticated: true, userId: SubscriptionAuthorizationFactory.AdminId);
+        var input = new UpdateProductDto
+        {
+            Name = "Stale catalog edit",
+            ConcurrencyStamp = Guid.NewGuid().ToString("N")
+        };
+        Validator.ValidateObject(input, new ValidationContext(input), validateAllProperties: true);
+        using var response = await client.PutAsJsonAsync($"/api/subscription/admin/products/{_factory.ProductId}", input);
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        using var error = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        error.RootElement.GetProperty("error").GetProperty("code").GetString()
+            .ShouldBe(SubscriptionErrorCodes.ConcurrencyConflict);
+
+        using var product = await client.GetAsync($"/api/subscription/public/products/{_factory.ProductId}");
+        product.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await product.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("name").GetString().ShouldBe("Authorization product");
+    }
+
     [Theory]
     [InlineData(false, false, HttpStatusCode.Unauthorized)]
     [InlineData(false, true, HttpStatusCode.Unauthorized)]
@@ -398,6 +422,7 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
     public static readonly Guid OwnerId = Guid.Parse("674c1f08-f0be-49dd-9b62-bcd8da234d4b");
     public static readonly Guid OtherOwnerId = Guid.Parse("31290197-a340-49b0-8db8-f69db516f878");
     public static readonly Guid FreeOwnerId = Guid.Parse("cba3e642-7e8e-4805-91fb-dd27a5a07cd2");
+    public static readonly Guid AdminId = Guid.Parse("5d0f2c7a-9e41-4b6e-a3f8-1c2b7d9e4a60");
     public Guid ProductId { get; private set; }
     public Guid DefaultPlanId { get; private set; }
     public string ProductConcurrencyStamp { get; private set; } = string.Empty;
@@ -413,13 +438,23 @@ public class SubscriptionAuthorizationFactory : WebApplicationFactory<Program>, 
         // Dynamic claims validates identities against the real user store; a fabricated ID becomes anonymous.
         foreach (var (id, name) in new[]
                  {
-                     (OwnerId, "subscription-owner"), (OtherOwnerId, "subscription-other"), (FreeOwnerId, "subscription-free")
+                     (OwnerId, "subscription-owner"), (OtherOwnerId, "subscription-other"), (FreeOwnerId, "subscription-free"),
+                     (AdminId, "subscription-admin")
                  })
         {
             var user = new IdentityUser(id, name, name + "@example.test");
             user.SetEmailConfirmed(true);
             var result = await users.CreateAsync(user);
             result.Succeeded.ShouldBeTrue();
+        }
+        var permissions = scope.ServiceProvider.GetRequiredService<IPermissionManager>();
+        foreach (var permission in new[]
+                 {
+                     SubscriptionAdminPermissions.Default, SubscriptionAdminPermissions.Products.Default,
+                     SubscriptionAdminPermissions.Products.Update
+                 })
+        {
+            await permissions.SetForUserAsync(AdminId, permission, true);
         }
         await SeedSubscriptionsAsync(scope.ServiceProvider);
         await uow.CompleteAsync();

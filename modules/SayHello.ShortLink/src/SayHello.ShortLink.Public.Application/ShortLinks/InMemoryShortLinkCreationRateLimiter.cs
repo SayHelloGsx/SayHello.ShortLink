@@ -32,7 +32,7 @@ public class InMemoryShortLinkCreationRateLimiter :
         _currentTenant = currentTenant;
     }
 
-    public async Task EnsureAllowedAsync(
+    public virtual async Task EnsureAllowedAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {

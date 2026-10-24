@@ -33,17 +33,17 @@ public class AdminCatalogReader : ITransientDependency
         _localizers = localizers; _cancellation = cancellation;
     }
 
-    public SubscriptionCatalogQuery Query(AdminCatalogQueryDto input, bool publishedOnly = false) =>
+    public virtual SubscriptionCatalogQuery Query(AdminCatalogQueryDto input, bool publishedOnly = false) =>
         new(input.Filter, input.State, publishedOnly, input.ProductId,
             input.Sorting, input.SkipCount, input.MaxResultCount);
 
-    public async Task<PagedResultDto<AdminProductDto>> ProductsAsync(AdminCatalogQueryDto input)
+    public virtual async Task<PagedResultDto<AdminProductDto>> ProductsAsync(AdminCatalogQueryDto input)
     {
         var page = await _products.GetPageAsync(Query(input), _cancellation.Token);
         return new PagedResultDto<AdminProductDto>(page.TotalCount, await MapProductsAsync(page.Items.ToArray()));
     }
 
-    public async Task<AdminProductDto> MapAsync(SubscriptionProduct product) =>
+    public virtual async Task<AdminProductDto> MapAsync(SubscriptionProduct product) =>
         (await MapProductsAsync(new[] { product })).Single();
 
     private async Task<List<AdminProductDto>> MapProductsAsync(IReadOnlyCollection<SubscriptionProduct> products)
@@ -58,7 +58,7 @@ public class AdminCatalogReader : ITransientDependency
             plan.ProductId == product.Id ? plan.Name : null)).ToList();
     }
 
-    public async Task<PagedResultDto<AdminPlanDto>> DefaultPlanOptionsAsync(Guid id, AdminCatalogQueryDto input)
+    public virtual async Task<PagedResultDto<AdminPlanDto>> DefaultPlanOptionsAsync(Guid id, AdminCatalogQueryDto input)
     {
         var product = await ProductAsync(id);
         if (product.State != SubscriptionCatalogState.Published)
@@ -72,19 +72,19 @@ public class AdminCatalogReader : ITransientDependency
         return new PagedResultDto<AdminPlanDto>(page.TotalCount, await MapPlansAsync(page.Items.ToArray()));
     }
 
-    public async Task<SubscriptionProduct> ProductAsync(Guid id) =>
+    public virtual async Task<SubscriptionProduct> ProductAsync(Guid id) =>
         (await _products.GetByIdsAsync(new[] { id }, _cancellation.Token)).SingleOrDefault()
         ?? throw new EntityNotFoundException(typeof(SubscriptionProduct), id);
 
-    public async Task<SubscriptionPlan> PlanAsync(Guid id) =>
+    public virtual async Task<SubscriptionPlan> PlanAsync(Guid id) =>
         (await _plans.GetByIdsAsync(new[] { id }, _cancellation.Token)).SingleOrDefault()
         ?? throw new EntityNotFoundException(typeof(SubscriptionPlan), id);
 
-    public async Task<SubscriptionBundle> BundleAsync(Guid id) =>
+    public virtual async Task<SubscriptionBundle> BundleAsync(Guid id) =>
         (await _bundles.GetByIdsAsync(new[] { id }, _cancellation.Token)).SingleOrDefault()
         ?? throw new EntityNotFoundException(typeof(SubscriptionBundle), id);
 
-    public async Task<RegisteredProductDto> DefinitionAsync(string code)
+    public virtual async Task<RegisteredProductDto> DefinitionAsync(string code)
     {
         var definition = _definitions.GetProduct(code);
         var features = new List<RegisteredFeatureDto>();
@@ -112,7 +112,7 @@ public class AdminCatalogReader : ITransientDependency
         };
     }
 
-    public async Task<ListResultDto<RegisteredProductDto>> DefinitionsAsync()
+    public virtual async Task<ListResultDto<RegisteredProductDto>> DefinitionsAsync()
     {
         var result = new List<RegisteredProductDto>();
         foreach (var product in _definitions.GetProducts())
@@ -123,7 +123,7 @@ public class AdminCatalogReader : ITransientDependency
         return new ListResultDto<RegisteredProductDto>(result);
     }
 
-    public async Task<AdminPlanDto> MapAsync(SubscriptionPlan plan) =>
+    public virtual async Task<AdminPlanDto> MapAsync(SubscriptionPlan plan) =>
         (await MapPlansAsync(new[] { plan })).Single();
 
     private async Task<List<AdminPlanDto>> MapPlansAsync(IReadOnlyCollection<SubscriptionPlan> plans)
@@ -138,13 +138,13 @@ public class AdminCatalogReader : ITransientDependency
         }).ToList();
     }
 
-    public async Task<PagedResultDto<AdminPlanDto>> PlansAsync(AdminCatalogQueryDto input, bool publishedOnly = false)
+    public virtual async Task<PagedResultDto<AdminPlanDto>> PlansAsync(AdminCatalogQueryDto input, bool publishedOnly = false)
     {
         var page = await _plans.GetPageAsync(Query(input, publishedOnly), _cancellation.Token);
         return new PagedResultDto<AdminPlanDto>(page.TotalCount, await MapPlansAsync(page.Items.ToArray()));
     }
 
-    public async Task<AdminBundleDto> MapAsync(SubscriptionBundle bundle) =>
+    public virtual async Task<AdminBundleDto> MapAsync(SubscriptionBundle bundle) =>
         (await MapBundlesAsync(new[] { bundle })).Single();
 
     private async Task<List<AdminBundleDto>> MapBundlesAsync(IReadOnlyCollection<SubscriptionBundle> bundles)
@@ -155,7 +155,7 @@ public class AdminCatalogReader : ITransientDependency
         return bundles.Select(bundle => AdminDtoMapper.ToDto(bundle, SubscriptionDtoMapper.ToDto(bundle, mapped))).ToList();
     }
 
-    public async Task<PagedResultDto<AdminBundleDto>> BundlesAsync(AdminCatalogQueryDto input, bool publishedOnly = false)
+    public virtual async Task<PagedResultDto<AdminBundleDto>> BundlesAsync(AdminCatalogQueryDto input, bool publishedOnly = false)
     {
         var page = await _bundles.GetPageAsync(Query(input, publishedOnly), _cancellation.Token);
         return new PagedResultDto<AdminBundleDto>(page.TotalCount, await MapBundlesAsync(page.Items.ToArray()));

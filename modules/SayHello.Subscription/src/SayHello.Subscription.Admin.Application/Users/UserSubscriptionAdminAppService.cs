@@ -8,7 +8,6 @@ using SayHello.Subscription.Subscriptions;
 using SayHello.Subscription.Users;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
-using Volo.Abp.Timing;
 using Volo.Abp.Uow;
 using Volo.Abp.Users;
 
@@ -22,12 +21,11 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     private readonly IUserSubscriptionRepository _subscriptions;
     private readonly ISubscriptionUserLookupService _users;
     private readonly AdminCatalogReader _catalog;
-    private readonly IClock _clock;
 
     public UserSubscriptionAdminAppService(ISubscriptionManager manager, IUserSubscriptionRepository subscriptions,
-        ISubscriptionUserLookupService users, AdminCatalogReader catalog, IClock clock)
+        ISubscriptionUserLookupService users, AdminCatalogReader catalog)
     {
-        _manager = manager; _subscriptions = subscriptions; _users = users; _catalog = catalog; _clock = clock;
+        _manager = manager; _subscriptions = subscriptions; _users = users; _catalog = catalog;
     }
 
     [Authorize(SubscriptionAdminPermissions.Users.Lookup)]
@@ -54,7 +52,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
 
     public virtual async Task<PagedResultDto<AdminUserSubscriptionDto>> GetListAsync(AdminSubscriptionQueryDto input)
     {
-        var now = _clock.Now.ToUniversalTime();
+        var now = Clock.Now.ToUniversalTime();
         var page = await _subscriptions.GetPageAsync(new UserSubscriptionQuery(now, input.UserId,
             input.ProductId, input.Status, input.CurrentOnly, input.Filter, input.Sorting,
             input.SkipCount, input.MaxResultCount), CancellationTokenProvider.Token);
@@ -62,7 +60,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     }
 
     public virtual async Task<AdminUserSubscriptionDto> GetAsync(Guid id) =>
-        AdminDtoMapper.ToDto(await _subscriptions.GetAsync(id, CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
+        AdminDtoMapper.ToDto(await _subscriptions.GetAsync(id, CancellationTokenProvider.Token), Clock.Now.ToUniversalTime());
 
     [Authorize(SubscriptionAdminPermissions.Users.Assign)]
     public virtual Task<PagedResultDto<AdminPlanDto>> GetPlansAsync(AdminCatalogQueryDto input) =>
@@ -95,7 +93,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
         await EnsureAssignableUserAsync(input.UserId);
         return AdminDtoMapper.ToDto(await _manager.AssignPlanAsync(
             new AssignSubscriptionPlan(input.UserId, AdminDtoMapper.ToTarget(input.Target)),
-            CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
+            CancellationTokenProvider.Token), Clock.Now.ToUniversalTime());
     }
 
     [Authorize(SubscriptionAdminPermissions.Users.Assign)]
@@ -107,7 +105,7 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
         var subscriptions = await _manager.AssignBundleAsync(new AssignSubscriptionBundle(input.UserId,
             input.BundleId, input.BundleConcurrencyStamp, input.Targets.Select(AdminDtoMapper.ToTarget)),
             CancellationTokenProvider.Token);
-        var now = _clock.Now.ToUniversalTime();
+        var now = Clock.Now.ToUniversalTime();
         return new ListResultDto<AdminUserSubscriptionDto>(subscriptions.Select(s => AdminDtoMapper.ToDto(s, now)).ToList());
     }
 
@@ -115,13 +113,13 @@ public class UserSubscriptionAdminAppService : SubscriptionApplicationService, I
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminUserSubscriptionDto> RevokeAsync(Guid id, RevokeSubscriptionDto input) =>
         AdminDtoMapper.ToDto(await _manager.RevokeAsync(id, input.ConcurrencyStamp, input.Reason,
-            CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
+            CancellationTokenProvider.Token), Clock.Now.ToUniversalTime());
 
     [Authorize(SubscriptionAdminPermissions.Users.AdjustExpiration)]
     [UnitOfWork(isTransactional: true)]
     public virtual async Task<AdminUserSubscriptionDto> AdjustExpirationAsync(Guid id, AdjustExpirationDto input) =>
         AdminDtoMapper.ToDto(await _manager.AdjustExpirationAsync(id, input.ConcurrencyStamp,
-            input.ExpiresAt, CancellationTokenProvider.Token), _clock.Now.ToUniversalTime());
+            input.ExpiresAt, CancellationTokenProvider.Token), Clock.Now.ToUniversalTime());
 
     private async Task EnsureAssignableUserAsync(Guid userId)
     {

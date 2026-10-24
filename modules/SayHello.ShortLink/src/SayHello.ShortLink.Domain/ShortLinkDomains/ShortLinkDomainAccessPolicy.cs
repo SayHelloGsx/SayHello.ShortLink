@@ -13,7 +13,7 @@ public class ShortLinkDomainAccessPolicy(
     IShortLinkDomainRepository repository,
     IShortLinkCapabilityProvider capabilityProvider) : DomainService
 {
-    public async Task<ShortLinkDomain> GetAuthorizedAsync(
+    public virtual async Task<ShortLinkDomain> GetAuthorizedAsync(
         Guid userId, string origin, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
@@ -33,7 +33,7 @@ public class ShortLinkDomainAccessPolicy(
         return domain;
     }
 
-    public async Task<IReadOnlyList<ShortLinkDomain>> GetAvailableAsync(
+    public virtual async Task<IReadOnlyList<ShortLinkDomain>> GetAvailableAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)

@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using Volo.Abp.Domain.Entities;
 
 namespace SayHello.ShortLink.ShortLinks;
 
-public class SetShortLinkStatusDto
+public class SetShortLinkStatusDto : IHasConcurrencyStamp
 {
     [Required]
     public ShortLinkStatus Status { get; set; }

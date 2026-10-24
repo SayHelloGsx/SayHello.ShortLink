@@ -40,7 +40,7 @@ public class MineModel : SubscriptionPublicPageModel
         _entitlements = entitlements;
     }
 
-    public string DefaultProductUrl(Guid? productId)
+    public virtual string DefaultProductUrl(Guid? productId)
     {
         var query = Request.Query
             .Where(pair => !string.Equals(pair.Key, "DefaultInput.ProductId", StringComparison.OrdinalIgnoreCase) &&
@@ -50,7 +50,7 @@ public class MineModel : SubscriptionPublicPageModel
         return Request.Path + QueryString.Create(query);
     }
 
-    public async Task<IActionResult> OnGetAsync()
+    public virtual async Task<IActionResult> OnGetAsync()
     {
         if (!ModelState.IsValid)
         {

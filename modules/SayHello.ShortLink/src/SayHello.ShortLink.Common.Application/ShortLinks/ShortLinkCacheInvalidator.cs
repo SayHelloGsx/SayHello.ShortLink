@@ -20,7 +20,7 @@ public class ShortLinkCacheInvalidator : IShortLinkCacheInvalidator, ITransientD
         _options = options.Value;
     }
 
-    public Task RemoveAsync(
+    public virtual Task RemoveAsync(
         string? origin,
         string code,
         CancellationToken cancellationToken = default)
@@ -28,7 +28,7 @@ public class ShortLinkCacheInvalidator : IShortLinkCacheInvalidator, ITransientD
         return RemoveAsync(origin, string.Empty, code, cancellationToken);
     }
 
-    public Task RemoveAsync(
+    public virtual Task RemoveAsync(
         string? origin,
         string pathNamespace,
         string code,

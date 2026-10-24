@@ -8,7 +8,7 @@ namespace SayHello.ShortLink.ShortLinks;
 
 public class DnsHostAddressResolver : IHostAddressResolver, ITransientDependency
 {
-    public async Task<IReadOnlyList<IPAddress>> ResolveAsync(
+    public virtual async Task<IReadOnlyList<IPAddress>> ResolveAsync(
         string host,
         CancellationToken cancellationToken = default)
     {

@@ -15,19 +15,19 @@ public class EfCoreSubscriptionProductRepository : SubscriptionEfRepository<Subs
     public EfCoreSubscriptionProductRepository(IDbContextProvider<ISubscriptionDbContext> provider, ICurrentTenant tenant)
         : base(provider, tenant) { }
 
-    public async Task<SubscriptionProduct?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
+    public virtual async Task<SubscriptionProduct?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         code = SubscriptionCode.Normalize(code);
         return await (await GetDbSetAsync()).FirstOrDefaultAsync(x => x.Code == code, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<SubscriptionProduct>> GetByIdsAsync(IReadOnlyCollection<Guid> ids,
+    public virtual async Task<IReadOnlyList<SubscriptionProduct>> GetByIdsAsync(IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default)
     {
         return await (await GetDbSetAsync()).AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(cancellationToken);
     }
 
-    public async Task<SubscriptionPage<SubscriptionProduct>> GetPageAsync(SubscriptionCatalogQuery query,
+    public virtual async Task<SubscriptionPage<SubscriptionProduct>> GetPageAsync(SubscriptionCatalogQuery query,
         CancellationToken cancellationToken = default)
     {
         query.Validate();
@@ -47,7 +47,7 @@ public class EfCoreSubscriptionProductRepository : SubscriptionEfRepository<Subs
         return new SubscriptionPage<SubscriptionProduct>(count, items);
     }
 
-    public async Task<bool> IsReferencedAsync(Guid productId, CancellationToken cancellationToken = default)
+    public virtual async Task<bool> IsReferencedAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         var db = await GetDbContextAsync();
         return await db.SubscriptionPlans.AnyAsync(x => x.ProductId == productId, cancellationToken) ||

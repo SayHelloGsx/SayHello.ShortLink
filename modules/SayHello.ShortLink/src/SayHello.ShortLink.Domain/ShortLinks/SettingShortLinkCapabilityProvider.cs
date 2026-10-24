@@ -20,7 +20,7 @@ public class SettingShortLinkCapabilityProvider : IShortLinkCapabilityProvider, 
         _settingProvider = settingProvider;
     }
 
-    public async Task<ShortLinkQuota> GetQuotaAsync(
+    public virtual async Task<ShortLinkQuota> GetQuotaAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
@@ -40,7 +40,7 @@ public class SettingShortLinkCapabilityProvider : IShortLinkCapabilityProvider, 
         return ShortLinkQuota.Limited(limit);
     }
 
-    public Task<ShortLinkQuota> GetCustomCodeQuotaAsync(
+    public virtual Task<ShortLinkQuota> GetCustomCodeQuotaAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
@@ -48,26 +48,26 @@ public class SettingShortLinkCapabilityProvider : IShortLinkCapabilityProvider, 
         return Task.FromResult(ShortLinkQuota.Unlimited);
     }
 
-    public Task<ShortLinkQuota> GetNamespaceQuotaAsync(Guid userId, CancellationToken cancellationToken = default)
+    public virtual Task<ShortLinkQuota> GetNamespaceQuotaAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(ShortLinkQuota.Unlimited);
     }
 
-    public Task<ShortLinkQuota> GetRootLinkQuotaAsync(Guid userId, CancellationToken cancellationToken = default)
+    public virtual Task<ShortLinkQuota> GetRootLinkQuotaAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(ShortLinkQuota.Unlimited);
     }
 
-    public Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
+    public virtual Task<ShortLinkStatisticsLevel> GetStatisticsLevelAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(ShortLinkStatisticsLevel.Advanced);
     }
-    public Task<ShortLinkDomainAccess> GetDomainAccessAsync(
+    public virtual Task<ShortLinkDomainAccess> GetDomainAccessAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {

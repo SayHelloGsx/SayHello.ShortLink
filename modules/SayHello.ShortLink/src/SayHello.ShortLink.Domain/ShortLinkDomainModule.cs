@@ -6,7 +6,7 @@ namespace SayHello.ShortLink;
 
 [DependsOn(
     typeof(AbpDddDomainModule),
-    typeof(AbpDistributedLockingModule),
+    typeof(AbpDistributedLockingAbstractionsModule),
     typeof(ShortLinkDomainSharedModule)
 )]
 public class ShortLinkDomainModule : AbpModule

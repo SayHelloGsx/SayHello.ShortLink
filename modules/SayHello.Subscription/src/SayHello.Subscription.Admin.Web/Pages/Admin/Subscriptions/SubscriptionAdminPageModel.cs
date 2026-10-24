@@ -18,7 +18,7 @@ public abstract class SubscriptionAdminPageModel : AbpPageModel
 {
     protected SubscriptionAdminPageModel() => LocalizationResourceType = typeof(SubscriptionAdminResource);
 
-    protected async Task<IActionResult> WriteAsync<T>(string permission, Func<Task<T>> action)
+    protected virtual async Task<IActionResult> WriteAsync<T>(string permission, Func<Task<T>> action)
     {
         await AuthorizationService.CheckAsync(permission);
         try
@@ -37,12 +37,15 @@ public abstract class SubscriptionAdminPageModel : AbpPageModel
             var converter = LazyServiceProvider.LazyGetRequiredService<IExceptionToErrorInfoConverter>();
             return new JsonResult(new RemoteServiceErrorResponse(converter.Convert(exception)))
             {
-                StatusCode = exception is AbpDbConcurrencyException ? 409 : 400
+                StatusCode = exception is AbpDbConcurrencyException
+                    or BusinessException { Code: SubscriptionErrorCodes.ConcurrencyConflict }
+                    ? 409
+                    : 400
             };
         }
     }
 
-    protected Task<IActionResult> WriteAsync(string permission, Func<Task> action) =>
+    protected virtual Task<IActionResult> WriteAsync(string permission, Func<Task> action) =>
         WriteAsync(permission, async () => { await action(); return new { }; });
 }
 
@@ -53,7 +56,7 @@ public abstract class CatalogPageModel : SubscriptionAdminPageModel
     public bool CanUpdate { get; private set; }
     public bool CanDelete { get; private set; }
     public bool CanPublish { get; private set; }
-    public async Task OnGetAsync()
+    public virtual async Task OnGetAsync()
     {
         var prefix = "Subscription.Admin." + AreaName;
         CanCreate = await AuthorizationService.IsGrantedAsync(prefix + ".Create");

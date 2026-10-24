@@ -24,23 +24,23 @@ public class SubscriptionCatalogController : AbpControllerBase, ISubscriptionCat
     }
 
     [HttpGet("products")]
-    public Task<PagedResultDto<SubscriptionProductDto>> GetProductsAsync([FromQuery] GetPublicCatalogInput input) =>
+    public virtual Task<PagedResultDto<SubscriptionProductDto>> GetProductsAsync([FromQuery] GetPublicCatalogInput input) =>
         _service.GetProductsAsync(input);
 
     [HttpGet("products/{id:guid}")]
-    public Task<SubscriptionProductDto> GetProductAsync(Guid id) => _service.GetProductAsync(id);
+    public virtual Task<SubscriptionProductDto> GetProductAsync(Guid id) => _service.GetProductAsync(id);
 
     [HttpGet("plans")]
-    public Task<PagedResultDto<PublicSubscriptionPlanDto>> GetPlansAsync([FromQuery] GetPublicCatalogInput input) =>
+    public virtual Task<PagedResultDto<PublicSubscriptionPlanDto>> GetPlansAsync([FromQuery] GetPublicCatalogInput input) =>
         _service.GetPlansAsync(input);
 
     [HttpGet("plans/{id:guid}")]
-    public Task<PublicSubscriptionPlanDto> GetPlanAsync(Guid id) => _service.GetPlanAsync(id);
+    public virtual Task<PublicSubscriptionPlanDto> GetPlanAsync(Guid id) => _service.GetPlanAsync(id);
 
     [HttpGet("bundles")]
-    public Task<PagedResultDto<PublicSubscriptionBundleDto>> GetBundlesAsync([FromQuery] GetPublicCatalogInput input) =>
+    public virtual Task<PagedResultDto<PublicSubscriptionBundleDto>> GetBundlesAsync([FromQuery] GetPublicCatalogInput input) =>
         _service.GetBundlesAsync(input);
 
     [HttpGet("bundles/{id:guid}")]
-    public Task<PublicSubscriptionBundleDto> GetBundleAsync(Guid id) => _service.GetBundleAsync(id);
+    public virtual Task<PublicSubscriptionBundleDto> GetBundleAsync(Guid id) => _service.GetBundleAsync(id);
 }

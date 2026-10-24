@@ -5,7 +5,6 @@ using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
-using Volo.Abp.MultiTenancy;
 using Volo.Abp.Uow;
 
 namespace SayHello.ShortLink.ShortLinkNamespaces;
@@ -19,8 +18,7 @@ public class ShortLinkNamespaceManager(
     ShortLinkNamespaceLock namespaceLock,
     ShortLinkDomainConfigurationLock domainConfigurationLock,
     ShortLinkCreationLock creationLock,
-    IUnitOfWorkManager unitOfWorkManager,
-    ICurrentTenant currentTenant) : DomainService
+    IUnitOfWorkManager unitOfWorkManager) : DomainService
 {
     public virtual async Task<ShortLinkNamespace> CreateAndSaveAsync(
         Guid ownerUserId, string origin, string name, CancellationToken cancellationToken = default)
@@ -63,7 +61,7 @@ public class ShortLinkNamespaceManager(
             }
 
             var entity = new ShortLinkNamespace(
-                GuidGenerator.Create(), currentTenant.Id, ownerUserId, domain.Id, domain.Origin, name);
+                GuidGenerator.Create(), CurrentTenant.Id, ownerUserId, domain.Id, domain.Origin, name);
             await repository.InsertAsync(entity, autoSave: true, cancellationToken);
             if (owned is not null)
             {
@@ -93,7 +91,7 @@ public class ShortLinkNamespaceManager(
             await namespaceLock.AcquireAsync(id, cancellationToken);
             var entity = await repository.FindAsync(id, cancellationToken: cancellationToken);
             if (ownerUserId == Guid.Empty || entity is null || entity.OwnerUserId != ownerUserId ||
-                entity.TenantId != currentTenant.Id)
+                entity.TenantId != CurrentTenant.Id)
             {
                 throw new BusinessException(ShortLinkErrorCodes.NamespaceAccessDenied);
             }

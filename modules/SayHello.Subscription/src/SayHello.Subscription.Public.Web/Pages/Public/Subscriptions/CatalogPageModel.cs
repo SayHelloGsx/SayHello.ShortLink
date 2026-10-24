@@ -25,7 +25,7 @@ public abstract class CatalogPageModel : SubscriptionPublicPageModel
         Catalog = catalog;
     }
 
-    protected async Task LoadProductsAsync()
+    protected virtual async Task LoadProductsAsync()
     {
         var skip = 0;
         while (true)

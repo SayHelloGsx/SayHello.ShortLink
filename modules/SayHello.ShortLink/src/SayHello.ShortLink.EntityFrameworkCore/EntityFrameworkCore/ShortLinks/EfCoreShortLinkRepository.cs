@@ -31,7 +31,7 @@ public class EfCoreShortLinkRepository :
         _multiTenantFilter = multiTenantFilter;
     }
 
-    public async Task<bool> CodeExistsAsync(
+    public virtual async Task<bool> CodeExistsAsync(
         string origin,
         string pathNamespace,
         string code,
@@ -46,13 +46,13 @@ public class EfCoreShortLinkRepository :
         }
     }
 
-    public Task<bool> CodeExistsAsync(
+    public virtual Task<bool> CodeExistsAsync(
         string origin,
         string code,
         CancellationToken cancellationToken = default) =>
         CodeExistsAsync(origin, string.Empty, code, cancellationToken);
 
-    public async Task<bool> CodeExistsAsync(
+    public virtual async Task<bool> CodeExistsAsync(
         string code,
         CancellationToken cancellationToken = default)
     {
@@ -65,7 +65,7 @@ public class EfCoreShortLinkRepository :
         }
     }
 
-    public async Task<ShortLink?> FindByCodeAsync(
+    public virtual async Task<ShortLink?> FindByCodeAsync(
         string origin,
         string pathNamespace,
         string code,
@@ -86,14 +86,14 @@ public class EfCoreShortLinkRepository :
         }
     }
 
-    public Task<ShortLink?> FindByCodeAsync(
+    public virtual Task<ShortLink?> FindByCodeAsync(
         string origin,
         string code,
         bool includeDeleted = false,
         CancellationToken cancellationToken = default) =>
         FindByCodeAsync(origin, string.Empty, code, includeDeleted, cancellationToken);
 
-    public async Task<ShortLink?> FindLegacyByCodeAsync(
+    public virtual async Task<ShortLink?> FindLegacyByCodeAsync(
         string code,
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
@@ -112,13 +112,13 @@ public class EfCoreShortLinkRepository :
         }
     }
 
-    public Task<ShortLink?> FindByCodeAsync(
+    public virtual Task<ShortLink?> FindByCodeAsync(
         string code,
         bool includeDeleted = false,
         CancellationToken cancellationToken = default) =>
         FindLegacyByCodeAsync(code, includeDeleted, cancellationToken);
 
-    public async Task<long> GetCountByOwnerAsync(
+    public virtual async Task<long> GetCountByOwnerAsync(
         Guid ownerUserId,
         CancellationToken cancellationToken = default)
     {
@@ -127,7 +127,7 @@ public class EfCoreShortLinkRepository :
             GetCancellationToken(cancellationToken));
     }
 
-    public async Task<long> GetRootLinkCountByOwnerAsync(
+    public virtual async Task<long> GetRootLinkCountByOwnerAsync(
         Guid ownerUserId,
         CancellationToken cancellationToken = default)
     {
@@ -136,7 +136,7 @@ public class EfCoreShortLinkRepository :
             GetCancellationToken(cancellationToken));
     }
 
-    public async Task<long> GetCustomCodeCountByOwnerAsync(
+    public virtual async Task<long> GetCustomCodeCountByOwnerAsync(
         Guid ownerUserId,
         CancellationToken cancellationToken = default)
     {
@@ -145,7 +145,7 @@ public class EfCoreShortLinkRepository :
             GetCancellationToken(cancellationToken));
     }
 
-    public async Task<List<ShortLink>> GetListAsync(
+    public virtual async Task<List<ShortLink>> GetListAsync(
         Guid? ownerUserId,
         string? filter,
         ShortLinkStatus? status,
@@ -163,7 +163,7 @@ public class EfCoreShortLinkRepository :
             .ToListAsync(GetCancellationToken(cancellationToken));
     }
 
-    public async Task<long> GetCountAsync(
+    public virtual async Task<long> GetCountAsync(
         Guid? ownerUserId,
         string? filter,
         ShortLinkStatus? status,
@@ -173,7 +173,7 @@ public class EfCoreShortLinkRepository :
         return await query.LongCountAsync(GetCancellationToken(cancellationToken));
     }
 
-    public async Task RecordVisitAsync(
+    public virtual async Task RecordVisitAsync(
         ShortLinkVisit visit,
         CancellationToken cancellationToken = default)
     {
@@ -199,7 +199,7 @@ public class EfCoreShortLinkRepository :
         await dbContext.SaveChangesAsync(GetCancellationToken(cancellationToken));
     }
 
-    public async Task<long> BackfillDomainAsync(
+    public virtual async Task<long> BackfillDomainAsync(
         Guid domainId,
         string origin,
         CancellationToken cancellationToken = default)

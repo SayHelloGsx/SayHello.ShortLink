@@ -8,7 +8,7 @@ public class RandomShortCodeGenerator : IShortCodeGenerator, ITransientDependenc
 {
     private const string Alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-    public string Generate(int length)
+    public virtual string Generate(int length)
     {
         if (length is < ShortLinkConsts.MinCodeLength or > ShortLinkConsts.MaxCodeLength)
         {

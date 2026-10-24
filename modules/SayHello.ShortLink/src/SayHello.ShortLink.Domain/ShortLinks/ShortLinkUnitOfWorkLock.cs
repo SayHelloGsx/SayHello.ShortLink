@@ -23,7 +23,7 @@ public class ShortLinkUnitOfWorkLock(IAbpDistributedLock distributedLock) : ITra
         }
     }
 
-    public async Task AcquireAsync(
+    public virtual async Task AcquireAsync(
         IUnitOfWork unitOfWork, string key, string errorCode, CancellationToken cancellationToken,
         ShortLinkLockOrder order = ShortLinkLockOrder.Owner)
     {

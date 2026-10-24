@@ -25,7 +25,7 @@ public class ShortLinkDomainConfigurationLock : ITransientDependency
         _unitOfWorkManager = unitOfWorkManager;
     }
 
-    public async Task AcquireAsync(
+    public virtual async Task AcquireAsync(
         CancellationToken cancellationToken)
     {
         var unitOfWork = _unitOfWorkManager.Current

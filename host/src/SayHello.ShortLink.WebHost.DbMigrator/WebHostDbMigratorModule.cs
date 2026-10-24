@@ -12,6 +12,7 @@ namespace SayHello.ShortLink.WebHost.DbMigrator;
 
 [DependsOn(
     typeof(AbpAutofacModule),
+    typeof(AbpDistributedLockingModule),
     typeof(WebHostEntityFrameworkCoreModule),
     typeof(WebHostApplicationContractsModule)
     )]

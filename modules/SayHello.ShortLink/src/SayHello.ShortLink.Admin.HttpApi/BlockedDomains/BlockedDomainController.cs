@@ -22,32 +22,32 @@ public class BlockedDomainController :
     }
 
     [HttpGet]
-    public Task<ListResultDto<BlockedDomainDto>> GetListAsync()
+    public virtual Task<ListResultDto<BlockedDomainDto>> GetListAsync()
     {
         return _appService.GetListAsync();
     }
 
     [HttpPost]
-    public Task<BlockedDomainDto> CreateAsync(CreateBlockedDomainDto input)
+    public virtual Task<BlockedDomainDto> CreateAsync(CreateBlockedDomainDto input)
     {
         return _appService.CreateAsync(input);
     }
 
     [HttpPut("{id:guid}")]
-    public Task<BlockedDomainDto> UpdateAsync(Guid id, UpdateBlockedDomainDto input)
+    public virtual Task<BlockedDomainDto> UpdateAsync(Guid id, UpdateBlockedDomainDto input)
     {
         return _appService.UpdateAsync(id, input);
     }
 
     [HttpDelete("{id:guid}")]
-    public Task DeleteAsync(Guid id)
+    public virtual Task DeleteAsync(Guid id)
     {
         return _appService.DeleteAsync(id);
     }
 
     [HttpPost("import")]
     [Consumes("multipart/form-data")]
-    public Task<BlockedDomainImportResultDto> ImportAsync(IRemoteStreamContent file)
+    public virtual Task<BlockedDomainImportResultDto> ImportAsync(IRemoteStreamContent file)
     {
         return _appService.ImportAsync(file);
     }

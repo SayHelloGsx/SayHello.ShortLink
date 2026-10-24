@@ -6,7 +6,7 @@ using Volo.Abp.Users;
 namespace SayHello.Subscription;
 
 [DependsOn(typeof(AbpDddDomainModule), typeof(SubscriptionDomainSharedModule),
-    typeof(AbpDistributedLockingModule), typeof(AbpUsersDomainModule))]
+    typeof(AbpDistributedLockingAbstractionsModule), typeof(AbpUsersDomainModule))]
 public class SubscriptionDomainModule : AbpModule
 {
 }

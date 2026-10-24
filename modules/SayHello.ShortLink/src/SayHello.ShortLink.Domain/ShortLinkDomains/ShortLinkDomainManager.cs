@@ -2,8 +2,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.Domain.Services;
-using Volo.Abp.Guids;
-using Volo.Abp.MultiTenancy;
 
 namespace SayHello.ShortLink.ShortLinkDomains;
 
@@ -11,22 +9,16 @@ public class ShortLinkDomainManager : DomainService
 {
     private readonly IShortLinkDomainRepository _repository;
     private readonly ShortLinkDomainDeletionPolicy _deletionPolicy;
-    private readonly IGuidGenerator _guidGenerator;
-    private readonly ICurrentTenant _currentTenant;
 
     public ShortLinkDomainManager(
         IShortLinkDomainRepository repository,
-        ShortLinkDomainDeletionPolicy deletionPolicy,
-        IGuidGenerator guidGenerator,
-        ICurrentTenant currentTenant)
+        ShortLinkDomainDeletionPolicy deletionPolicy)
     {
         _repository = repository;
         _deletionPolicy = deletionPolicy;
-        _guidGenerator = guidGenerator;
-        _currentTenant = currentTenant;
     }
 
-    public async Task<ShortLinkDomain> CreateAsync(
+    public virtual async Task<ShortLinkDomain> CreateAsync(
         string origin,
         CancellationToken cancellationToken = default)
     {
@@ -47,29 +39,29 @@ public class ShortLinkDomainManager : DomainService
         }
 
         return new ShortLinkDomain(
-            _guidGenerator.Create(),
-            _currentTenant.Id,
+            GuidGenerator.Create(),
+            CurrentTenant.Id,
             normalizedOrigin,
             isDefault: count == 0);
     }
 
-    public Task<ShortLinkDomain?> FindDefaultAsync(
+    public virtual Task<ShortLinkDomain?> FindDefaultAsync(
         CancellationToken cancellationToken = default)
     {
         return _repository.FindDefaultAsync(cancellationToken);
     }
 
-    public void ClearDefault(ShortLinkDomain domain)
+    public virtual void ClearDefault(ShortLinkDomain domain)
     {
         domain.ClearDefault();
     }
 
-    public void SetDefault(ShortLinkDomain domain)
+    public virtual void SetDefault(ShortLinkDomain domain)
     {
         domain.SetAsDefault();
     }
 
-    public Task EnsureCanDeleteAsync(
+    public virtual Task EnsureCanDeleteAsync(
         ShortLinkDomain domain,
         CancellationToken cancellationToken = default)
     {

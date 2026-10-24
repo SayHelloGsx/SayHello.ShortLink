@@ -18,7 +18,7 @@ public class AuthenticatedShortLinkUserEligibilityChecker :
         _currentUser = currentUser;
     }
 
-    public Task EnsureEligibleAsync(Guid userId, CancellationToken cancellationToken = default)
+    public virtual Task EnsureEligibleAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (!_currentUser.IsAuthenticated || _currentUser.Id != userId)
         {

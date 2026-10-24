@@ -16,7 +16,7 @@ public class ShortLinkUrlBuilder : IShortLinkUrlBuilder, ITransientDependency
         _options = options.Value;
     }
 
-    public string Build(string code)
+    public virtual string Build(string code)
     {
         if (_options.BaseUrl.IsNullOrWhiteSpace())
         {
@@ -26,12 +26,12 @@ public class ShortLinkUrlBuilder : IShortLinkUrlBuilder, ITransientDependency
         return Build(_options.BaseUrl, code);
     }
 
-    public string Build(string origin, string code)
+    public virtual string Build(string origin, string code)
     {
         return Build(origin, string.Empty, code);
     }
 
-    public string Build(string? origin, string pathNamespace, string code)
+    public virtual string Build(string? origin, string pathNamespace, string code)
     {
         if (pathNamespace != string.Empty && !ShortLinkNamespaceFormat.IsValid(pathNamespace))
         {

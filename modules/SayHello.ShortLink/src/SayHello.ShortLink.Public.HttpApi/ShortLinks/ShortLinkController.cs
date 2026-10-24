@@ -20,55 +20,55 @@ public class ShortLinkController : ShortLinkPublicController, IShortLinkAppServi
     }
 
     [HttpGet("capabilities")]
-    public Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync()
+    public virtual Task<ShortLinkCapabilitiesDto> GetCapabilitiesAsync()
     {
         return _appService.GetCapabilitiesAsync();
     }
 
     [HttpGet]
-    public Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
+    public virtual Task<PagedResultDto<ShortLinkDto>> GetListAsync(GetShortLinksInput input)
     {
         return _appService.GetListAsync(input);
     }
 
     [HttpGet("{id:guid}")]
-    public Task<ShortLinkDto> GetAsync(Guid id)
+    public virtual Task<ShortLinkDto> GetAsync(Guid id)
     {
         return _appService.GetAsync(id);
     }
 
     [HttpPost]
-    public Task<ShortLinkDto> CreateAsync(CreateShortLinkDto input)
+    public virtual Task<ShortLinkDto> CreateAsync(CreateShortLinkDto input)
     {
         return _appService.CreateAsync(input);
     }
 
     [HttpPut("{id:guid}")]
-    public Task<ShortLinkDto> UpdateAsync(Guid id, UpdateShortLinkDto input)
+    public virtual Task<ShortLinkDto> UpdateAsync(Guid id, UpdateShortLinkDto input)
     {
         return _appService.UpdateAsync(id, input);
     }
 
     [HttpPut("{id:guid}/status")]
-    public Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
+    public virtual Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input)
     {
         return _appService.SetStatusAsync(id, input);
     }
 
     [HttpDelete("{id:guid}")]
-    public Task DeleteAsync(Guid id)
+    public virtual Task DeleteAsync(Guid id)
     {
         return _appService.DeleteAsync(id);
     }
 
     [HttpGet("{id:guid}/statistics")]
-    public Task<ShortLinkStatisticsDto> GetStatisticsAsync(Guid id, int days = 30)
+    public virtual Task<ShortLinkStatisticsDto> GetStatisticsAsync(Guid id, int days = 30)
     {
         return _appService.GetStatisticsAsync(id, days);
     }
 
     [HttpGet("{id:guid}/qr-code")]
-    public Task<ShortLinkQrCodeDto> GetQrCodeAsync(Guid id)
+    public virtual Task<ShortLinkQrCodeDto> GetQrCodeAsync(Guid id)
     {
         return _appService.GetQrCodeAsync(id);
     }

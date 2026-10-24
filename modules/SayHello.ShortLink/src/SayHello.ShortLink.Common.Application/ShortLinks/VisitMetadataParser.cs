@@ -6,7 +6,7 @@ namespace SayHello.ShortLink.Common.ShortLinks;
 
 public class VisitMetadataParser : IVisitMetadataParser, ITransientDependency
 {
-    public VisitMetadata Parse(string? referrer, string? userAgent)
+    public virtual VisitMetadata Parse(string? referrer, string? userAgent)
     {
         return new VisitMetadata(
             ParseReferrerHost(referrer),

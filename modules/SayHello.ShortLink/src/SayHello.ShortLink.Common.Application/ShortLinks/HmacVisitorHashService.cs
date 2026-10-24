@@ -23,7 +23,7 @@ public class HmacVisitorHashService : IVisitorHashService, ITransientDependency
         _key = Encoding.UTF8.GetBytes(key);
     }
 
-    public string Compute(string? ipAddress, DateTime visitedAt)
+    public virtual string Compute(string? ipAddress, DateTime visitedAt)
     {
         var normalizedAddress = IPAddress.TryParse(ipAddress, out var parsedAddress)
             ? parsedAddress.ToString()

@@ -8,7 +8,7 @@ namespace SayHello.Subscription.Public.Web.Menus;
 
 public class SubscriptionPublicMenuContributor : IMenuContributor
 {
-    public Task ConfigureMenuAsync(MenuConfigurationContext context)
+    public virtual Task ConfigureMenuAsync(MenuConfigurationContext context)
     {
         if (context.Menu.Name != StandardMenus.Main)
         {

@@ -21,7 +21,7 @@ public class IndexModel : ShortLinkAdminPageModel
         _appService = appService;
     }
 
-    public async Task OnGetAsync()
+    public virtual async Task OnGetAsync()
     {
         var result = await _appService.GetListAsync(
             new GetShortLinksInput
@@ -32,7 +32,7 @@ public class IndexModel : ShortLinkAdminPageModel
         Items = result.Items;
     }
 
-    public async Task<IActionResult> OnPostSetStatusAsync(
+    public virtual async Task<IActionResult> OnPostSetStatusAsync(
         Guid id,
         ShortLinkStatus status,
         string concurrencyStamp)
@@ -47,7 +47,7 @@ public class IndexModel : ShortLinkAdminPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(Guid id)
+    public virtual async Task<IActionResult> OnPostDeleteAsync(Guid id)
     {
         await _appService.DeleteAsync(id);
         return RedirectToPage();

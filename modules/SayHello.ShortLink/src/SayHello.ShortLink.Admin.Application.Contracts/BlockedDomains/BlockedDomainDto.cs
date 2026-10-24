@@ -1,9 +1,10 @@
 using System;
 using Volo.Abp.Application.Dtos;
+using Volo.Abp.Domain.Entities;
 
 namespace SayHello.ShortLink.Admin.BlockedDomains;
 
-public class BlockedDomainDto : FullAuditedEntityDto<Guid>
+public class BlockedDomainDto : FullAuditedEntityDto<Guid>, IHasConcurrencyStamp
 {
     public string Domain { get; set; } = string.Empty;
 

@@ -12,7 +12,7 @@ public class ShortLinkDefaultNamespaceProvider(
     ShortLinkNamespacePolicy policy,
     IShortLinkNamespaceReservationRepository reservationRepository) : ITransientDependency
 {
-    public async Task<string> GetAsync(CancellationToken cancellationToken = default)
+    public virtual async Task<string> GetAsync(CancellationToken cancellationToken = default)
     {
         var value = await settingProvider.GetOrNullAsync(ShortLinkSettings.DefaultNamespace);
         if (value is null)

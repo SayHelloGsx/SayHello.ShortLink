@@ -19,7 +19,7 @@ public class ShortLinkDomainDeletionPolicy : DomainService
         _namespaceRepository = namespaceRepository;
     }
 
-    public async Task EnsureCanDeleteAsync(
+    public virtual async Task EnsureCanDeleteAsync(
         ShortLinkDomain domain,
         CancellationToken cancellationToken = default)
     {

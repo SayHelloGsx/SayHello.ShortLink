@@ -27,7 +27,7 @@ public class EditModel : ShortLinkPublicPageModel
         _appService = appService;
     }
 
-    public async Task OnGetAsync(Guid id)
+    public virtual async Task OnGetAsync(Guid id)
     {
         Id = id;
         var item = await _appService.GetAsync(id);
@@ -41,7 +41,7 @@ public class EditModel : ShortLinkPublicPageModel
         };
     }
 
-    public async Task<IActionResult> OnPostAsync(Guid id)
+    public virtual async Task<IActionResult> OnPostAsync(Guid id)
     {
         if (!ModelState.IsValid)
         {

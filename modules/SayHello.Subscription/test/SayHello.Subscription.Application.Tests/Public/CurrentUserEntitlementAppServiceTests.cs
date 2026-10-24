@@ -192,8 +192,8 @@ public class CurrentUserEntitlementAppServiceTests
         definitions.GetProduct(product.Code).Returns(definition);
         definitions.GetFeature(product.Code, Arg.Any<string>())
             .Returns(call => definition.GetFeature(call.ArgAt<string>(1)));
-        var checker = new SubscriptionEntitlementChecker(definitions, repository,
-            _context.CurrentTenant, _context.Clock, Substitute.For<IDefaultSubscriptionPlanRepository>());
+        var checker = _context.ConfigureDomainService(new SubscriptionEntitlementChecker(definitions, repository,
+            Substitute.For<IDefaultSubscriptionPlanRepository>()));
         var service = CreateService(checker);
 
         (await service.GetNumericAsync("one", "limit")).Status.ShouldBe(EntitlementGrantStatus.NotGranted);
@@ -349,8 +349,8 @@ public class CurrentUserEntitlementAppServiceTests
         defaults.FindAsync(product.Code, Arg.Any<CancellationToken>()).Returns(defaultPlan);
         defaults.GetPageAsync(Arg.Any<SubscriptionCatalogQuery>(), _context.UserId, _context.Now,
             Arg.Any<CancellationToken>()).Returns(new SubscriptionPage<DefaultSubscriptionPlan>(1, new[] { defaultPlan }));
-        var service = CreateService(new SubscriptionEntitlementChecker(_definitions, subscriptions,
-            _context.CurrentTenant, _context.Clock, defaults));
+        var service = CreateService(_context.ConfigureDomainService(
+            new SubscriptionEntitlementChecker(_definitions, subscriptions, defaults)));
 
         for (var attempt = 0; attempt < 2; attempt++)
         {
@@ -401,8 +401,8 @@ public class CurrentUserEntitlementAppServiceTests
         subscriptions.FindEffectiveAsync(_context.UserId, product.Code, _context.Now,
             Arg.Any<CancellationToken>()).Returns(subscription);
         var defaults = Substitute.For<IDefaultSubscriptionPlanRepository>();
-        var service = CreateService(new SubscriptionEntitlementChecker(_definitions, subscriptions,
-            _context.CurrentTenant, _context.Clock, defaults));
+        var service = CreateService(_context.ConfigureDomainService(
+            new SubscriptionEntitlementChecker(_definitions, subscriptions, defaults)));
 
         var summary = await service.GetAsync(product.Code);
         var numeric = await service.GetNumericAsync(product.Code, "limit");

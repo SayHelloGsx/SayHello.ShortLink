@@ -1,9 +1,10 @@
 using System;
 using Volo.Abp.Application.Dtos;
+using Volo.Abp.Domain.Entities;
 
 namespace SayHello.ShortLink.ShortLinks;
 
-public class ShortLinkDto : FullAuditedEntityDto<Guid>
+public class ShortLinkDto : FullAuditedEntityDto<Guid>, IHasConcurrencyStamp
 {
     public Guid OwnerUserId { get; set; }
 

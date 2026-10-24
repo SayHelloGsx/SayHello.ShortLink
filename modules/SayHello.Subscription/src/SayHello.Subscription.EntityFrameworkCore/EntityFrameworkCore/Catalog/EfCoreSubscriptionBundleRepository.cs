@@ -18,19 +18,19 @@ public class EfCoreSubscriptionBundleRepository : SubscriptionEfRepository<Subsc
     public override async Task<IQueryable<SubscriptionBundle>> WithDetailsAsync() =>
         (await GetQueryableAsync()).Include(x => x.Items);
 
-    public async Task<SubscriptionBundle?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
+    public virtual async Task<SubscriptionBundle?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         code = SubscriptionCode.Normalize(code);
         return await (await WithDetailsAsync()).FirstOrDefaultAsync(x => x.Code == code, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<SubscriptionBundle>> GetByIdsAsync(IReadOnlyCollection<Guid> ids,
+    public virtual async Task<IReadOnlyList<SubscriptionBundle>> GetByIdsAsync(IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default)
     {
         return await (await WithDetailsAsync()).AsNoTracking().Where(x => ids.Contains(x.Id)).ToListAsync(cancellationToken);
     }
 
-    public async Task<SubscriptionPage<SubscriptionBundle>> GetPageAsync(SubscriptionCatalogQuery query,
+    public virtual async Task<SubscriptionPage<SubscriptionBundle>> GetPageAsync(SubscriptionCatalogQuery query,
         CancellationToken cancellationToken = default)
     {
         query.Validate();
@@ -55,7 +55,7 @@ public class EfCoreSubscriptionBundleRepository : SubscriptionEfRepository<Subsc
         return new SubscriptionPage<SubscriptionBundle>(count, items);
     }
 
-    public async Task<bool> IsReferencedAsync(Guid bundleId, CancellationToken cancellationToken = default)
+    public virtual async Task<bool> IsReferencedAsync(Guid bundleId, CancellationToken cancellationToken = default)
     {
         return await (await GetDbContextAsync()).UserSubscriptions.AnyAsync(
             x => x.SourceBundleId == bundleId, cancellationToken);

@@ -13,7 +13,7 @@ public abstract class SubscriptionPublicPageModel : AbpPageModel
         LocalizationResourceType = typeof(SubscriptionPublicResource);
     }
 
-    protected SubscriptionPager Pager(long totalCount, SubscriptionPagedInput input, string inputPrefix = "Input")
+    protected virtual SubscriptionPager Pager(long totalCount, SubscriptionPagedInput input, string inputPrefix = "Input")
     {
         var skipKey = $"{inputPrefix}.SkipCount";
         string Url(int skip) => Request.Path + QueryString.Create(

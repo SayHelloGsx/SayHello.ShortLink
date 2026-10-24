@@ -58,12 +58,12 @@ public class IndexModel : ShortLinkPublicPageModel
         _namespaceAppService = namespaceAppService;
     }
 
-    public async Task OnGetAsync()
+    public virtual async Task OnGetAsync()
     {
         await LoadItemsAsync();
     }
 
-    public async Task<IActionResult> OnPostCreateAsync()
+    public virtual async Task<IActionResult> OnPostCreateAsync()
     {
         await AuthorizationService.CheckAsync(ShortLinkPublicPermissions.Create);
         if (!ModelState.IsValid)
@@ -111,13 +111,13 @@ public class IndexModel : ShortLinkPublicPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnGetNamespacesAsync(string origin)
+    public virtual async Task<IActionResult> OnGetNamespacesAsync(string origin)
     {
         await AuthorizationService.CheckAsync(ShortLinkPublicPermissions.Namespaces.Default);
         return new JsonResult(await _namespaceAppService.GetListAsync(origin));
     }
 
-    public async Task<IActionResult> OnPostRefreshNamespacesAsync()
+    public virtual async Task<IActionResult> OnPostRefreshNamespacesAsync()
     {
         await AuthorizationService.CheckAsync(ShortLinkPublicPermissions.Create);
         NewLink.NamespaceId = null;
@@ -126,7 +126,7 @@ public class IndexModel : ShortLinkPublicPageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostSetStatusAsync(
+    public virtual async Task<IActionResult> OnPostSetStatusAsync(
         Guid id,
         ShortLinkStatus status,
         string concurrencyStamp)
@@ -142,13 +142,13 @@ public class IndexModel : ShortLinkPublicPageModel
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(Guid id)
+    public virtual async Task<IActionResult> OnPostDeleteAsync(Guid id)
     {
         await _appService.DeleteAsync(id);
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnGetQrCodeAsync(Guid id)
+    public virtual async Task<IActionResult> OnGetQrCodeAsync(Guid id)
     {
         var qrCode = await _appService.GetQrCodeAsync(id);
         return Content(qrCode.Content, qrCode.ContentType);

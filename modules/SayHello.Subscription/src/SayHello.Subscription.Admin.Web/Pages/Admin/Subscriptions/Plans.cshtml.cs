@@ -13,16 +13,16 @@ public class PlansModel : CatalogPageModel
     public override string AreaName => "Plans";
     private readonly IPlanAdminAppService _service;
     public PlansModel(IPlanAdminAppService service) => _service = service;
-    public async Task<JsonResult> OnGetListAsync([FromQuery] AdminCatalogQueryDto input) => new(await _service.GetListAsync(input));
-    public async Task<JsonResult> OnGetItemAsync(Guid id) => new(await _service.GetAsync(id));
-    public async Task<JsonResult> OnGetOptionsAsync([FromQuery] AdminCatalogQueryDto input) => new(await _service.GetProductsAsync(input));
-    public async Task<JsonResult> OnGetDefinitionAsync(Guid productId) => new(await _service.GetDefinitionAsync(productId));
-    public Task<IActionResult> OnPostCreateAsync([FromBody] CreatePlanDto input) =>
+    public virtual async Task<JsonResult> OnGetListAsync([FromQuery] AdminCatalogQueryDto input) => new(await _service.GetListAsync(input));
+    public virtual async Task<JsonResult> OnGetItemAsync(Guid id) => new(await _service.GetAsync(id));
+    public virtual async Task<JsonResult> OnGetOptionsAsync([FromQuery] AdminCatalogQueryDto input) => new(await _service.GetProductsAsync(input));
+    public virtual async Task<JsonResult> OnGetDefinitionAsync(Guid productId) => new(await _service.GetDefinitionAsync(productId));
+    public virtual Task<IActionResult> OnPostCreateAsync([FromBody] CreatePlanDto input) =>
         WriteAsync(SubscriptionAdminPermissions.Plans.Create, () => _service.CreateAsync(input));
-    public Task<IActionResult> OnPostUpdateAsync(Guid id, [FromBody] UpdatePlanDto input) =>
+    public virtual Task<IActionResult> OnPostUpdateAsync(Guid id, [FromBody] UpdatePlanDto input) =>
         WriteAsync(SubscriptionAdminPermissions.Plans.Update, () => _service.UpdateAsync(id, input));
-    public Task<IActionResult> OnPostStateAsync(Guid id, [FromBody] CatalogStateInputDto input) =>
+    public virtual Task<IActionResult> OnPostStateAsync(Guid id, [FromBody] CatalogStateInputDto input) =>
         WriteAsync(SubscriptionAdminPermissions.Plans.Publish, () => _service.SetStateAsync(id, input));
-    public Task<IActionResult> OnPostDeleteAsync(Guid id, [FromBody] VersionInputDto input) =>
+    public virtual Task<IActionResult> OnPostDeleteAsync(Guid id, [FromBody] VersionInputDto input) =>
         WriteAsync(SubscriptionAdminPermissions.Plans.Delete, () => _service.DeleteAsync(id, input));
 }

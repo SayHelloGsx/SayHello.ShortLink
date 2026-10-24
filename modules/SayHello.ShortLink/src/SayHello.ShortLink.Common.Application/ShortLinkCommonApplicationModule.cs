@@ -18,7 +18,7 @@ namespace SayHello.ShortLink;
     typeof(AbpDddApplicationModule),
     typeof(AbpMapperlyModule),
     typeof(AbpBackgroundWorkersModule),
-    typeof(AbpDistributedLockingModule)
+    typeof(AbpDistributedLockingAbstractionsModule)
 )]
 public class ShortLinkCommonApplicationModule : AbpModule
 {
