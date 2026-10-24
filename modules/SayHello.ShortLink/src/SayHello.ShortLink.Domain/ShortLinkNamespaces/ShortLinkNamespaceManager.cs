@@ -41,15 +41,10 @@ public class ShortLinkNamespaceManager(
             await namespaceLock.AcquireConfigurationAsync(cancellationToken);
             await domainConfigurationLock.AcquireAsync(cancellationToken);
             await creationLock.AcquireAsync(unit, ownerUserId, cancellationToken);
-            if (!await capabilityProvider.IsNamespaceEnabledAsync(ownerUserId, cancellationToken))
+            var quota = await capabilityProvider.GetNamespaceQuotaAsync(ownerUserId, cancellationToken);
+            if (!quota.IsEnabled)
             {
                 throw new BusinessException(ShortLinkErrorCodes.NamespacesNotGranted);
-            }
-
-            var quota = await capabilityProvider.GetNamespaceQuotaAsync(ownerUserId, cancellationToken);
-            if (!quota.IsGranted)
-            {
-                throw new BusinessException(ShortLinkErrorCodes.NamespaceQuotaNotGranted);
             }
             var count = await repository.GetCountByOwnerAsync(ownerUserId, cancellationToken);
             if (quota.Limit is { } limit && count >= limit)

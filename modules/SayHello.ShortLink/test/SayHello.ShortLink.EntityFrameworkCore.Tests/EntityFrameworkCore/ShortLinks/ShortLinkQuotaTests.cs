@@ -544,7 +544,6 @@ public class QuotaCapabilityProvider : IShortLinkCapabilityProvider
 {
     public ShortLinkQuota Quota { get; set; } = ShortLinkQuota.Unlimited;
     public ShortLinkQuota CustomCodeQuota { get; set; } = ShortLinkQuota.Unlimited;
-    public bool NamespacesEnabled { get; set; } = true;
     public ShortLinkQuota NamespaceQuota { get; set; } = ShortLinkQuota.Unlimited;
     public ShortLinkQuota RootLinkQuota { get; set; } = ShortLinkQuota.Unlimited;
     public ShortLinkDomainAccess DomainAccess { get; set; } = ShortLinkDomainAccess.Unrestricted;
@@ -563,8 +562,6 @@ public class QuotaCapabilityProvider : IShortLinkCapabilityProvider
         Guid userId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(DomainAccess);
-    public Task<bool> IsNamespaceEnabledAsync(Guid userId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(NamespacesEnabled);
     public Task<ShortLinkQuota> GetNamespaceQuotaAsync(Guid userId, CancellationToken cancellationToken = default) =>
         Task.FromResult(NamespaceQuota);
     public Task<ShortLinkQuota> GetRootLinkQuotaAsync(Guid userId, CancellationToken cancellationToken = default) =>

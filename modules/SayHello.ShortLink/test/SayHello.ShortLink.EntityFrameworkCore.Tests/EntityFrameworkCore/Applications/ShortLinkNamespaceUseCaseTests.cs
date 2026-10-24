@@ -361,16 +361,13 @@ public class ShortLinkNamespaceUseCaseTests :
     }
 
     [Theory]
-    [InlineData(false, true, ShortLinkErrorCodes.NamespacesNotGranted)]
-    [InlineData(true, false, ShortLinkErrorCodes.NamespaceQuotaNotGranted)]
-    [InlineData(true, true, ShortLinkErrorCodes.NamespaceQuotaExceeded)]
-    public async Task Missing_Feature_Denied_Quota_And_Zero_Quota_Should_Be_Distinct(
-        bool enabled, bool quotaGranted, string errorCode)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Denied_And_Zero_Namespace_Quotas_Should_Mean_Namespaces_Are_Not_Granted(bool quotaGranted)
     {
-        _capabilities.NamespacesEnabled = enabled;
         _capabilities.NamespaceQuota = quotaGranted ? ShortLinkQuota.Limited(0) : ShortLinkQuota.Denied;
         (await Should.ThrowAsync<BusinessException>(() => CreateNamespaceAsync("Denied"))).Code
-            .ShouldBe(errorCode);
+            .ShouldBe(ShortLinkErrorCodes.NamespacesNotGranted);
         (await NamespaceCountAsync()).ShouldBe(0);
         _locks.ActiveCount.ShouldBe(0);
     }
@@ -381,26 +378,26 @@ public class ShortLinkNamespaceUseCaseTests :
         var selected = await CreateNamespaceAsync("Existing");
         var unused = await CreateNamespaceAsync("Unused");
         _capabilities.RootLinkQuota = ShortLinkQuota.Denied;
-        ShortLinkDto? link = null;
-        foreach (var quota in new[] { ShortLinkQuota.Denied, ShortLinkQuota.Limited(0), ShortLinkQuota.Limited(1) })
+        _capabilities.NamespaceQuota = ShortLinkQuota.Limited(1);
+        (await Should.ThrowAsync<BusinessException>(() => CreateNamespaceAsync("Downgraded"))).Code
+            .ShouldBe(ShortLinkErrorCodes.NamespaceQuotaExceeded);
+        var link = await CreateLinkAsync(namespaceId: selected.Id);
+        link.NamespaceId.ShouldBe(selected.Id);
+
+        foreach (var quota in new[] { ShortLinkQuota.Denied, ShortLinkQuota.Limited(0) })
         {
             _capabilities.NamespaceQuota = quota;
             (await Should.ThrowAsync<BusinessException>(() => CreateNamespaceAsync("Downgraded"))).Code
-                .ShouldBe(quota.IsGranted
-                    ? ShortLinkErrorCodes.NamespaceQuotaExceeded
-                    : ShortLinkErrorCodes.NamespaceQuotaNotGranted);
-            link = await CreateLinkAsync(namespaceId: selected.Id);
-            link.NamespaceId.ShouldBe(selected.Id);
+                .ShouldBe(ShortLinkErrorCodes.NamespacesNotGranted);
+            (await Should.ThrowAsync<BusinessException>(() => CreateLinkAsync(namespaceId: selected.Id))).Code
+                .ShouldBe(ShortLinkErrorCodes.NamespacesNotGranted);
         }
 
-        _capabilities.NamespacesEnabled = false;
-        (await Should.ThrowAsync<BusinessException>(() => CreateLinkAsync(namespaceId: selected.Id))).Code
-            .ShouldBe(ShortLinkErrorCodes.NamespacesNotGranted);
         var defaultLink = await CreateLinkAsync();
         defaultLink.Namespace.ShouldBe("s");
         _capabilities.RootLinkQuota = ShortLinkQuota.Unlimited;
         (await CreateLinkAsync(useRootPath: true)).Namespace.ShouldBe(string.Empty);
-        var updated = await _links.UpdateAsync(link!.Id, new UpdateShortLinkDto
+        var updated = await _links.UpdateAsync(link.Id, new UpdateShortLinkDto
         {
             TargetUrl = "https://example.com/downgraded",
             ConcurrencyStamp = link.ConcurrencyStamp
@@ -426,7 +423,7 @@ public class ShortLinkNamespaceUseCaseTests :
             _capabilities.RootLinkQuota = ShortLinkQuota.Limited(limit);
             var result = await _links.GetCapabilitiesAsync();
             result.DefaultNamespace.ShouldBe("s");
-            result.NamespacesEnabled.ShouldBeTrue();
+            result.NamespacesEnabled.ShouldBe(limit > 0);
             result.UsedNamespaces.ShouldBe(2);
             result.UsedRootLinks.ShouldBe(2);
             result.UsedLinks.ShouldBe(3);
@@ -445,6 +442,7 @@ public class ShortLinkNamespaceUseCaseTests :
         _capabilities.NamespaceQuota = ShortLinkQuota.Denied;
         _capabilities.RootLinkQuota = ShortLinkQuota.Denied;
         var denied = await _links.GetCapabilitiesAsync();
+        denied.NamespacesEnabled.ShouldBeFalse();
         denied.IsNamespaceQuotaGranted.ShouldBeFalse();
         denied.IsNamespaceUnlimited.ShouldBeFalse();
         denied.MaxNamespaces.ShouldBeNull();
@@ -459,6 +457,7 @@ public class ShortLinkNamespaceUseCaseTests :
         _capabilities.NamespaceQuota = ShortLinkQuota.Unlimited;
         _capabilities.RootLinkQuota = ShortLinkQuota.Unlimited;
         var unlimited = await _links.GetCapabilitiesAsync();
+        unlimited.NamespacesEnabled.ShouldBeTrue();
         unlimited.IsNamespaceUnlimited.ShouldBeTrue();
         unlimited.MaxNamespaces.ShouldBeNull();
         unlimited.RemainingNamespaces.ShouldBeNull();
@@ -468,8 +467,9 @@ public class ShortLinkNamespaceUseCaseTests :
         unlimited.RemainingRootLinks.ShouldBeNull();
         unlimited.CanCreateRootLink.ShouldBeTrue();
 
-        _capabilities.NamespacesEnabled = false;
+        _capabilities.NamespaceQuota = ShortLinkQuota.Limited(0);
         var featureOff = await _links.GetCapabilitiesAsync();
+        featureOff.NamespacesEnabled.ShouldBeFalse();
         featureOff.UsedNamespaces.ShouldBe(2);
         featureOff.CanCreateNamespace.ShouldBeFalse();
         featureOff.CanCreateRootLink.ShouldBeTrue();

@@ -56,7 +56,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
     public async Task Granted_Root_Path_Should_Render_An_Explicit_Unchecked_Option()
     {
         var owner = Guid.NewGuid();
-        await AssignPlanAsync(owner, true, 1, rootLimit: 1);
+        await AssignPlanAsync(owner, 1, rootLimit: 1);
         using var client = Client(owner);
         var document = await GetPageAsync(client, "/short-links");
         var root = Node(document, "//input[@name='NewLink.UseRootPath' and @type='checkbox']");
@@ -69,10 +69,11 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
     public async Task Refresh_Should_Keep_Validation_Input_And_Existing_Namespaces_After_Quantity_Downgrade()
     {
         var owner = Guid.NewGuid();
-        await AssignPlanAsync(owner, true, 1);
+        await AssignPlanAsync(owner, 2);
         using var client = Client(owner);
         var item = await CreateNamespaceAsync(client);
-        await AssignPlanAsync(owner, true, 0);
+        var other = await CreateNamespaceAsync(client);
+        await AssignPlanAsync(owner, 1);
         var initial = await GetPageAsync(client, "/short-links");
         using var response = await client.PostAsync("/short-links?handler=RefreshNamespaces",
             Form(initial, new Dictionary<string, string>
@@ -90,6 +91,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
         var selector = Node(document, "//select[@name='NewLink.NamespaceId']");
         selector.Attributes.Contains("disabled").ShouldBeFalse();
         selector.SelectSingleNode($"./option[@value='{item.Id}']").ShouldNotBeNull();
+        selector.SelectSingleNode($"./option[@value='{other.Id}']").ShouldNotBeNull();
         selector.SelectSingleNode($"./option[@value='{item.Id}' and @selected]").ShouldBeNull();
         selector.SelectSingleNode("./option[1]").GetAttributeValue("value", "missing").ShouldBeEmpty();
 
@@ -98,17 +100,18 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
         lookup.StatusCode.ShouldBe(HttpStatusCode.OK);
         using var json = System.Text.Json.JsonDocument.Parse(await lookup.Content.ReadAsStringAsync());
         json.RootElement.GetProperty("items").EnumerateArray()
-            .Single().GetProperty("id").GetGuid().ShouldBe(item.Id);
+            .Select(value => value.GetProperty("id").GetGuid())
+            .ShouldBe([item.Id, other.Id], ignoreOrder: true);
     }
 
     [Fact]
     public async Task Feature_Downgrade_Should_Keep_Delete_Forms_And_Return_409_For_Stale_Stamp()
     {
         var owner = Guid.NewGuid();
-        await AssignPlanAsync(owner, true, 1);
+        await AssignPlanAsync(owner, 1);
         using var client = Client(owner);
         var item = await CreateNamespaceAsync(client);
-        await AssignPlanAsync(owner, false, 0);
+        await AssignPlanAsync(owner, 0);
         var document = await GetPageAsync(client, NamespacePage);
         Node(document, "//form[contains(@action, 'handler=Create')]//button[@type='submit']")
             .Attributes.Contains("disabled").ShouldBeTrue();
@@ -144,10 +147,10 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
     public async Task Namespace_Only_Permissions_Should_Allow_Cleanup_Without_Link_Capabilities()
     {
         var owner = Guid.NewGuid();
-        await AssignPlanAsync(owner, true, 1, namespaceOnly: true);
+        await AssignPlanAsync(owner, 1, namespaceOnly: true);
         using var client = Client(owner);
         var item = await CreateNamespaceAsync(client);
-        await AssignPlanAsync(owner, false, 0, namespaceOnly: true);
+        await AssignPlanAsync(owner, 0, namespaceOnly: true);
         var document = await GetPageAsync(client, NamespacePage);
         document.DocumentNode.SelectSingleNode("//input[@name='NewNamespace.Origin']").ShouldNotBeNull();
         document.DocumentNode.SelectSingleNode("//select[@name='NewNamespace.Origin']").ShouldBeNull();
@@ -161,7 +164,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
     public async Task Creation_Failure_Should_Preserve_Input_And_Delete_Blockers_Should_Remain_Visible_After_Downgrade()
     {
         var owner = Guid.NewGuid();
-        await AssignPlanAsync(owner, true, 1);
+        await AssignPlanAsync(owner, 1);
         using var client = Client(owner);
         var initial = await GetPageAsync(client, NamespacePage);
         using var invalid = await client.PostAsync(NamespacePage + "?handler=Create",
@@ -183,7 +186,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
         input.NamespaceId = item.Id;
         using var created = await client.PostAsJsonAsync("/api/short-link/public/links", input);
         created.StatusCode.ShouldBe(HttpStatusCode.OK);
-        await AssignPlanAsync(owner, false, 0);
+        await AssignPlanAsync(owner, 0);
         var document = await GetPageAsync(client, NamespacePage);
         client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
         using var blocked = await client.PostAsync(NamespacePage + "?handler=Delete",
@@ -227,7 +230,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
             await services.GetRequiredService<IShortLinkDomainRepository>().InsertAsync(domain, autoSave: true);
             var plan = await ShortLinkSubscriptionTestData.CreatePlanAsync(
                 services, 20, false, setDefault: false, domains: [origin],
-                namespaces: true, namespaceLimit: 1, rootLinkLimit: 0);
+                namespaceLimit: 1, rootLinkLimit: 0);
             await ShortLinkSubscriptionTestData.AssignAsync(services, owner, plan.Id);
             var permissions = services.GetRequiredService<IPermissionManager>();
             foreach (var permission in new[]
@@ -280,12 +283,12 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
         Node(failed, "//span[@data-valmsg-for='Settings.DefaultNamespace']").InnerText.ShouldNotBeNullOrWhiteSpace();
     }
 
-    private Task AssignPlanAsync(Guid owner, bool enabled, long limit, bool namespaceOnly = false, long? rootLimit = 0) =>
+    private Task AssignPlanAsync(Guid owner, long limit, bool namespaceOnly = false, long? rootLimit = 0) =>
         ShortLinkSubscriptionTestData.RunAsync(_factory.Services, null, owner, async services =>
         {
             var plan = await ShortLinkSubscriptionTestData.CreatePlanAsync(
                 services, 20, false, setDefault: false,
-                namespaces: enabled, namespaceLimit: limit, rootLinkLimit: rootLimit);
+                namespaceLimit: limit, rootLinkLimit: rootLimit);
             await ShortLinkSubscriptionTestData.AssignAsync(services, owner, plan.Id);
             var permissions = services.GetRequiredService<IPermissionManager>();
             foreach (var permission in new[]

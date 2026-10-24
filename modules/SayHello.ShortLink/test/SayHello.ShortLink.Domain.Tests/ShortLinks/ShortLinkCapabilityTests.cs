@@ -19,11 +19,15 @@ public class ShortLinkCapabilityTests
         ShortLinkQuota.Denied.IsUnlimited.ShouldBeFalse();
         ShortLinkQuota.Denied.Limit.ShouldBeNull();
         ShortLinkQuota.Denied.AllowsCreation(0).ShouldBeFalse();
+        ShortLinkQuota.Denied.IsEnabled.ShouldBeFalse();
         ShortLinkQuota.Limited(0).IsGranted.ShouldBeTrue();
         ShortLinkQuota.Limited(0).AllowsCreation(0).ShouldBeFalse();
+        ShortLinkQuota.Limited(0).IsEnabled.ShouldBeFalse();
+        ShortLinkQuota.Limited(1).IsEnabled.ShouldBeTrue();
         ShortLinkQuota.Unlimited.IsGranted.ShouldBeTrue();
         ShortLinkQuota.Unlimited.IsUnlimited.ShouldBeTrue();
         ShortLinkQuota.Unlimited.AllowsCreation(long.MaxValue).ShouldBeTrue();
+        ShortLinkQuota.Unlimited.IsEnabled.ShouldBeTrue();
         ShortLinkQuota.Limited(long.MaxValue).AllowsCreation(long.MaxValue - 1).ShouldBeTrue();
         ShortLinkQuota.Limited(long.MaxValue).AllowsCreation(long.MaxValue).ShouldBeFalse();
         Should.Throw<ArgumentOutOfRangeException>(() => ShortLinkQuota.Limited(-1));
@@ -46,7 +50,6 @@ public class ShortLinkCapabilityTests
             .ShouldBe(ShortLinkStatisticsLevel.Advanced);
         (await provider.GetDomainAccessAsync(Guid.NewGuid()))
             .ShouldBeSameAs(ShortLinkDomainAccess.Unrestricted);
-        (await provider.IsNamespaceEnabledAsync(Guid.NewGuid())).ShouldBeTrue();
         (await provider.GetNamespaceQuotaAsync(Guid.NewGuid()))
             .ShouldBeSameAs(ShortLinkQuota.Unlimited);
         (await provider.GetRootLinkQuotaAsync(Guid.NewGuid()))
@@ -76,8 +79,6 @@ public class ShortLinkCapabilityTests
         await Should.ThrowAsync<OperationCanceledException>(() =>
             provider.GetDomainAccessAsync(Guid.NewGuid(), new CancellationToken(true)));
         await Should.ThrowAsync<OperationCanceledException>(() =>
-            provider.IsNamespaceEnabledAsync(Guid.NewGuid(), new CancellationToken(true)));
-        await Should.ThrowAsync<OperationCanceledException>(() =>
             provider.GetNamespaceQuotaAsync(Guid.NewGuid(), new CancellationToken(true)));
         await Should.ThrowAsync<OperationCanceledException>(() =>
             provider.GetRootLinkQuotaAsync(Guid.NewGuid(), new CancellationToken(true)));
@@ -91,8 +92,9 @@ public class ShortLinkCapabilityTests
         var provider = new SettingShortLinkCapabilityProvider(settings);
         var owner = Guid.NewGuid();
 
-        (await provider.IsNamespaceEnabledAsync(owner)).ShouldBeTrue();
-        (await provider.GetNamespaceQuotaAsync(owner)).AllowsCreation(long.MaxValue).ShouldBeTrue();
+        var namespaceQuota = await provider.GetNamespaceQuotaAsync(owner);
+        namespaceQuota.IsEnabled.ShouldBeTrue();
+        namespaceQuota.AllowsCreation(long.MaxValue).ShouldBeTrue();
         (await provider.GetRootLinkQuotaAsync(owner)).AllowsCreation(long.MaxValue).ShouldBeTrue();
         await settings.DidNotReceive().GetOrNullAsync(Arg.Any<string>());
     }

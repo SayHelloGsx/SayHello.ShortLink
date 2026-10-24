@@ -6,7 +6,6 @@
     "Subscription:Domains": "Additional short-link domains",
     "Subscription:MaxLinks": "Maximum number of links",
     "Subscription:MaxCustomCodes": "Maximum number of custom codes",
-    "Subscription:Namespaces": "Short-link namespaces",
     "Subscription:MaxNamespaces": "Maximum number of namespaces",
     "Subscription:MaxRootLinks": "Maximum number of root links"
   }

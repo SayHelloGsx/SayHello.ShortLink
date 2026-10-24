@@ -7,7 +7,6 @@ public static class ShortLinkSubscriptionDefinitions
     public const string Domains = "domains";
     public const string MaxLinks = "max-links";
     public const string MaxCustomCodes = "max-custom-codes";
-    public const string Namespaces = "namespaces";
     public const string MaxNamespaces = "max-namespaces";
     public const string MaxRootLinks = "max-root-links";
 

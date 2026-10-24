@@ -108,32 +108,6 @@ public class SubscriptionShortLinkCapabilityProviderTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Namespace_enablement_follows_the_boolean_entitlement(bool isGranted)
-    {
-        _client.GetBooleanAsync(
-                ShortLinkSubscriptionDefinitions.ProductCode,
-                ShortLinkSubscriptionDefinitions.Namespaces,
-                Arg.Any<CancellationToken>())
-            .Returns(new BooleanEntitlementResultDto { IsGranted = isGranted });
-
-        (await _provider.IsNamespaceEnabledAsync(_userId)).ShouldBe(isGranted);
-    }
-
-    [Fact]
-    public async Task Missing_namespace_feature_is_disabled()
-    {
-        _client.GetBooleanAsync(
-                ShortLinkSubscriptionDefinitions.ProductCode,
-                ShortLinkSubscriptionDefinitions.Namespaces,
-                Arg.Any<CancellationToken>())
-            .Returns(new BooleanEntitlementResultDto());
-
-        (await _provider.IsNamespaceEnabledAsync(_userId)).ShouldBeFalse();
-    }
-
-    [Theory]
     [InlineData(ShortLinkSubscriptionDefinitions.MaxNamespaces, false)]
     [InlineData(ShortLinkSubscriptionDefinitions.MaxNamespaces, true)]
     [InlineData(ShortLinkSubscriptionDefinitions.MaxRootLinks, false)]
@@ -152,6 +126,7 @@ public class SubscriptionShortLinkCapabilityProviderTests
 
         quota.ShouldBeSameAs(ShortLinkQuota.Denied);
         quota.AllowsCreation(0).ShouldBeFalse();
+        quota.IsEnabled.ShouldBeFalse();
     }
 
     [Theory]
@@ -180,6 +155,7 @@ public class SubscriptionShortLinkCapabilityProviderTests
         quota.Limit.ShouldBe(limit);
         quota.AllowsCreation(0).ShouldBe(limit > 0);
         quota.AllowsCreation(limit).ShouldBeFalse();
+        quota.IsEnabled.ShouldBe(limit > 0);
     }
 
     [Theory]
@@ -198,6 +174,7 @@ public class SubscriptionShortLinkCapabilityProviderTests
 
         quota.ShouldBeSameAs(ShortLinkQuota.Unlimited);
         quota.AllowsCreation(long.MaxValue).ShouldBeTrue();
+        quota.IsEnabled.ShouldBeTrue();
     }
 
     [Theory]
@@ -394,11 +371,6 @@ public class SubscriptionShortLinkCapabilityProviderTests
             IsGranted = true,
             Limit = 5
         });
-        _client.GetBooleanAsync(
-                ShortLinkSubscriptionDefinitions.ProductCode,
-                ShortLinkSubscriptionDefinitions.Namespaces,
-                cancellation.Token)
-            .Returns(new BooleanEntitlementResultDto { IsGranted = true });
         Numeric(ShortLinkSubscriptionDefinitions.MaxNamespaces,
             new NumericEntitlementResultDto { IsGranted = true, Limit = 3 });
         Numeric(ShortLinkSubscriptionDefinitions.MaxRootLinks,
@@ -422,18 +394,14 @@ public class SubscriptionShortLinkCapabilityProviderTests
         await _provider.GetCustomCodeQuotaAsync(_userId, cancellation.Token);
         await _provider.GetStatisticsLevelAsync(_userId, cancellation.Token);
         await _provider.GetDomainAccessAsync(_userId, cancellation.Token);
-        await _provider.IsNamespaceEnabledAsync(_userId, cancellation.Token);
         await _provider.GetNamespaceQuotaAsync(_userId, cancellation.Token);
         await _provider.GetRootLinkQuotaAsync(_userId, cancellation.Token);
 
-        await _client.Received(1).GetBooleanAsync(
-            ShortLinkSubscriptionDefinitions.ProductCode,
-            ShortLinkSubscriptionDefinitions.Namespaces,
-            cancellation.Token);
         await _client.Received(1).GetNumericAsync(
             ShortLinkSubscriptionDefinitions.ProductCode,
             ShortLinkSubscriptionDefinitions.MaxNamespaces,
             cancellation.Token);
+        await _client.DidNotReceiveWithAnyArgs().GetBooleanAsync(default!, default!, default);
         await _client.Received(1).GetNumericAsync(
             ShortLinkSubscriptionDefinitions.ProductCode,
             ShortLinkSubscriptionDefinitions.MaxRootLinks,
@@ -480,8 +448,6 @@ public class SubscriptionShortLinkCapabilityProviderTests
             _provider.GetStatisticsLevelAsync(userId));
         await Should.ThrowAsync<AbpAuthorizationException>(() =>
             _provider.GetDomainAccessAsync(userId));
-        await Should.ThrowAsync<AbpAuthorizationException>(() =>
-            _provider.IsNamespaceEnabledAsync(userId));
         await Should.ThrowAsync<AbpAuthorizationException>(() =>
             _provider.GetNamespaceQuotaAsync(userId));
         await Should.ThrowAsync<AbpAuthorizationException>(() =>
@@ -534,11 +500,6 @@ public class SubscriptionShortLinkCapabilityProviderTests
         Exception error = failure == "remote"
             ? new InvalidOperationException("Subscription service unavailable.")
             : new OperationCanceledException();
-        _client.GetBooleanAsync(
-                ShortLinkSubscriptionDefinitions.ProductCode,
-                ShortLinkSubscriptionDefinitions.Namespaces,
-                Arg.Any<CancellationToken>())
-            .Returns(Task.FromException<BooleanEntitlementResultDto>(error));
         foreach (var featureKey in new[]
                  {
                      ShortLinkSubscriptionDefinitions.MaxNamespaces,
@@ -552,8 +513,6 @@ public class SubscriptionShortLinkCapabilityProviderTests
                 .Returns(Task.FromException<NumericEntitlementResultDto>(error));
         }
 
-        (await Record.ExceptionAsync(() => _provider.IsNamespaceEnabledAsync(_userId)))
-            .ShouldBeSameAs(error);
         (await Record.ExceptionAsync(() => _provider.GetNamespaceQuotaAsync(_userId)))
             .ShouldBeSameAs(error);
         (await Record.ExceptionAsync(() => _provider.GetRootLinkQuotaAsync(_userId)))

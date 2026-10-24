@@ -63,14 +63,14 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
         string mode, bool granted, long? limit)
     {
         await RunAsync(services => ShortLinkSubscriptionTestData.CreatePlanAsync(
-            services, 10, false, namespaces: true,
+            services, 10, false,
             namespaceLimit: limit, namespacesUnlimited: mode == "unlimited",
             rootLinkLimit: limit, rootLinksUnlimited: mode == "unlimited"));
         var ordinary = await CreateLinkAsync();
         ordinary.Namespace.ShouldBe("s");
         ordinary.ShortUrl.ShouldBe($"{ordinary.Origin}/s/{ordinary.Code}");
         var capabilities = await CapabilitiesAsync();
-        capabilities.NamespacesEnabled.ShouldBeTrue();
+        capabilities.NamespacesEnabled.ShouldBe(mode is "finite" or "unlimited");
         capabilities.IsNamespaceQuotaGranted.ShouldBe(granted);
         capabilities.IsRootLinkQuotaGranted.ShouldBe(granted);
         capabilities.IsNamespaceUnlimited.ShouldBe(mode == "unlimited");
@@ -82,8 +82,9 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
 
         if (!granted || limit == 0)
         {
-            (await Should.ThrowAsync<BusinessException>(() => CreateNamespaceAsync())).Code.ShouldBe(
-                granted ? ShortLinkErrorCodes.NamespaceQuotaExceeded : ShortLinkErrorCodes.NamespaceQuotaNotGranted);
+            capabilities.CanCreateNamespace.ShouldBeFalse();
+            (await Should.ThrowAsync<BusinessException>(() => CreateNamespaceAsync()))
+                .Code.ShouldBe(ShortLinkErrorCodes.NamespacesNotGranted);
             (await Should.ThrowAsync<BusinessException>(() => CreateLinkAsync(root: true))).Code.ShouldBe(
                 granted ? ShortLinkErrorCodes.RootLinkQuotaExceeded : ShortLinkErrorCodes.RootLinkQuotaNotGranted);
             return;
@@ -117,10 +118,10 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
         await RunAsync(async services =>
         {
             await ShortLinkSubscriptionTestData.CreatePlanAsync(
-                services, 10, false, namespaces: false, namespaceLimit: 0, rootLinkLimit: 0);
+                services, 10, false, namespaceLimit: 0, rootLinkLimit: 0);
             var plan = await ShortLinkSubscriptionTestData.CreatePlanAsync(
                 services, 10, false, setDefault: false,
-                namespaces: true, namespaceLimit: 1, rootLinkLimit: 1);
+                namespaceLimit: 1, rootLinkLimit: 1);
             planId = plan.Id;
             subscriptionId = (await ShortLinkSubscriptionTestData.AssignAsync(services, _owner, plan.Id)).Id;
         });
@@ -133,7 +134,7 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
             var plan = await repository.GetAsync(planId);
             plan.ReplaceEntitlements(ShortLinkSubscriptionTestData.Definition(services),
                 ShortLinkSubscriptionTestData.Entitlements(
-                    10, false, namespaces: false, namespaceLimit: 0, rootLinkLimit: 0));
+                    10, false, namespaceLimit: 0, rootLinkLimit: 0));
             await repository.UpdateAsync(plan, autoSave: true);
         });
         var snapshot = await CapabilitiesAsync();
@@ -173,7 +174,7 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
         await RunAsync(async services =>
         {
             await ShortLinkSubscriptionTestData.CreatePlanAsync(
-                services, 10, false, namespaces: true, namespacesUnlimited: true, rootLinksUnlimited: true);
+                services, 10, false, namespacesUnlimited: true, rootLinksUnlimited: true);
             var oldPlan = await ShortLinkSubscriptionTestData.CreatePlanAsync(
                 services, 10, false, setDefault: false);
             subscriptionId = (await ShortLinkSubscriptionTestData.AssignAsync(services, _owner, oldPlan.Id)).Id;
@@ -203,10 +204,10 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
         await RunAsync(async services =>
         {
             var fallback = await ShortLinkSubscriptionTestData.CreatePlanAsync(
-                services, 10, false, namespaces: false, namespaceLimit: 0, rootLinkLimit: 0);
+                services, 10, false, namespaceLimit: 0, rootLinkLimit: 0);
             var expired = await ShortLinkSubscriptionTestData.CreatePlanAsync(
                 services, 10, false, setDefault: false,
-                namespaces: true, namespacesUnlimited: true, rootLinksUnlimited: true);
+                namespacesUnlimited: true, rootLinksUnlimited: true);
             var product = await services.GetRequiredService<ISubscriptionProductRepository>().GetAsync(fallback.ProductId);
             var now = services.GetRequiredService<IClock>().Now.ToUniversalTime();
             var subscription = new UserSubscription(
@@ -234,7 +235,7 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
     {
         const string origin = "https://namespace-domain.example.test";
         await RunAsync(services => ShortLinkSubscriptionTestData.CreatePlanAsync(
-            services, 10, false, domains: [origin], namespaces: true, namespaceLimit: 1));
+            services, 10, false, domains: [origin], namespaceLimit: 1));
         var domain = await RunAsync(services =>
             services.GetRequiredService<IShortLinkDomainAppService>().CreateAsync(
                 new CreateShortLinkDomainDto { Origin = origin }));

@@ -24,6 +24,8 @@ public sealed class ShortLinkQuota
         return new ShortLinkQuota(true, false, limit);
     }
 
+    public bool IsEnabled => IsGranted && (IsUnlimited || Limit > 0);
+
     public bool AllowsCreation(long currentCount)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(currentCount);

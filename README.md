@@ -187,9 +187,9 @@ package, allowing the composing Host to supply either a local application servic
 HTTP client proxy. Numeric checks do not reserve or consume quota.
 
 The ShortLink Subscription shared integration package registers product `short-link`,
-Enum feature `statistics`, String-Set feature `domains`, Boolean feature `namespaces`,
-and numeric features `max-links`, `max-custom-codes`, `max-namespaces`, and
-`max-root-links` (including explicit unlimited values).
+Enum feature `statistics`, String-Set feature `domains`, and numeric features
+`max-links`, `max-custom-codes`, `max-namespaces`, and `max-root-links` (including
+explicit unlimited values).
 `statistics` accepts `none`, `basic`, or `advanced`;
 the domain choices come from the current tenant's configured Origin pool. This host's
 database seeding creates only missing draft product metadata and preserves
@@ -235,11 +235,13 @@ for another subject requires a separate, explicitly authorized integration contr
 - Free 20 and Pro 100 therefore reject the 21st and 101st owned links respectively.
   A downgrade below current usage blocks further creation, not editing, deletion,
   QR codes, or existing redirects.
-- `namespaces=true` permits new user namespaces and new links in owned namespaces.
-  `max-namespaces` limits the current tenant/user's namespaces across all Origins.
-  Missing/false feature rights deny new user namespaces and their new links;
-  default-namespace links do not require this feature. A quantity-only downgrade
-  blocks additional namespaces but leaves existing namespaces usable.
+- `max-namespaces` alone controls user namespaces. A positive or unlimited grant
+  permits new user namespaces and new links in owned namespaces, and limits the
+  current tenant/user's namespaces across all Origins. A missing grant or a value
+  `<= 0` means the benefit is absent: new user namespaces and new links in them are
+  denied. Default-namespace links do not require this feature. Lowering a positive
+  limit below current usage blocks additional namespaces but leaves existing
+  namespaces usable; lowering it to `0` also blocks new links in them.
 - `max-root-links` independently limits all non-deleted root-path links, including
   historical links, disabled links, expired links, and Origin-null legacy rows.
   Every root link also consumes `max-links`; custom aliases additionally consume
@@ -304,6 +306,18 @@ implemented by this integration. The upgrade migration adds typed entitlement st
 and the tenant Origin catalog, converts legacy statistics values (`false` to `basic`,
 `true` to `advanced`), and attaches legacy links to the seeded default Origin.
 
+The `RemoveShortLinkNamespaceEntitlement` migration retires the former Boolean
+`namespaces` feature of product `short-link`; deploy it together with this build,
+which no longer defines that feature. It deletes stored `namespaces` values from
+plans and subscription snapshots. A positive or unlimited `max-namespaces` value is
+kept only where `namespaces=true` was also stored; otherwise it becomes `0`, so the
+upgrade never grants new namespace rights. Rights that relied on `namespaces=true`
+without a positive quota are removed; grant a positive `max-namespaces` value
+explicitly where they are still wanted. Affected plans and subscriptions receive a
+new concurrency stamp, so reload open administration pages and assignment previews.
+Downgrading restores `namespaces=true` wherever a positive or unlimited quota
+remains; quotas set to `0` by the upgrade are not restored.
+
 ## Development prerequisites
 
 - .NET SDK 10.0.400 or a compatible patch selected by `global.json`.
@@ -333,12 +347,13 @@ migrations, and delete only the databases they created.
 Coverage includes fresh schemas, upgrading existing `AddSubscriptions` data with
 nullable defaults, Boolean-to-Enum statistics conversion, typed entitlement constraints,
 Origin/domain indexes and restrictive references, same-product subscription references,
-and catalog lock leases.
+catalog lock leases, short-link namespace upgrades and guarded downgrades, and retiring
+the `namespaces` entitlement, including its downgrade.
 
 ```powershell
 $env:SUBSCRIPTION_TEST_POSTGRES_CONNECTION_STRING = '<isolated PostgreSQL test connection string>'
 try {
-    dotnet test .\host\test\SayHello.ShortLink.WebHost.EntityFrameworkCore.Tests\SayHello.ShortLink.WebHost.EntityFrameworkCore.Tests.csproj --filter FullyQualifiedName~SubscriptionPostgreSql
+    dotnet test .\host\test\SayHello.ShortLink.WebHost.EntityFrameworkCore.Tests\SayHello.ShortLink.WebHost.EntityFrameworkCore.Tests.csproj --filter FullyQualifiedName~PostgreSql
 }
 finally {
     Remove-Item Env:\SUBSCRIPTION_TEST_POSTGRES_CONNECTION_STRING

@@ -93,7 +93,6 @@ public static class ShortLinkSubscriptionTestData
         IReadOnlyCollection<string>? domains = null,
         long? customCodeLimit = null,
         bool customCodesUnlimited = true,
-        bool? namespaces = null,
         long? namespaceLimit = null,
         bool namespacesUnlimited = false,
         long? rootLinkLimit = null,
@@ -127,7 +126,6 @@ public static class ShortLinkSubscriptionTestData
                 domains,
                 customCodeLimit,
                 customCodesUnlimited,
-                namespaces,
                 namespaceLimit,
                 namespacesUnlimited,
                 rootLinkLimit,
@@ -211,7 +209,6 @@ public static class ShortLinkSubscriptionTestData
         IReadOnlyCollection<string>? domains = null,
         long? customCodeLimit = null,
         bool customCodesUnlimited = true,
-        bool? namespaces = null,
         long? namespaceLimit = null,
         bool namespacesUnlimited = false,
         long? rootLinkLimit = null,
@@ -235,9 +232,6 @@ public static class ShortLinkSubscriptionTestData
                 customCodesUnlimited
                     ? EntitlementValue.Unlimited()
                     : EntitlementValue.Numeric(customCodeLimit!.Value);
-        if (namespaces.HasValue)
-            values[ShortLinkSubscriptionDefinitions.Namespaces] =
-                EntitlementValue.Boolean(namespaces.Value);
         if (namespacesUnlimited || namespaceLimit.HasValue)
             values[ShortLinkSubscriptionDefinitions.MaxNamespaces] = namespacesUnlimited
                 ? EntitlementValue.Unlimited()

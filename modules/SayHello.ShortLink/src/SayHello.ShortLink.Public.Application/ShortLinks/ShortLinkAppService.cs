@@ -78,7 +78,6 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
             ownerUserId, cancellationToken);
         var domains = await _shortLinkManager.GetAvailableDomainsAsync(
             ownerUserId, cancellationToken);
-        var namespacesEnabled = await _capabilityProvider.IsNamespaceEnabledAsync(ownerUserId, cancellationToken);
         var namespaceQuota = await _capabilityProvider.GetNamespaceQuotaAsync(ownerUserId, cancellationToken);
         var rootQuota = await _capabilityProvider.GetRootLinkQuotaAsync(ownerUserId, cancellationToken);
         var usedNamespaces = await _namespaceRepository.GetCountByOwnerAsync(ownerUserId, cancellationToken);
@@ -87,7 +86,7 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
         return new ShortLinkCapabilitiesDto
         {
             DefaultNamespace = await _defaultNamespaceProvider.GetAsync(cancellationToken),
-            NamespacesEnabled = namespacesEnabled,
+            NamespacesEnabled = namespaceQuota.IsEnabled,
             UsedNamespaces = usedNamespaces,
             IsNamespaceQuotaGranted = namespaceQuota.IsGranted,
             IsNamespaceUnlimited = namespaceQuota.IsUnlimited,

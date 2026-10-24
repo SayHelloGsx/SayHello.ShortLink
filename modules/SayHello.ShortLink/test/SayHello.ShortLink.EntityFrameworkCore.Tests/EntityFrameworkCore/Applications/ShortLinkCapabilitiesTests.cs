@@ -69,8 +69,6 @@ public class ShortLinkCapabilitiesTests :
         _capabilities.GetDomainAccessAsync(
                 Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(ShortLinkDomainAccess.Unrestricted);
-        _capabilities.IsNamespaceEnabledAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(true);
         _capabilities.GetNamespaceQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(ShortLinkQuota.Unlimited);
         _capabilities.GetRootLinkQuotaAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())

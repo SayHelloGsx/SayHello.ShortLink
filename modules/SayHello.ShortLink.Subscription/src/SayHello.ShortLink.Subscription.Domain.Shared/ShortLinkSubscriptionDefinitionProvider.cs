@@ -32,10 +32,6 @@ public class ShortLinkSubscriptionDefinitionProvider : SubscriptionDefinitionPro
                     SubscriptionEntitlementType.Numeric,
                     allowUnlimited: true),
                 new FeatureDefinition(
-                    ShortLinkSubscriptionDefinitions.Namespaces,
-                    LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:Namespaces"),
-                    SubscriptionEntitlementType.Boolean),
-                new FeatureDefinition(
                     ShortLinkSubscriptionDefinitions.MaxNamespaces,
                     LocalizableString.Create<ShortLinkSubscriptionResource>("Subscription:MaxNamespaces"),
                     SubscriptionEntitlementType.Numeric,

@@ -368,8 +368,8 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
 
         var owner = Guid.NewGuid();
         var otherOwner = Guid.NewGuid();
-        await AssignNamespacePlanAsync(owner, true, 1, 1);
-        await AssignNamespacePlanAsync(otherOwner, true, 1, 1);
+        await AssignNamespacePlanAsync(owner, 1, 1);
+        await AssignNamespacePlanAsync(otherOwner, 1, 1);
         using var client = Client(owner);
         using var other = Client(otherOwner);
         var item = await CreateNamespaceAsync(client);
@@ -397,7 +397,7 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
     public async Task Namespace_Root_And_Default_Paths_Should_Resolve_Independently_And_Invalidate_After_Status_Changes()
     {
         var owner = Guid.NewGuid();
-        await AssignNamespacePlanAsync(owner, true, 1, 1);
+        await AssignNamespacePlanAsync(owner, 1, 1);
         using var client = Client(owner);
         var item = await CreateNamespaceAsync(client);
         var code = "same" + Guid.NewGuid().ToString("N");
@@ -474,11 +474,11 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
     public async Task Quantity_Downgrade_Should_Keep_Namespace_Usable_And_Feature_Disable_Should_Keep_Management()
     {
         var owner = Guid.NewGuid();
-        await AssignNamespacePlanAsync(owner, true, 2, 1);
+        await AssignNamespacePlanAsync(owner, 2, 1);
         using var client = Client(owner);
         var item = await CreateNamespaceAsync(client);
         var empty = await CreateNamespaceAsync(client);
-        await AssignNamespacePlanAsync(owner, true, 0, 1);
+        await AssignNamespacePlanAsync(owner, 1, 1);
         var input = ShortLinkSubscriptionTestData.NewLink();
         input.NamespaceId = item.Id;
         var link = await CreateLinkAsync(client, input);
@@ -486,7 +486,7 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
             new CreateShortLinkNamespaceDto { Origin = item.Origin, Name = "down" + Guid.NewGuid().ToString("N") });
         await AssertBusinessErrorAsync(deniedQuantity, ShortLinkErrorCodes.NamespaceQuotaExceeded);
 
-        await AssignNamespacePlanAsync(owner, false, 0, 0);
+        await AssignNamespacePlanAsync(owner, 0, 0);
         using var deniedFeature = await client.PostAsJsonAsync(Links, input);
         await AssertBusinessErrorAsync(deniedFeature, ShortLinkErrorCodes.NamespacesNotGranted);
         using var qr = await client.GetAsync($"{Links}/{link.Id}/qr-code");
@@ -510,7 +510,7 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
     public async Task Namespace_Delete_Should_Require_A_Valid_Body_And_Reject_A_Stale_Stamp()
     {
         var owner = Guid.NewGuid();
-        await AssignNamespacePlanAsync(owner, true, 1, 1);
+        await AssignNamespacePlanAsync(owner, 1, 1);
         using var client = Client(owner);
         var item = await CreateNamespaceAsync(client);
         using var missingBody = await client.DeleteAsync($"{Namespaces}/{item.Id}");
@@ -534,7 +534,7 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
     public async Task Second_Segment_Reserved_Code_Should_Work_And_Conflicting_Selection_Should_Fail_Validation()
     {
         var owner = Guid.NewGuid();
-        await AssignNamespacePlanAsync(owner, false, 0, 0);
+        await AssignNamespacePlanAsync(owner, 0, 0);
         using var client = Client(owner);
         var input = ShortLinkSubscriptionTestData.NewLink();
         input.CustomCode = "api";
@@ -569,12 +569,12 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
             options.ReservedPrefixes.Contains(prefix).ShouldBeTrue($"Unprotected system route prefix: {prefix}");
     }
 
-    private Task AssignNamespacePlanAsync(Guid owner, bool enabled, long namespaceLimit, long rootLinkLimit) =>
+    private Task AssignNamespacePlanAsync(Guid owner, long namespaceLimit, long rootLinkLimit) =>
         ShortLinkSubscriptionTestData.RunAsync(_factory.Services, null, owner, async services =>
         {
             var plan = await ShortLinkSubscriptionTestData.CreatePlanAsync(
                 services, 20, false, setDefault: false,
-                namespaces: enabled, namespaceLimit: namespaceLimit, rootLinkLimit: rootLinkLimit);
+                namespaceLimit: namespaceLimit, rootLinkLimit: rootLinkLimit);
             await ShortLinkSubscriptionTestData.AssignAsync(services, owner, plan.Id);
             foreach (var permission in new[]
                      {

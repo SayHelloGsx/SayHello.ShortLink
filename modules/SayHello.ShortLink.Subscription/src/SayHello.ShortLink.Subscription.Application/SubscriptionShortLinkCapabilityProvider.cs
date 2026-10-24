@@ -25,18 +25,6 @@ public sealed class SubscriptionShortLinkCapabilityProvider : IShortLinkCapabili
 
     public bool IsQuotaExternallyManaged => true;
 
-    public async Task<bool> IsNamespaceEnabledAsync(
-        Guid userId,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureCurrentSubject(userId);
-        var result = await _entitlements.GetBooleanAsync(
-            ShortLinkSubscriptionDefinitions.ProductCode,
-            ShortLinkSubscriptionDefinitions.Namespaces,
-            cancellationToken);
-        return result.IsGranted;
-    }
-
     public async Task<ShortLinkQuota> GetNamespaceQuotaAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

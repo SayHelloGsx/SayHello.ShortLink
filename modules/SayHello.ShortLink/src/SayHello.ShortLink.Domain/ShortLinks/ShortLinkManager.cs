@@ -187,7 +187,8 @@ public class ShortLinkManager : DomainService
         string pathNamespace;
         if (namespaceId.HasValue)
         {
-            if (!await _capabilityProvider.IsNamespaceEnabledAsync(ownerUserId, cancellationToken))
+            var namespaceQuota = await _capabilityProvider.GetNamespaceQuotaAsync(ownerUserId, cancellationToken);
+            if (!namespaceQuota.IsEnabled)
             {
                 throw new BusinessException(ShortLinkErrorCodes.NamespacesNotGranted);
             }

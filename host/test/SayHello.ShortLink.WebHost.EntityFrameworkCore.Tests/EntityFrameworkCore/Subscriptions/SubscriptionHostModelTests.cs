@@ -107,7 +107,7 @@ public class SubscriptionHostModelTests
     }
 
     [Fact]
-    public void Host_Model_Should_Use_Origin_Code_Identity_And_Restrict_Domain_Deletion()
+    public void Host_Model_Should_Use_Origin_Namespace_Code_Identity_And_Restrict_Domain_Deletion()
     {
         using var context = CreateContext();
         var link = context.Model.FindEntityType(
@@ -120,10 +120,11 @@ public class SubscriptionHostModelTests
             key.PrincipalEntityType == domain);
         foreignKey.DeleteBehavior.ShouldBe(DeleteBehavior.Restrict);
         foreignKey.Properties.ShouldHaveSingleItem().Name.ShouldBe("DomainId");
-        link.GetIndexes().Single(index =>
+        var identity = link.GetIndexes().Single(index =>
             index.Properties.Select(property => property.Name)
-                .SequenceEqual(new[] { "Origin", "Code" }))
-            .IsUnique.ShouldBeTrue();
+                .SequenceEqual(new[] { "Origin", "Namespace", "Code" }));
+        identity.IsUnique.ShouldBeTrue();
+        identity.GetFilter().ShouldBe("\"Origin\" IS NOT NULL");
         domain.GetIndexes().Single(index =>
             index.Properties.Select(property => property.Name)
                 .SequenceEqual(new[] { "TenantScopeKey", "Origin" }))
@@ -259,6 +260,136 @@ public class SubscriptionHostModelTests
             .All(operation => operations.IndexOf(operation) > lastValueColumnDrop)
             .ShouldBeTrue();
     }
+
+    [Fact]
+    public void Namespace_Entitlement_Removal_Migration_Should_Rotate_Stamps_Revoke_Unbacked_Quotas_And_Delete_The_Legacy_Feature()
+    {
+        var conversion = new RemoveShortLinkNamespaceEntitlement().UpOperations
+            .ShouldHaveSingleItem()
+            .ShouldBeOfType<SqlOperation>();
+        conversion.SuppressTransaction.ShouldBeFalse();
+        var sql = conversion.Sql;
+
+        var planStampIndex = sql.IndexOf("""UPDATE "SubscriptionPlans" AS plan""", StringComparison.Ordinal);
+        var subscriptionStampIndex = sql.IndexOf(
+            """UPDATE "SubscriptionUserSubscriptions" AS subscription""",
+            StringComparison.Ordinal);
+        var planQuotaIndex = sql.IndexOf(
+            """UPDATE "SubscriptionPlanEntitlements" AS entitlement""",
+            StringComparison.Ordinal);
+        var snapshotQuotaIndex = sql.IndexOf(
+            """UPDATE "SubscriptionUserSubscriptionEntitlements" AS entitlement""",
+            StringComparison.Ordinal);
+        var planDeleteIndex = sql.IndexOf(
+            """DELETE FROM "SubscriptionPlanEntitlements" AS entitlement""",
+            StringComparison.Ordinal);
+        var snapshotDeleteIndex = sql.IndexOf(
+            """DELETE FROM "SubscriptionUserSubscriptionEntitlements" AS entitlement""",
+            StringComparison.Ordinal);
+        planStampIndex.ShouldBeGreaterThanOrEqualTo(0);
+        subscriptionStampIndex.ShouldBeGreaterThan(planStampIndex);
+        planQuotaIndex.ShouldBeGreaterThan(subscriptionStampIndex);
+        snapshotQuotaIndex.ShouldBeGreaterThan(planQuotaIndex);
+        planDeleteIndex.ShouldBeGreaterThan(snapshotQuotaIndex);
+        snapshotDeleteIndex.ShouldBeGreaterThan(planDeleteIndex);
+
+        var planStamp = sql[planStampIndex..subscriptionStampIndex];
+        var subscriptionStamp = sql[subscriptionStampIndex..planQuotaIndex];
+        foreach (var stamp in new[] { planStamp, subscriptionStamp })
+        {
+            stamp.ShouldContain("""SET "ConcurrencyStamp" = replace(gen_random_uuid()::text, '-', '')""");
+            stamp.ShouldContain("""entitlement."FeatureKey" = 'namespaces'""");
+            stamp.ShouldContain("""entitlement."FeatureKey" = 'max-namespaces'""");
+            stamp.ShouldContain(GrantedNamespaceQuota);
+        }
+        planStamp.ShouldContain("""plan."ProductCode" = 'short-link'""");
+        subscriptionStamp.ShouldContain("""subscription."ProductCode" = 'short-link'""");
+
+        var planQuota = sql[planQuotaIndex..snapshotQuotaIndex];
+        var snapshotQuota = sql[snapshotQuotaIndex..planDeleteIndex];
+        foreach (var quota in new[] { planQuota, snapshotQuota })
+        {
+            quota.ShouldContain("""SET "NumericValue" = 0""");
+            quota.ShouldContain("\"IsUnlimited\" = FALSE");
+            quota.ShouldContain("""entitlement."FeatureKey" = 'max-namespaces'""");
+            quota.ShouldContain("""entitlement."ValueType" = 1""");
+            quota.ShouldContain(GrantedNamespaceQuota);
+            quota.ShouldContain("NOT EXISTS");
+            quota.ShouldContain("""legacy."FeatureKey" = 'namespaces'""");
+            quota.ShouldContain("""legacy."ValueType" = 0""");
+            quota.ShouldContain("""legacy."BooleanValue" = TRUE""");
+        }
+        planQuota.ShouldContain("""plan."ProductCode" = 'short-link'""");
+        snapshotQuota.ShouldContain("""subscription."ProductCode" = 'short-link'""");
+
+        var planDelete = sql[planDeleteIndex..snapshotDeleteIndex];
+        var snapshotDelete = sql[snapshotDeleteIndex..];
+        foreach (var delete in new[] { planDelete, snapshotDelete })
+        {
+            delete.ShouldContain("""entitlement."FeatureKey" = 'namespaces'""");
+            delete.ShouldNotContain("max-namespaces");
+        }
+        planDelete.ShouldContain("""plan."ProductCode" = 'short-link'""");
+        snapshotDelete.ShouldContain("""subscription."ProductCode" = 'short-link'""");
+    }
+
+    [Fact]
+    public void Namespace_Entitlement_Removal_Migration_Down_Should_Rotate_Stamps_And_Restore_The_Legacy_Feature_For_Granted_Quotas()
+    {
+        var conversion = new RemoveShortLinkNamespaceEntitlement().DownOperations
+            .ShouldHaveSingleItem()
+            .ShouldBeOfType<SqlOperation>();
+        conversion.SuppressTransaction.ShouldBeFalse();
+        var sql = conversion.Sql;
+
+        var planStampIndex = sql.IndexOf("""UPDATE "SubscriptionPlans" AS plan""", StringComparison.Ordinal);
+        var subscriptionStampIndex = sql.IndexOf(
+            """UPDATE "SubscriptionUserSubscriptions" AS subscription""",
+            StringComparison.Ordinal);
+        var planInsertIndex = sql.IndexOf(
+            "INSERT INTO \"SubscriptionPlanEntitlements\"",
+            StringComparison.Ordinal);
+        var snapshotInsertIndex = sql.IndexOf(
+            "INSERT INTO \"SubscriptionUserSubscriptionEntitlements\"",
+            StringComparison.Ordinal);
+        planStampIndex.ShouldBeGreaterThanOrEqualTo(0);
+        subscriptionStampIndex.ShouldBeGreaterThan(planStampIndex);
+        planInsertIndex.ShouldBeGreaterThan(subscriptionStampIndex);
+        snapshotInsertIndex.ShouldBeGreaterThan(planInsertIndex);
+
+        var planStamp = sql[planStampIndex..subscriptionStampIndex];
+        var subscriptionStamp = sql[subscriptionStampIndex..planInsertIndex];
+        foreach (var stamp in new[] { planStamp, subscriptionStamp })
+        {
+            stamp.ShouldContain("""SET "ConcurrencyStamp" = replace(gen_random_uuid()::text, '-', '')""");
+            stamp.ShouldContain("""entitlement."FeatureKey" = 'max-namespaces'""");
+            stamp.ShouldContain(GrantedNamespaceQuota);
+            stamp.ShouldContain("NOT EXISTS");
+            stamp.ShouldContain("""legacy."FeatureKey" = 'namespaces'""");
+        }
+        planStamp.ShouldContain("""plan."ProductCode" = 'short-link'""");
+        subscriptionStamp.ShouldContain("""subscription."ProductCode" = 'short-link'""");
+
+        var planInsert = sql[planInsertIndex..snapshotInsertIndex];
+        var snapshotInsert = sql[snapshotInsertIndex..];
+        foreach (var insert in new[] { planInsert, snapshotInsert })
+        {
+            insert.ShouldContain("""entitlement."FeatureKey" = 'max-namespaces'""");
+            insert.ShouldContain("""entitlement."ValueType" = 1""");
+            insert.ShouldContain(GrantedNamespaceQuota);
+        }
+        planInsert.ShouldContain(
+            """SELECT entitlement."PlanId", 'namespaces', entitlement."TenantId", 0, TRUE, FALSE""");
+        planInsert.ShouldContain("""plan."ProductCode" = 'short-link'""");
+        planInsert.ShouldContain("""ON CONFLICT ("PlanId", "FeatureKey") DO NOTHING""");
+        snapshotInsert.ShouldContain("WHEN '命名空间数量上限' THEN '短链接命名空间'");
+        snapshotInsert.ShouldContain("ELSE 'Short-link namespaces'");
+        snapshotInsert.ShouldContain("""subscription."ProductCode" = 'short-link'""");
+        snapshotInsert.ShouldContain("""ON CONFLICT ("SubscriptionId", "FeatureKey") DO NOTHING""");
+    }
+
+    private const string GrantedNamespaceQuota =
+        """(entitlement."IsUnlimited" = TRUE OR entitlement."NumericValue" > 0)""";
 
     private static WebHostDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<WebHostDbContext>().UseNpgsql().Options);
