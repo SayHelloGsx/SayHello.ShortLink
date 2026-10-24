@@ -7,6 +7,7 @@ using Shouldly;
 using Volo.Abp;
 using Volo.Abp.Data;
 using Volo.Abp.MultiTenancy;
+using Volo.Abp.Validation;
 using Xunit;
 
 namespace SayHello.ShortLink.Admin.Applications;
@@ -87,12 +88,22 @@ public class ShortLinkDomainAppServiceTests :
                 });
             disabled.IsEnabled.ShouldBeFalse();
 
-            await _appService.DeleteAsync(disabled.Id);
+            await _appService.DeleteAsync(
+                disabled.Id,
+                new DeleteShortLinkDomainDto
+                {
+                    ConcurrencyStamp = disabled.ConcurrencyStamp
+                });
             (await _appService.GetListAsync()).Items.Single().Id
                 .ShouldBe(second.Id);
 
             var cannotDelete = await Should.ThrowAsync<BusinessException>(() =>
-                _appService.DeleteAsync(newDefault.Id));
+                _appService.DeleteAsync(
+                    newDefault.Id,
+                    new DeleteShortLinkDomainDto
+                    {
+                        ConcurrencyStamp = newDefault.ConcurrencyStamp
+                    }));
             cannotDelete.Code.ShouldBe(
                 ShortLinkErrorCodes.DefaultDomainCannotBeDeleted);
         }
@@ -180,6 +191,56 @@ public class ShortLinkDomainAppServiceTests :
                         IsEnabled = true,
                         ConcurrencyStamp = candidate.ConcurrencyStamp
                     }));
+        }
+    }
+
+    [Fact]
+    public async Task Domain_Delete_Should_Require_A_Current_Concurrency_Stamp()
+    {
+        var tenantId = Guid.NewGuid();
+        using (_currentTenant.Change(tenantId))
+        {
+            await _appService.CreateAsync(
+                new CreateShortLinkDomainDto
+                {
+                    Origin = "https://default.delete.example.test"
+                });
+            var candidate = await _appService.CreateAsync(
+                new CreateShortLinkDomainDto
+                {
+                    Origin = "https://candidate.delete.example.test"
+                });
+            var updated = await _appService.SetEnabledAsync(
+                candidate.Id,
+                new SetShortLinkDomainEnabledDto
+                {
+                    IsEnabled = false,
+                    ConcurrencyStamp = candidate.ConcurrencyStamp
+                });
+
+            await Should.ThrowAsync<AbpValidationException>(() =>
+                _appService.DeleteAsync(
+                    candidate.Id,
+                    new DeleteShortLinkDomainDto()));
+            await Should.ThrowAsync<AbpDbConcurrencyException>(() =>
+                _appService.DeleteAsync(
+                    candidate.Id,
+                    new DeleteShortLinkDomainDto
+                    {
+                        ConcurrencyStamp = candidate.ConcurrencyStamp
+                    }));
+            (await _appService.GetListAsync()).Items
+                .Single(x => x.Id == candidate.Id)
+                .ConcurrencyStamp.ShouldBe(updated.ConcurrencyStamp);
+
+            await _appService.DeleteAsync(
+                candidate.Id,
+                new DeleteShortLinkDomainDto
+                {
+                    ConcurrencyStamp = updated.ConcurrencyStamp
+                });
+            (await _appService.GetListAsync()).Items
+                .ShouldNotContain(x => x.Id == candidate.Id);
         }
     }
 }

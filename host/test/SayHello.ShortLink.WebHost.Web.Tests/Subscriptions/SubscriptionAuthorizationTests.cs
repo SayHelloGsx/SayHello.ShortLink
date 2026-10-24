@@ -9,6 +9,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
+using HtmlAgilityPack;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
@@ -29,6 +30,7 @@ using SayHello.Subscription.Subscriptions;
 using Shouldly;
 using Volo.Abp.Authorization;
 using Volo.Abp.Authorization.Permissions;
+using Volo.Abp.Http;
 using Volo.Abp.Identity;
 using Volo.Abp.PermissionManagement;
 using Volo.Abp.Security.Claims;
@@ -345,6 +347,47 @@ public class SubscriptionAuthorizationTests : IClassFixture<SubscriptionAuthoriz
         using var error = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         error.RootElement.GetProperty("error").GetProperty("code").GetString()
             .ShouldBe(SubscriptionErrorCodes.ConcurrencyConflict);
+
+        using var product = await client.GetAsync($"/api/subscription/public/products/{_factory.ProductId}");
+        product.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await product.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("name").GetString().ShouldBe("Authorization product");
+    }
+
+    [Fact]
+    public async Task Stale_Admin_Page_Mutation_Should_Return_Conflict_In_Abp_Error_Format()
+    {
+        using var client = CreateClient(authenticated: true, userId: SubscriptionAuthorizationFactory.AdminId);
+        using var page = await client.GetAsync("/admin/subscriptions/products");
+        var html = await page.Content.ReadAsStringAsync();
+        page.StatusCode.ShouldBe(HttpStatusCode.OK, html);
+        var document = new HtmlDocument();
+        document.LoadHtml(html);
+        var token = document.DocumentNode.SelectSingleNode("//input[@name='__RequestVerificationToken']")
+            ?.GetAttributeValue("value", string.Empty) ?? string.Empty;
+        token.ShouldNotBeNullOrWhiteSpace();
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/admin/subscriptions/products?handler=Update&id={_factory.ProductId}")
+        {
+            Content = JsonContent.Create(new UpdateProductDto
+            {
+                Name = "Stale page edit",
+                ConcurrencyStamp = Guid.NewGuid().ToString("N")
+            })
+        };
+        request.Headers.Add("RequestVerificationToken", token);
+        request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+        using var response = await client.SendAsync(request);
+
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict, body);
+        response.Headers.GetValues(AbpHttpConsts.AbpErrorFormat).ShouldBe(["true"]);
+        using var error = JsonDocument.Parse(body);
+        error.RootElement.GetProperty("error").GetProperty("code").GetString()
+            .ShouldBe(SubscriptionErrorCodes.ConcurrencyConflict);
+        error.RootElement.GetProperty("error").GetProperty("message").GetString().ShouldNotBeNullOrWhiteSpace();
 
         using var product = await client.GetAsync($"/api/subscription/public/products/{_factory.ProductId}");
         product.StatusCode.ShouldBe(HttpStatusCode.OK);

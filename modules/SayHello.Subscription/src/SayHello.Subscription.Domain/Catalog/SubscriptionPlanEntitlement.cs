@@ -7,15 +7,15 @@ namespace SayHello.Subscription.Catalog;
 
 public class SubscriptionPlanEntitlement : Entity, IMultiTenant
 {
-    public Guid? TenantId { get; private set; }
-    public Guid PlanId { get; private set; }
-    public string FeatureKey { get; private set; } = string.Empty;
-    public SubscriptionEntitlementType ValueType { get; private set; }
-    public bool? BooleanValue { get; private set; }
-    public long? NumericValue { get; private set; }
-    public bool IsUnlimited { get; private set; }
-    public string? StringValue { get; private set; }
-    public string? StringSetValue { get; private set; }
+    public virtual Guid? TenantId { get; private set; }
+    public virtual Guid PlanId { get; private set; }
+    public virtual string FeatureKey { get; private set; } = string.Empty;
+    public virtual SubscriptionEntitlementType ValueType { get; private set; }
+    public virtual bool? BooleanValue { get; private set; }
+    public virtual long? NumericValue { get; private set; }
+    public virtual bool IsUnlimited { get; private set; }
+    public virtual string? StringValue { get; private set; }
+    public virtual string? StringSetValue { get; private set; }
 
     protected SubscriptionPlanEntitlement()
     {
@@ -29,7 +29,7 @@ public class SubscriptionPlanEntitlement : Entity, IMultiTenant
         SetValue(value);
     }
 
-    internal void SetValue(EntitlementValue value)
+    internal virtual void SetValue(EntitlementValue value)
     {
         ValueType = value.Type;
         BooleanValue = value.BooleanValue;
@@ -39,7 +39,7 @@ public class SubscriptionPlanEntitlement : Entity, IMultiTenant
         StringSetValue = value.ToStorageStringSet();
     }
 
-    public EntitlementValue ToValue() =>
+    public virtual EntitlementValue ToValue() =>
         EntitlementValue.FromStorage(ValueType, BooleanValue, NumericValue, IsUnlimited, StringValue, StringSetValue);
 
     public override object[] GetKeys() => new object[] { PlanId, FeatureKey };

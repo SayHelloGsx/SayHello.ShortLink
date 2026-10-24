@@ -8,7 +8,6 @@ using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.Common.BlockedDomains;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
-using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Content;
@@ -21,15 +20,18 @@ namespace SayHello.ShortLink.Admin.BlockedDomains;
 public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDomainAppService
 {
     private readonly IBlockedDomainRepository _repository;
+    private readonly BlockedDomainManager _blockedDomainManager;
     private readonly IBlockedDomainCache _blockedDomainCache;
     private readonly BlockedDomainCsvImporter _csvImporter;
 
     public BlockedDomainAppService(
         IBlockedDomainRepository repository,
+        BlockedDomainManager blockedDomainManager,
         IBlockedDomainCache blockedDomainCache,
         BlockedDomainCsvImporter csvImporter)
     {
         _repository = repository;
+        _blockedDomainManager = blockedDomainManager;
         _blockedDomainCache = blockedDomainCache;
         _csvImporter = csvImporter;
     }
@@ -44,20 +46,10 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
 
     public virtual async Task<BlockedDomainDto> CreateAsync(CreateBlockedDomainDto input)
     {
-        var normalizedDomain = DomainNameNormalizer.Normalize(input.Domain);
-        if (await _repository.ExistsAsync(
-                normalizedDomain,
-                cancellationToken: CancellationTokenProvider.Token))
-        {
-            throw new BusinessException(ShortLinkErrorCodes.BlockedDomainAlreadyExists)
-                .WithData("Host", normalizedDomain);
-        }
-
-        var entity = new BlockedDomain(
-            GuidGenerator.Create(),
-            CurrentTenant.Id,
-            normalizedDomain,
-            input.Reason);
+        var entity = await _blockedDomainManager.CreateAsync(
+            input.Domain,
+            input.Reason,
+            CancellationTokenProvider.Token);
 
         await _repository.InsertAsync(
             entity,
@@ -82,11 +74,12 @@ public class BlockedDomainAppService : ShortLinkApplicationService, IBlockedDoma
         return ToDto(entity);
     }
 
-    public virtual async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(Guid id, DeleteBlockedDomainDto input)
     {
         var entity = await _repository.GetAsync(
             id,
             cancellationToken: CancellationTokenProvider.Token);
+        ShortLinkConcurrencyGuard.Apply(entity, input.ConcurrencyStamp);
         await _repository.DeleteAsync(
             entity,
             autoSave: true,

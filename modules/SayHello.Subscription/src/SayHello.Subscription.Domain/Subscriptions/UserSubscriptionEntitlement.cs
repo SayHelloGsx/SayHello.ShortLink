@@ -7,16 +7,16 @@ namespace SayHello.Subscription.Subscriptions;
 
 public class UserSubscriptionEntitlement : Entity, IMultiTenant
 {
-    public Guid? TenantId { get; private set; }
-    public Guid SubscriptionId { get; private set; }
-    public string FeatureKey { get; private set; } = string.Empty;
-    public string DisplayName { get; private set; } = string.Empty;
-    public SubscriptionEntitlementType ValueType { get; private set; }
-    public bool? BooleanValue { get; private set; }
-    public long? NumericValue { get; private set; }
-    public bool IsUnlimited { get; private set; }
-    public string? StringValue { get; private set; }
-    public string? StringSetValue { get; private set; }
+    public virtual Guid? TenantId { get; private set; }
+    public virtual Guid SubscriptionId { get; private set; }
+    public virtual string FeatureKey { get; private set; } = string.Empty;
+    public virtual string DisplayName { get; private set; } = string.Empty;
+    public virtual SubscriptionEntitlementType ValueType { get; private set; }
+    public virtual bool? BooleanValue { get; private set; }
+    public virtual long? NumericValue { get; private set; }
+    public virtual bool IsUnlimited { get; private set; }
+    public virtual string? StringValue { get; private set; }
+    public virtual string? StringSetValue { get; private set; }
 
     protected UserSubscriptionEntitlement()
     {
@@ -36,10 +36,10 @@ public class UserSubscriptionEntitlement : Entity, IMultiTenant
         StringSetValue = snapshot.Value.ToStorageStringSet();
     }
 
-    public EntitlementValue ToValue() =>
+    public virtual EntitlementValue ToValue() =>
         EntitlementValue.FromStorage(ValueType, BooleanValue, NumericValue, IsUnlimited, StringValue, StringSetValue);
 
-    public EntitlementSnapshotData ToSnapshot() => new(FeatureKey, DisplayName, ToValue());
+    public virtual EntitlementSnapshotData ToSnapshot() => new(FeatureKey, DisplayName, ToValue());
 
     public override object[] GetKeys() => new object[] { SubscriptionId, FeatureKey };
 }

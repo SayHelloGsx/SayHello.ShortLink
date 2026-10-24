@@ -135,6 +135,82 @@ public class SubscriptionCatalogTests : SubscriptionPersistenceTestBase
     }
 
     [Fact]
+    public async Task Creating_a_plan_does_not_refresh_the_referenced_product_concurrency_stamp()
+    {
+        var data = await SeedAsync();
+        var products = GetRequiredService<ISubscriptionProductRepository>();
+        var before = await InTransactionAsync(() => products.GetAsync(data.Products[0].Id));
+        TestClock.Now = TestClock.Now.AddMinutes(5);
+        await InTransactionAsync(() => Catalog.CreatePlanAsync(before.Id, "extra", new CatalogDetails("Extra"),
+            SubscriptionTestDefinitions.Values()));
+        var after = await InTransactionAsync(() => products.GetAsync(before.Id));
+        Assert.Equal(before.ConcurrencyStamp, after.ConcurrencyStamp);
+        Assert.Equal(before.LastModificationTime, after.LastModificationTime);
+        var renamed = await InTransactionAsync(() => Catalog.UpdateProductAsync(before.Id, before.ConcurrencyStamp,
+            new CatalogDetails("Renamed")));
+        Assert.Equal("Renamed", renamed.Name);
+    }
+
+    [Fact]
+    public async Task Setting_the_default_plan_does_not_refresh_the_referenced_plan_concurrency_stamp()
+    {
+        var data = await SeedAsync();
+        var plans = GetRequiredService<ISubscriptionPlanRepository>();
+        var product = await InTransactionAsync(() =>
+            GetRequiredService<ISubscriptionProductRepository>().GetAsync(data.Products[0].Id));
+        var before = await InTransactionAsync(() => plans.GetAsync(data.Plans[0].Id));
+        TestClock.Now = TestClock.Now.AddMinutes(5);
+        var updated = await InTransactionAsync(() => Catalog.SetDefaultPlanAsync(product.Id, product.ConcurrencyStamp, before.Id));
+        Assert.Equal(before.Id, updated.DefaultPlanId);
+        var after = await InTransactionAsync(() => plans.GetAsync(before.Id));
+        Assert.Equal(before.ConcurrencyStamp, after.ConcurrencyStamp);
+        Assert.Equal(before.LastModificationTime, after.LastModificationTime);
+        var renamed = await InTransactionAsync(() => Catalog.UpdatePlanAsync(before.Id, before.ConcurrencyStamp,
+            new CatalogDetails("Renamed"), SubscriptionTestDefinitions.Values(20)));
+        Assert.Equal("Renamed", renamed.Name);
+    }
+
+    [Fact]
+    public async Task Plan_lifecycle_changes_do_not_refresh_the_referenced_product_concurrency_stamp()
+    {
+        var data = await SeedAsync();
+        var products = GetRequiredService<ISubscriptionProductRepository>();
+        var plan = await InTransactionAsync(() => Catalog.CreatePlanAsync(data.Products[0].Id, "extra",
+            new CatalogDetails("Extra"), SubscriptionTestDefinitions.Values()));
+        var before = await InTransactionAsync(() => products.GetAsync(data.Products[0].Id));
+
+        foreach (var state in new[]
+                 {
+                     SubscriptionCatalogState.Published,
+                     SubscriptionCatalogState.Withdrawn,
+                     SubscriptionCatalogState.Archived
+                 })
+        {
+            TestClock.Now = TestClock.Now.AddMinutes(5);
+            plan = await InTransactionAsync(() => Catalog.SetPlanStateAsync(plan.Id, plan.ConcurrencyStamp, state));
+            await AssertProductUnchangedAsync();
+        }
+
+        TestClock.Now = TestClock.Now.AddMinutes(5);
+        await InTransactionAsync(async () =>
+        {
+            await Catalog.DeletePlanAsync(plan.Id, plan.ConcurrencyStamp);
+            return true;
+        });
+        await AssertProductUnchangedAsync();
+        var renamed = await InTransactionAsync(() => Catalog.UpdateProductAsync(before.Id, before.ConcurrencyStamp,
+            new CatalogDetails("Renamed")));
+        Assert.Equal("Renamed", renamed.Name);
+
+        async Task AssertProductUnchangedAsync()
+        {
+            var after = await InTransactionAsync(() => products.GetAsync(before.Id));
+            Assert.Equal(before.ConcurrencyStamp, after.ConcurrencyStamp);
+            Assert.Equal(before.LastModificationTime, after.LastModificationTime);
+        }
+    }
+
+    [Fact]
     public async Task Catalog_validates_dynamic_options_but_allows_unchanged_stale_values_on_unrelated_edits()
     {
         var data = await SeedAsync();

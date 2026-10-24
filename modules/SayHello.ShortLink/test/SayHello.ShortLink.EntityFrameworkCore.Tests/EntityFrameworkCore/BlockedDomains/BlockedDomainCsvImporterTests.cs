@@ -12,7 +12,6 @@ using Shouldly;
 using Volo.Abp;
 using Volo.Abp.Content;
 using Volo.Abp.Guids;
-using Volo.Abp.MultiTenancy;
 using Xunit;
 
 namespace SayHello.ShortLink.BlockedDomains;
@@ -29,9 +28,8 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
         _guidGenerator = GetRequiredService<IGuidGenerator>();
         _importer = new BlockedDomainCsvImporter(
             _repository,
-            _guidGenerator,
-            GetRequiredService<IStringLocalizer<ShortLinkResource>>(),
-            GetRequiredService<ICurrentTenant>());
+            GetRequiredService<BlockedDomainManager>(),
+            GetRequiredService<IStringLocalizer<ShortLinkResource>>());
     }
 
     [Fact]
@@ -79,6 +77,27 @@ public class BlockedDomainCsvImporterTests : ShortLinkEntityFrameworkCoreTestBas
         importedReason.ShouldNotBeNull();
         importedReason!.ShouldContain("Spam, phishing");
         importedReason.ShouldContain("and malware");
+    }
+
+    [Fact]
+    public async Task ImportAsync_Should_Accept_Ip_Addresses_In_Canonical_Form()
+    {
+        const string csv = """
+            Domain,Reason
+            203.0.113.5,IPv4
+            0xCB.0.113.5,Same IPv4
+            [2001:DB8:0:0::1],IPv6
+            fe80::1%3,Scoped IPv6
+            """;
+
+        var execution = await WithUnitOfWorkAsync(() =>
+            _importer.ImportAsync(CreateFile(csv)));
+
+        execution.Result.TotalRows.ShouldBe(4);
+        execution.Result.ImportedCount.ShouldBe(2);
+        execution.Result.DuplicateCount.ShouldBe(1);
+        execution.Result.InvalidCount.ShouldBe(1);
+        execution.ImportedDomains.ShouldBe(["203.0.113.5", "2001:db8::1"], ignoreOrder: true);
     }
 
     [Fact]

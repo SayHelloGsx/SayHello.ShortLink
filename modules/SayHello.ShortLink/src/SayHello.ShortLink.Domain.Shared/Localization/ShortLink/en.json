@@ -226,6 +226,7 @@
     "ShortLink:010043": "Creating root-path links is not currently granted for this account.",
     "ShortLink:010044": "The account has reached its limit of {Limit} root-path links.",
     "ShortLink:010045": "Namespace management is busy. Try again shortly.",
-    "ShortLink:010046": "Select either a namespace or the root path, not both."
+    "ShortLink:010046": "Select either a namespace or the root path, not both.",
+    "ShortLink:010047": "The blocked domain '{Domain}' is invalid. Enter a host name such as example.com or an IP address such as 203.0.113.5."
   }
 }

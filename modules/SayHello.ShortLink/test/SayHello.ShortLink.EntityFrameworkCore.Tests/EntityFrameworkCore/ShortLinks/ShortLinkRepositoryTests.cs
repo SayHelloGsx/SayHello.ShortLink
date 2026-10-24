@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using SayHello.ShortLink.EntityFrameworkCore;
 using Shouldly;
+using Volo.Abp;
+using Volo.Abp.Data;
 using Volo.Abp.Guids;
 using Volo.Abp.MultiTenancy;
 using Xunit;
@@ -68,6 +71,34 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
 
         var reloaded = await WithUnitOfWorkAsync(() => _repository.GetAsync(link.Id));
         reloaded.TotalVisitCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RecordVisitAsync_Should_Not_Refresh_The_Concurrency_Stamp_Of_A_Tracked_Link()
+    {
+        var link = Create(Guid.NewGuid(), "vIsIt02");
+        await WithUnitOfWorkAsync(() => _repository.InsertAsync(link, autoSave: true));
+        var before = await WithUnitOfWorkAsync(() => _repository.GetAsync(link.Id));
+
+        await WithUnitOfWorkAsync(async () =>
+        {
+            // The redirect cache-miss path loads the link tracked before recording the visit.
+            (await _repository.FindLegacyByCodeAsync("vIsIt02")).ShouldNotBeNull();
+            await _repository.RecordVisitAsync(new ShortLinkVisit(
+                _guidGenerator.Create(),
+                null,
+                link.Id,
+                DateTime.UtcNow,
+                new string('A', ShortLinkConsts.VisitorHashLength),
+                "example.com",
+                "Chrome",
+                "Desktop"));
+        });
+
+        var reloaded = await WithUnitOfWorkAsync(() => _repository.GetAsync(link.Id));
+        reloaded.TotalVisitCount.ShouldBe(1);
+        reloaded.ConcurrencyStamp.ShouldBe(before.ConcurrencyStamp);
+        reloaded.LastModificationTime.ShouldBe(before.LastModificationTime);
     }
 
     [Fact]
@@ -193,6 +224,51 @@ public class ShortLinkRepositoryTests : ShortLinkEntityFrameworkCoreTestBase
 
         (await WithUnitOfWorkAsync(() =>
             _repository.GetCustomCodeCountByOwnerAsync(ownerId))).ShouldBe(1);
+
+        using (GetRequiredService<IDataFilter<ISoftDelete>>().Disable())
+        {
+            (await WithUnitOfWorkAsync(() =>
+                _repository.GetCustomCodeCountByOwnerAsync(ownerId))).ShouldBe(1);
+        }
+    }
+
+    [Fact]
+    public async Task Paged_List_Should_Break_Sort_Ties_By_Id()
+    {
+        var ownerId = Guid.NewGuid();
+        var links = new[]
+        {
+            Create(ownerId, "Tie0001", title: "Same title"),
+            Create(ownerId, "Tie0002", title: "Same title"),
+            Create(ownerId, "Tie0003", title: "Same title")
+        };
+        await WithUnitOfWorkAsync(async () =>
+        {
+            foreach (var link in links)
+            {
+                await _repository.InsertAsync(link, autoSave: true);
+            }
+        });
+
+        async Task<List<Guid>> GetPagedIdsAsync(string sorting)
+        {
+            var ids = new List<Guid>();
+            for (var skip = 0; skip < links.Length; skip++)
+            {
+                var page = await WithUnitOfWorkAsync(() =>
+                    _repository.GetListAsync(ownerId, null, null, sorting, skip, 1));
+                ids.Add(page.Single().Id);
+            }
+
+            return ids;
+        }
+
+        var byTitle = await GetPagedIdsAsync("title");
+        byTitle.ShouldBeUnique();
+        byTitle.ShouldBe(links.Select(x => x.Id), ignoreOrder: true);
+        (await GetPagedIdsAsync("title desc")).ShouldBe(byTitle);
+        (await GetPagedIdsAsync("totalvisitcount")).ShouldBe(byTitle);
+        (await GetPagedIdsAsync("totalvisitcount desc")).ShouldBe(byTitle);
     }
 
     private ShortLink Create(

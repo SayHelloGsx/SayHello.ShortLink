@@ -229,6 +229,59 @@ public class ShortLinkDomainRepositoryTests : ShortLinkEntityFrameworkCoreTestBa
     }
 
     [Fact]
+    public async Task Reference_Counts_Should_Batch_Single_Count_Semantics_Across_Tenants_And_Deleted_Links()
+    {
+        var shortLinks = GetRequiredService<IShortLinkRepository>();
+        var hostDomain = new ShortLinkDomain(
+            _guidGenerator.Create(),
+            null,
+            "https://batch-host.example.test");
+        var unreferencedDomain = new ShortLinkDomain(
+            _guidGenerator.Create(),
+            null,
+            "https://batch-unreferenced.example.test");
+        var deletedLink = CreateLink(hostDomain, "BatchDeleted");
+        await WithUnitOfWorkAsync(async () =>
+        {
+            await _repository.InsertAsync(hostDomain, autoSave: true);
+            await _repository.InsertAsync(unreferencedDomain, autoSave: true);
+            await shortLinks.InsertAsync(CreateLink(hostDomain, "BatchActive"), autoSave: true);
+            await shortLinks.InsertAsync(deletedLink, autoSave: true);
+            await shortLinks.DeleteAsync(deletedLink, autoSave: true);
+        });
+        var tenantId = Guid.NewGuid();
+        var tenantDomain = new ShortLinkDomain(
+            _guidGenerator.Create(),
+            tenantId,
+            "https://batch-tenant.example.test");
+        using (_currentTenant.Change(tenantId))
+        {
+            await WithUnitOfWorkAsync(async () =>
+            {
+                await _repository.InsertAsync(tenantDomain, autoSave: true);
+                await shortLinks.InsertAsync(CreateLink(tenantDomain, "BatchTenant"), autoSave: true);
+            });
+        }
+
+        var counts = await WithUnitOfWorkAsync(() =>
+            _repository.GetShortLinkReferenceCountsAsync(
+                [hostDomain.Id, unreferencedDomain.Id, tenantDomain.Id, hostDomain.Id]));
+
+        counts.Keys.ShouldBe([hostDomain.Id, tenantDomain.Id], ignoreOrder: true);
+        counts[hostDomain.Id].ShouldBe(2);
+        counts[tenantDomain.Id].ShouldBe(1);
+        foreach (var domainId in new[] { hostDomain.Id, unreferencedDomain.Id, tenantDomain.Id })
+        {
+            (await WithUnitOfWorkAsync(() =>
+                    _repository.GetShortLinkReferenceCountAsync(domainId)))
+                .ShouldBe(counts.GetValueOrDefault(domainId));
+        }
+
+        (await WithUnitOfWorkAsync(() =>
+            _repository.GetShortLinkReferenceCountsAsync([]))).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Data_Seed_Should_Isolate_Host_And_Tenant_And_Idempotently_Backfill_Legacy_Links()
     {
         var tenantId = Guid.NewGuid();
@@ -368,6 +421,20 @@ public class ShortLinkDomainRepositoryTests : ShortLinkEntityFrameworkCoreTestBa
         hostStillBackfilled.DomainId.ShouldBe(hostDomain.Id);
         hostStillBackfilled.Origin.ShouldBe(hostDomain.Origin);
     }
+
+    private global::SayHello.ShortLink.ShortLinks.ShortLink CreateLink(
+        ShortLinkDomain domain,
+        string code) =>
+        new(
+            _guidGenerator.Create(),
+            domain.TenantId,
+            Guid.NewGuid(),
+            domain.Id,
+            domain.Origin,
+            code,
+            $"https://example.com/{code}",
+            null,
+            null);
 
     private sealed class TestDatabaseException(string message, string? sqlState)
         : DbException(message)

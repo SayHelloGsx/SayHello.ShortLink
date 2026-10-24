@@ -82,11 +82,14 @@ public class ShortLinkAdministrationAppService :
         return ShortLinkDtoMapper.ToDto(shortLink, _urlBuilder);
     }
 
-    public virtual async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(Guid id, DeleteShortLinkDto input)
     {
         var shortLink = await _shortLinkRepository.GetAsync(
             id,
             cancellationToken: CancellationTokenProvider.Token);
+        ShortLinkConcurrencyGuard.Apply(
+            shortLink,
+            input.ConcurrencyStamp);
         await _shortLinkRepository.DeleteAsync(
             shortLink,
             autoSave: true,

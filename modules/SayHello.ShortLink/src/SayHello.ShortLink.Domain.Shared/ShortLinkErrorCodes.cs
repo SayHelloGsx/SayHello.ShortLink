@@ -48,4 +48,5 @@ public static class ShortLinkErrorCodes
     public const string RootLinkQuotaExceeded = "ShortLink:010044";
     public const string NamespaceLockUnavailable = "ShortLink:010045";
     public const string NamespaceSelectionConflict = "ShortLink:010046";
+    public const string InvalidBlockedDomain = "ShortLink:010047";
 }

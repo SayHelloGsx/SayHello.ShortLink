@@ -56,9 +56,9 @@ public class ShortLinkController : ShortLinkPublicController, IShortLinkAppServi
     }
 
     [HttpDelete("{id:guid}")]
-    public virtual Task DeleteAsync(Guid id)
+    public virtual Task DeleteAsync(Guid id, [FromBody] DeleteShortLinkDto input)
     {
-        return _appService.DeleteAsync(id);
+        return _appService.DeleteAsync(id, input);
     }
 
     [HttpGet("{id:guid}/statistics")]

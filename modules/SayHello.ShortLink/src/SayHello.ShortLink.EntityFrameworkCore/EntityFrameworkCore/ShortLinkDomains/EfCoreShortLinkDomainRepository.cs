@@ -126,6 +126,25 @@ public class EfCoreShortLinkDomainRepository :
             "must be a Guid or nullable Guid.");
     }
 
+    public virtual async Task<Dictionary<Guid, long>> GetShortLinkReferenceCountsAsync(
+        IReadOnlyCollection<Guid> domainIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (domainIds.Count == 0)
+        {
+            return new Dictionary<Guid, long>();
+        }
+
+        var ids = domainIds.Distinct().ToList();
+        var counts = await (await GetDbContextAsync()).ShortLinks
+            .IgnoreQueryFilters()
+            .Where(x => x.DomainId != null && ids.Contains(x.DomainId.Value))
+            .GroupBy(x => x.DomainId!.Value)
+            .Select(x => new { DomainId = x.Key, Count = x.LongCount() })
+            .ToListAsync(GetCancellationToken(cancellationToken));
+        return counts.ToDictionary(x => x.DomainId, x => x.Count);
+    }
+
     public override async Task DeleteAsync(
         ShortLinkDomain entity,
         bool autoSave = false,

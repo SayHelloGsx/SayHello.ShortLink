@@ -283,6 +283,38 @@ public class ShortLinkNamespaceRepositoryTests : ShortLinkEntityFrameworkCoreTes
     }
 
     [Fact]
+    public async Task Referenced_Domain_Ids_Should_Batch_Single_Lookup_Semantics_Across_Tenants()
+    {
+        var owner = _guids.Create();
+        var hostDomain = await CreateDomainAsync("https://batch-namespace-host.example.test");
+        var unreferencedDomain = await CreateDomainAsync("https://batch-namespace-empty.example.test");
+        await WithUnitOfWorkAsync(async () =>
+        {
+            await _namespaces.InsertAsync(CreateNamespace(hostDomain, owner, "First"), autoSave: true);
+            await _namespaces.InsertAsync(CreateNamespace(hostDomain, owner, "Second"), autoSave: true);
+        });
+        ShortLinkDomain tenantDomain;
+        using (_currentTenant.Change(_guids.Create()))
+        {
+            tenantDomain = await CreateDomainAsync("https://batch-namespace-tenant.example.test");
+            await WithUnitOfWorkAsync(() =>
+                _namespaces.InsertAsync(CreateNamespace(tenantDomain, owner, "Tenant"), autoSave: true));
+        }
+
+        var referenced = await WithUnitOfWorkAsync(() => _namespaces.GetReferencedDomainIdsAsync(
+            [hostDomain.Id, unreferencedDomain.Id, tenantDomain.Id, hostDomain.Id]));
+
+        referenced.ShouldBe([hostDomain.Id, tenantDomain.Id], ignoreOrder: true);
+        foreach (var domainId in new[] { hostDomain.Id, unreferencedDomain.Id, tenantDomain.Id })
+        {
+            (await WithUnitOfWorkAsync(() => _namespaces.HasDomainReferencesAsync(domainId)))
+                .ShouldBe(referenced.Contains(domainId));
+        }
+        (await WithUnitOfWorkAsync(() => _namespaces.GetReferencedDomainIdsAsync([]))).ShouldBeEmpty();
+        GetRequiredService<IDataFilter<IMultiTenant>>().IsEnabled.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Legacy_Rows_Should_Reject_Namespaces_Or_Namespace_References_And_Namespace_Should_Be_Required()
     {
         var owner = _guids.Create();

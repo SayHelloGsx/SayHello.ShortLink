@@ -14,7 +14,7 @@ public interface IBlockedDomainAppService : IApplicationService
 
     Task<BlockedDomainDto> UpdateAsync(Guid id, UpdateBlockedDomainDto input);
 
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, DeleteBlockedDomainDto input);
 
     Task<BlockedDomainImportResultDto> ImportAsync(IRemoteStreamContent file);
 }

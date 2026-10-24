@@ -118,6 +118,8 @@ public class EfCoreShortLinkRepository :
         CancellationToken cancellationToken = default) =>
         FindLegacyByCodeAsync(code, includeDeleted, cancellationToken);
 
+    // Quota counts keep an explicit IsDeleted predicate so soft-deleted links never consume quota,
+    // even when a caller has disabled the ISoftDelete data filter.
     public virtual async Task<long> GetCountByOwnerAsync(
         Guid ownerUserId,
         CancellationToken cancellationToken = default)
@@ -141,7 +143,7 @@ public class EfCoreShortLinkRepository :
         CancellationToken cancellationToken = default)
     {
         return await (await GetDbSetAsync()).LongCountAsync(
-            x => x.OwnerUserId == ownerUserId && x.IsCustomCode,
+            x => x.OwnerUserId == ownerUserId && x.IsCustomCode && !x.IsDeleted,
             GetCancellationToken(cancellationToken));
     }
 
@@ -270,7 +272,7 @@ public class EfCoreShortLinkRepository :
         IQueryable<ShortLink> query,
         string? sorting)
     {
-        return sorting?.Trim().ToLowerInvariant() switch
+        IOrderedQueryable<ShortLink> ordered = sorting?.Trim().ToLowerInvariant() switch
         {
             "code" => query.OrderBy(x => x.Code),
             "code desc" => query.OrderByDescending(x => x.Code),
@@ -281,5 +283,8 @@ public class EfCoreShortLinkRepository :
             "creationtime" => query.OrderBy(x => x.CreationTime),
             _ => query.OrderByDescending(x => x.CreationTime)
         };
+
+        // None of the sort keys is unique, so the Id tie-breaker keeps Skip/Take pages stable.
+        return ordered.ThenBy(x => x.Id);
     }
 }

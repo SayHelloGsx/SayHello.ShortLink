@@ -13,6 +13,7 @@ using SayHello.ShortLink.Public.ShortLinkNamespaces;
 using SayHello.ShortLink.ShortLinkDomains;
 using SayHello.ShortLink.WebHost.EntityFrameworkCore.Subscriptions;
 using Shouldly;
+using Volo.Abp.Http;
 using Volo.Abp.Identity;
 using Volo.Abp.PermissionManagement;
 using Xunit;
@@ -129,6 +130,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
                 ["concurrencyStamp"] = Guid.NewGuid().ToString("N")
             }));
         stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        stale.Headers.GetValues(AbpHttpConsts.AbpErrorFormat).ShouldBe(["true"]);
         using var error = System.Text.Json.JsonDocument.Parse(await stale.Content.ReadAsStringAsync());
         error.RootElement.GetProperty("error").GetProperty("message").GetString().ShouldNotBeNullOrWhiteSpace();
 
@@ -196,6 +198,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
                 ["concurrencyStamp"] = item.ConcurrencyStamp
             }));
         blocked.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        blocked.Headers.GetValues(AbpHttpConsts.AbpErrorFormat).ShouldBe(["true"]);
         using var error = System.Text.Json.JsonDocument.Parse(await blocked.Content.ReadAsStringAsync());
         error.RootElement.GetProperty("error").GetProperty("code").GetString().ShouldBe(ShortLinkErrorCodes.NamespaceInUse);
         error.RootElement.GetProperty("error").GetProperty("message").GetString().ShouldNotBeNullOrWhiteSpace();

@@ -1,5 +1,4 @@
 using System;
-using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities.Auditing;
 using Volo.Abp.MultiTenancy;
@@ -8,13 +7,13 @@ namespace SayHello.ShortLink.BlockedDomains;
 
 public class BlockedDomain : FullAuditedAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; protected set; }
+    public virtual Guid? TenantId { get; protected set; }
 
-    public string Domain { get; protected set; } = string.Empty;
+    public virtual string Domain { get; protected set; } = string.Empty;
 
-    public string? Reason { get; protected set; }
+    public virtual string? Reason { get; protected set; }
 
-    public bool IsActive { get; protected set; }
+    public virtual bool IsActive { get; protected set; }
 
     protected BlockedDomain()
     {
@@ -28,12 +27,12 @@ public class BlockedDomain : FullAuditedAggregateRoot<Guid>, IMultiTenant
         : base(id)
     {
         TenantId = tenantId;
-        Domain = DomainNameNormalizer.Normalize(domain);
+        Domain = BlockedDomainName.Normalize(domain);
         IsActive = true;
         SetReason(reason);
     }
 
-    public void Update(string? reason, bool isActive)
+    public virtual void Update(string? reason, bool isActive)
     {
         SetReason(reason);
         IsActive = isActive;

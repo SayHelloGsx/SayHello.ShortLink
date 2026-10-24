@@ -20,7 +20,7 @@ public interface IShortLinkAppService : IApplicationService
 
     Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input);
 
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, DeleteShortLinkDto input);
 
     Task<ShortLinkStatisticsDto> GetStatisticsAsync(Guid id, int days = 30);
 

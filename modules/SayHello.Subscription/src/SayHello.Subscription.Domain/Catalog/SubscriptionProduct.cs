@@ -8,13 +8,13 @@ namespace SayHello.Subscription.Catalog;
 
 public class SubscriptionProduct : AuditedAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; private set; }
-    public string Code { get; private set; } = string.Empty;
-    public string Name { get; private set; } = string.Empty;
-    public string? Description { get; private set; }
-    public int DisplayOrder { get; private set; }
-    public SubscriptionCatalogState State { get; private set; }
-    public Guid? DefaultPlanId { get; private set; }
+    public virtual Guid? TenantId { get; private set; }
+    public virtual string Code { get; private set; } = string.Empty;
+    public virtual string Name { get; private set; } = string.Empty;
+    public virtual string? Description { get; private set; }
+    public virtual int DisplayOrder { get; private set; }
+    public virtual SubscriptionCatalogState State { get; private set; }
+    public virtual Guid? DefaultPlanId { get; private set; }
 
     protected SubscriptionProduct()
     {
@@ -30,7 +30,7 @@ public class SubscriptionProduct : AuditedAggregateRoot<Guid>, IMultiTenant
         UpdateDetails(name, description, displayOrder);
     }
 
-    public void UpdateDetails(string name, string? description, int displayOrder)
+    public virtual void UpdateDetails(string name, string? description, int displayOrder)
     {
         EnsureNotArchived();
         var checkedName = SubscriptionGuard.Name(name);
@@ -40,26 +40,26 @@ public class SubscriptionProduct : AuditedAggregateRoot<Guid>, IMultiTenant
         DisplayOrder = displayOrder;
     }
 
-    public void Publish()
+    public virtual void Publish()
     {
         EnsureNotArchived();
         State = SubscriptionCatalogState.Published;
     }
 
-    public void Withdraw()
+    public virtual void Withdraw()
     {
         EnsureNotArchived();
         EnsureNoDefaultPlan();
         State = SubscriptionCatalogState.Withdrawn;
     }
 
-    public void Archive()
+    public virtual void Archive()
     {
         EnsureNoDefaultPlan();
         State = SubscriptionCatalogState.Archived;
     }
 
-    public void SetDefaultPlan(SubscriptionPlan? plan)
+    public virtual void SetDefaultPlan(SubscriptionPlan? plan)
     {
         EnsureNotArchived();
         if (plan != null)
@@ -75,7 +75,7 @@ public class SubscriptionProduct : AuditedAggregateRoot<Guid>, IMultiTenant
         DefaultPlanId = plan?.Id;
     }
 
-    public void EnsureNoDefaultPlan()
+    public virtual void EnsureNoDefaultPlan()
     {
         if (DefaultPlanId.HasValue)
         {

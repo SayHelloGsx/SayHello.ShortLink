@@ -7,19 +7,19 @@ namespace SayHello.ShortLink.ShortLinks;
 
 public class ShortLinkVisit : BasicAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; protected set; }
+    public virtual Guid? TenantId { get; protected set; }
 
-    public Guid ShortLinkId { get; protected set; }
+    public virtual Guid ShortLinkId { get; protected set; }
 
-    public DateTime VisitedAt { get; protected set; }
+    public virtual DateTime VisitedAt { get; protected set; }
 
-    public string VisitorHash { get; protected set; } = string.Empty;
+    public virtual string VisitorHash { get; protected set; } = string.Empty;
 
-    public string? ReferrerHost { get; protected set; }
+    public virtual string? ReferrerHost { get; protected set; }
 
-    public string Browser { get; protected set; } = string.Empty;
+    public virtual string Browser { get; protected set; } = string.Empty;
 
-    public string DeviceType { get; protected set; } = string.Empty;
+    public virtual string DeviceType { get; protected set; } = string.Empty;
 
     protected ShortLinkVisit()
     {

@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
 using QRCoder;
 using SayHello.ShortLink.Admin.Settings;
+using SayHello.ShortLink.Admin.ShortLinkDomains;
 using SayHello.ShortLink.Admin.ShortLinks;
 using SayHello.ShortLink.Common.ShortLinks;
 using SayHello.ShortLink.Permissions;
@@ -474,7 +475,7 @@ public class ShortLinkNamespaceUseCaseTests :
         featureOff.CanCreateNamespace.ShouldBeFalse();
         featureOff.CanCreateRootLink.ShouldBeTrue();
         await DeleteNamespaceAsync(first);
-        await _links.DeleteAsync(root.Id);
+        await DeleteLinkAsync(admin: false, root.Id, root.ConcurrencyStamp);
         var released = await _links.GetCapabilitiesAsync();
         released.UsedNamespaces.ShouldBe(1);
         released.UsedRootLinks.ShouldBe(1);
@@ -686,7 +687,7 @@ public class ShortLinkNamespaceUseCaseTests :
         }
         else if (state == "deleted")
         {
-            await _links.DeleteAsync(link.Id);
+            await DeleteLinkAsync(admin: false, link.Id, link.ConcurrencyStamp);
         }
 
         GetRequiredService<IDataFilter<ISoftDelete>>().IsEnabled.ShouldBeTrue();
@@ -731,6 +732,34 @@ public class ShortLinkNamespaceUseCaseTests :
         await DeleteNamespaceAsync(updated);
         (await NamespaceCountAsync()).ShouldBe(0);
         _locks.ActiveCount.ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Link_Delete_Should_Preserve_The_Two_Writer_Concurrency_Contract(bool admin)
+    {
+        var firstRead = await CreateLinkAsync("VersionedLink");
+        foreach (var missing in new[] { null, string.Empty, " " })
+        {
+            await Should.ThrowAsync<AbpValidationException>(() =>
+                DeleteLinkAsync(admin, firstRead.Id, missing!));
+        }
+
+        var updated = await _links.UpdateAsync(firstRead.Id, new UpdateShortLinkDto
+        {
+            TargetUrl = "https://example.com/second-writer",
+            ConcurrencyStamp = firstRead.ConcurrencyStamp
+        });
+        updated.ConcurrencyStamp.ShouldNotBe(firstRead.ConcurrencyStamp);
+
+        await Should.ThrowAsync<AbpDbConcurrencyException>(() =>
+            DeleteLinkAsync(admin, firstRead.Id, firstRead.ConcurrencyStamp));
+        (await _links.GetAsync(firstRead.Id)).ConcurrencyStamp.ShouldBe(updated.ConcurrencyStamp);
+        (await ResolveAsync(updated)).Status.ShouldBe(ShortLinkResolutionStatus.Found);
+
+        await DeleteLinkAsync(admin, firstRead.Id, updated.ConcurrencyStamp);
+        (await ResolveAsync(updated)).Status.ShouldBe(ShortLinkResolutionStatus.Gone);
     }
 
     [Fact]
@@ -810,11 +839,27 @@ public class ShortLinkNamespaceUseCaseTests :
         var extra = await CreateDomainAsync("https://namespace-domain.example.test");
         var selected = await CreateNamespaceAsync("OnlyNamespace", extra.Origin);
         var domains = GetRequiredService<DomainAdministration>();
-        (await Should.ThrowAsync<BusinessException>(() => domains.DeleteAsync(extra.Id))).Code
+        var deleteDomain = new DeleteShortLinkDomainDto { ConcurrencyStamp = extra.ConcurrencyStamp };
+        (await Should.ThrowAsync<BusinessException>(() => domains.DeleteAsync(extra.Id, deleteDomain))).Code
             .ShouldBe(ShortLinkErrorCodes.DomainInUse);
         await DeleteNamespaceAsync(selected);
-        await domains.DeleteAsync(extra.Id);
+        await domains.DeleteAsync(extra.Id, deleteDomain);
         (await _namespaces.GetListAsync()).Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Referencing_A_Domain_Or_Namespace_Should_Not_Refresh_Its_Concurrency_Stamp()
+    {
+        var domain = await CreateDomainAsync("https://stamp-domain.example.test");
+        var selected = await CreateNamespaceAsync("StampNamespace", domain.Origin);
+        var link = await CreateLinkAsync(origin: domain.Origin, namespaceId: selected.Id);
+        await DeleteLinkAsync(false, link.Id, link.ConcurrencyStamp);
+
+        var domains = GetRequiredService<IShortLinkDomainRepository>();
+        (await WithUnitOfWorkAsync(() => domains.GetAsync(domain.Id))).ConcurrencyStamp
+            .ShouldBe(domain.ConcurrencyStamp);
+        (await WithUnitOfWorkAsync(() => _namespaceRepository.GetAsync(selected.Id))).ConcurrencyStamp
+            .ShouldBe(selected.ConcurrencyStamp);
     }
 
     [Fact]
@@ -1130,13 +1175,13 @@ public class ShortLinkNamespaceUseCaseTests :
         await AssertRouteCacheRemovedAsync(adminActive, control);
         (await ResolveAsync(adminActive)).Status.ShouldBe(ShortLinkResolutionStatus.Found);
 
-        await _links.DeleteAsync(created.Id);
+        await DeleteLinkAsync(admin: false, created.Id, adminActive.ConcurrencyStamp);
         await AssertRouteCacheRemovedAsync(adminActive, control);
         (await ResolveAsync(adminActive)).Status.ShouldBe(ShortLinkResolutionStatus.Gone);
         var adminDeleted = await CreateLinkAsync(
             "AdminDeleted", namespaceId: selected?.Id, useRootPath: route == "root");
         await ResolveAsync(adminDeleted);
-        await _admin.DeleteAsync(adminDeleted.Id);
+        await DeleteLinkAsync(admin: true, adminDeleted.Id, adminDeleted.ConcurrencyStamp);
         await AssertRouteCacheRemovedAsync(adminDeleted, control);
         (await ResolveAsync(adminDeleted)).Status.ShouldBe(ShortLinkResolutionStatus.Gone);
     }
@@ -1179,14 +1224,7 @@ public class ShortLinkNamespaceUseCaseTests :
             });
         await AssertRouteCacheRemovedAsync(disabled, control);
         (await ResolveAsync(disabled)).Status.ShouldBe(ShortLinkResolutionStatus.Gone);
-        if (admin)
-        {
-            await _admin.DeleteAsync(legacy.Id);
-        }
-        else
-        {
-            await _links.DeleteAsync(legacy.Id);
-        }
+        await DeleteLinkAsync(admin, legacy.Id, disabled.ConcurrencyStamp);
         await AssertRouteCacheRemovedAsync(disabled, control);
         (await _redirect.ResolveAsync(Origin, legacy.Code)).Status.ShouldBe(ShortLinkResolutionStatus.Gone);
     }
@@ -1289,7 +1327,7 @@ public class ShortLinkNamespaceUseCaseTests :
         {
             if (delete)
             {
-                await _links.DeleteAsync(link.Id);
+                await DeleteLinkAsync(admin: false, link.Id, link.ConcurrencyStamp);
             }
             else
             {
@@ -1379,6 +1417,12 @@ public class ShortLinkNamespaceUseCaseTests :
 
     private Task DeleteNamespaceAsync(ShortLinkNamespaceDto entity) =>
         _namespaces.DeleteAsync(entity.Id, new DeleteShortLinkNamespaceDto { ConcurrencyStamp = entity.ConcurrencyStamp });
+
+    private Task DeleteLinkAsync(bool admin, Guid id, string concurrencyStamp)
+    {
+        var input = new DeleteShortLinkDto { ConcurrencyStamp = concurrencyStamp };
+        return admin ? _admin.DeleteAsync(id, input) : _links.DeleteAsync(id, input);
+    }
 
     private Task<ShortLinkDto> CreateLinkAsync(
         string? code = null,

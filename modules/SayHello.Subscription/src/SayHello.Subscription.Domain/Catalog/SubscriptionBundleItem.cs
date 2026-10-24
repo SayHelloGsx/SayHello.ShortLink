@@ -6,10 +6,10 @@ namespace SayHello.Subscription.Catalog;
 
 public class SubscriptionBundleItem : Entity, IMultiTenant
 {
-    public Guid? TenantId { get; private set; }
-    public Guid BundleId { get; private set; }
-    public Guid ProductId { get; private set; }
-    public Guid PlanId { get; private set; }
+    public virtual Guid? TenantId { get; private set; }
+    public virtual Guid BundleId { get; private set; }
+    public virtual Guid ProductId { get; private set; }
+    public virtual Guid PlanId { get; private set; }
 
     protected SubscriptionBundleItem()
     {
@@ -25,5 +25,5 @@ public class SubscriptionBundleItem : Entity, IMultiTenant
 
     public override object[] GetKeys() => new object[] { BundleId, ProductId };
 
-    internal void SetPlanId(Guid planId) => PlanId = SubscriptionGuard.Id(planId, nameof(planId));
+    internal virtual void SetPlanId(Guid planId) => PlanId = SubscriptionGuard.Id(planId, nameof(planId));
 }

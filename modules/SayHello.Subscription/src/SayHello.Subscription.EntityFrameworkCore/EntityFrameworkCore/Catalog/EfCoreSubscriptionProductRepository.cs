@@ -6,14 +6,13 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SayHello.Subscription.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore;
-using Volo.Abp.MultiTenancy;
 
 namespace SayHello.Subscription.Catalog;
 
 public class EfCoreSubscriptionProductRepository : SubscriptionEfRepository<SubscriptionProduct>, ISubscriptionProductRepository
 {
-    public EfCoreSubscriptionProductRepository(IDbContextProvider<ISubscriptionDbContext> provider, ICurrentTenant tenant)
-        : base(provider, tenant) { }
+    public EfCoreSubscriptionProductRepository(IDbContextProvider<ISubscriptionDbContext> provider)
+        : base(provider) { }
 
     public virtual async Task<SubscriptionProduct?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
     {

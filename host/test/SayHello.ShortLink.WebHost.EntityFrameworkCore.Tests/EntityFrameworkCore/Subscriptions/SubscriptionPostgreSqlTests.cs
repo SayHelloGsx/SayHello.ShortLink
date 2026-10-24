@@ -101,12 +101,7 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
             subscriptionRows[table] = await SnapshotAsync(table);
 
         await context.Database.MigrateAsync();
-        var defaultMigration = context.Database.GetMigrations().Single(name =>
-            name.EndsWith("_AddSubscriptionDefaultPlans", StringComparison.Ordinal));
-        var entitlementMigration = context.Database.GetMigrations().Single(name =>
-            name.EndsWith("_AddEntitlementValuesAndShortLinkDomains", StringComparison.Ordinal));
-        Assert.Equal(new[] { InitialMigration, SubscriptionMigration, defaultMigration, entitlementMigration },
-            await context.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(context.Database.GetMigrations(), await context.Database.GetAppliedMigrationsAsync());
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());
         Assert.False(context.Database.HasPendingModelChanges());
         Assert.Equal(2L, await ScalarAsync("""SELECT count(*) FROM "SubscriptionProducts" WHERE "DefaultPlanId" IS NULL;"""));
@@ -513,8 +508,10 @@ public sealed class SubscriptionPostgreSqlTests : IAsyncLifetime
         FROM information_schema.columns
         WHERE table_schema = 'public'
           AND table_name NOT LIKE 'Subscription%'
-          AND table_name NOT IN ('__EFMigrationsHistory', 'ShortLinkDomains')
-          AND NOT (table_name = 'ShortLinkLinks' AND column_name IN ('DomainId', 'Origin'));
+          AND table_name NOT IN (
+              '__EFMigrationsHistory', 'ShortLinkDomains', 'ShortLinkNamespaces', 'ShortLinkNamespaceReservations')
+          AND NOT (table_name = 'ShortLinkLinks'
+              AND column_name IN ('DomainId', 'Origin', 'IsCustomCode', 'Namespace', 'NamespaceId'));
         """);
 
     private Task<object?> SnapshotAsync(string table, bool omitDefaultPlanId = false) => ScalarAsync($"""

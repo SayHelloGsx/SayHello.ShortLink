@@ -17,5 +17,6 @@ public class UpdateShortLinkDto : IHasConcurrencyStamp
     public DateTime? ExpiresAt { get; set; }
 
     [Required]
+    [StringLength(40)]
     public string ConcurrencyStamp { get; set; } = string.Empty;
 }

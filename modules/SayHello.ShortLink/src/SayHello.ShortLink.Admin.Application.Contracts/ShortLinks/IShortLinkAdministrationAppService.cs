@@ -12,5 +12,5 @@ public interface IShortLinkAdministrationAppService : IApplicationService
 
     Task<ShortLinkDto> SetStatusAsync(Guid id, SetShortLinkStatusDto input);
 
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, DeleteShortLinkDto input);
 }

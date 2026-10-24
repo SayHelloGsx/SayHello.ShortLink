@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,14 +13,30 @@ using Volo.Abp.Timing;
 
 namespace SayHello.ShortLink.Public.ShortLinks;
 
+/// <summary>
+/// Default <see cref="IShortLinkCreationRateLimiter"/> that counts link creations per tenant and user
+/// in fixed one-hour windows held in the memory of the current process.
+/// </summary>
+/// <remarks>
+/// Counters are neither shared between application instances nor kept across restarts, so this
+/// implementation only enforces the limit for a single-instance host or in tests. A host that runs
+/// more than one instance must replace <see cref="IShortLinkCreationRateLimiter"/> with an
+/// implementation backed by shared storage, as the Web Host does with Redis. Expired windows are
+/// evicted at most once per window length, which bounds memory by the users that created links
+/// during the last two windows.
+/// </remarks>
 public class InMemoryShortLinkCreationRateLimiter :
     IShortLinkCreationRateLimiter,
     ISingletonDependency
 {
-    private readonly ConcurrentDictionary<string, WindowState> _windows = new();
+    private static readonly TimeSpan WindowLength = TimeSpan.FromHours(1);
+
+    private readonly Dictionary<string, WindowState> _windows = new(StringComparer.Ordinal);
+    private readonly Lock _syncRoot = new();
     private readonly ISettingProvider _settingProvider;
     private readonly IClock _clock;
     private readonly ICurrentTenant _currentTenant;
+    private DateTime _nextPruneAt = DateTime.MinValue;
 
     public InMemoryShortLinkCreationRateLimiter(
         ISettingProvider settingProvider,
@@ -32,6 +48,17 @@ public class InMemoryShortLinkCreationRateLimiter :
         _currentTenant = currentTenant;
     }
 
+    internal int TrackedWindowCount
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _windows.Count;
+            }
+        }
+    }
+
     public virtual async Task EnsureAllowedAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
@@ -39,15 +66,16 @@ public class InMemoryShortLinkCreationRateLimiter :
         var limit = await GetLimitAsync();
         var tenantId = _currentTenant.Id;
         var key = $"{tenantId?.ToString("N") ?? "host"}:{userId:N}";
-        var state = _windows.GetOrAdd(key, _ => new WindowState(_clock.Now));
 
-        lock (state)
+        lock (_syncRoot)
         {
             var now = _clock.Now;
-            if (now - state.StartedAt >= TimeSpan.FromHours(1))
+            PruneExpiredWindows(now);
+
+            if (!_windows.TryGetValue(key, out var state) || IsExpired(state, now))
             {
-                state.StartedAt = now;
-                state.Count = 0;
+                state = new WindowState(now);
+                _windows[key] = state;
             }
 
             if (state.Count >= limit)
@@ -58,6 +86,35 @@ public class InMemoryShortLinkCreationRateLimiter :
 
             state.Count++;
         }
+    }
+
+    private void PruneExpiredWindows(DateTime now)
+    {
+        if (now < _nextPruneAt)
+        {
+            return;
+        }
+
+        var expiredKeys = new List<string>();
+        foreach (var (key, state) in _windows)
+        {
+            if (IsExpired(state, now))
+            {
+                expiredKeys.Add(key);
+            }
+        }
+
+        foreach (var key in expiredKeys)
+        {
+            _windows.Remove(key);
+        }
+
+        _nextPruneAt = now + WindowLength;
+    }
+
+    private static bool IsExpired(WindowState state, DateTime now)
+    {
+        return now - state.StartedAt >= WindowLength;
     }
 
     private async Task<int> GetLimitAsync()
@@ -85,7 +142,7 @@ public class InMemoryShortLinkCreationRateLimiter :
             StartedAt = startedAt;
         }
 
-        public DateTime StartedAt { get; set; }
+        public DateTime StartedAt { get; }
 
         public int Count { get; set; }
     }

@@ -12,5 +12,6 @@ public class UpdateBlockedDomainDto : IHasConcurrencyStamp
     public bool IsActive { get; set; }
 
     [Required]
+    [StringLength(40)]
     public string ConcurrencyStamp { get; set; } = string.Empty;
 }

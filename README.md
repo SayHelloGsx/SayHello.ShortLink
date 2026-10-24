@@ -50,6 +50,16 @@ The single host exposes:
 - Admin API: `/api/short-link/admin/*`
 - Anonymous redirects: `/{namespace}/{code}` and legacy/explicit root `/{code}`
 
+Every API `DELETE` of a link (`public/links/{id}`, `admin/links/{id}`), an Origin
+(`admin/domains/{id}`), a blocked domain (`admin/blocked-domains/{id}`), or a namespace
+requires a JSON body containing the read `concurrencyStamp`. A request without a body
+returns HTTP 415, a missing stamp returns HTTP 400, and a stale stamp returns HTTP 409.
+
+A `concurrencyStamp` changes only when that resource itself changes. Creating,
+changing, or deleting a resource that references another one by ID (a link and its
+Origin or namespace, a subscription plan and its product, a product and its default
+plan) leaves the referenced resource's stamp unchanged.
+
 ## Short-link namespaces
 
 New links use the nonempty global setting `ShortLink.DefaultNamespace`, initially
@@ -380,7 +390,11 @@ SMTP credentials, database passwords, Redis passwords, visitor-hash keys, or cer
 ## Important configuration
 
 - `ConnectionStrings__Default`: PostgreSQL connection string.
-- `Redis__Configuration`: StackExchange.Redis configuration.
+- `Redis__Configuration`: StackExchange.Redis configuration. Redis holds the distributed
+  cache, distributed locks, Data Protection keys, and the per-user creation rate-limit
+  counters shared by all Host instances. A host that does not replace
+  `IShortLinkCreationRateLimiter` gets the module's per-process in-memory limiter, which
+  enforces the hourly limit only for a single instance.
 - `ShortLink__Urls__BaseUrl`: bootstrap/default Origin used by data seeding and as a
   diagnostic legacy fallback during migration. New links and QR codes use the
   immutable Origin stored on each link.

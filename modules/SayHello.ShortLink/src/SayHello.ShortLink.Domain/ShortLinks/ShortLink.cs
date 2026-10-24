@@ -9,31 +9,31 @@ namespace SayHello.ShortLink.ShortLinks;
 
 public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; protected set; }
+    public virtual Guid? TenantId { get; protected set; }
 
-    public Guid OwnerUserId { get; protected set; }
+    public virtual Guid OwnerUserId { get; protected set; }
 
-    public Guid? DomainId { get; protected set; }
+    public virtual Guid? DomainId { get; protected set; }
 
-    public string? Origin { get; protected set; }
+    public virtual string? Origin { get; protected set; }
 
-    public string Namespace { get; protected set; } = string.Empty;
+    public virtual string Namespace { get; protected set; } = string.Empty;
 
-    public Guid? NamespaceId { get; protected set; }
+    public virtual Guid? NamespaceId { get; protected set; }
 
-    public string Code { get; protected set; } = string.Empty;
+    public virtual string Code { get; protected set; } = string.Empty;
 
-    public bool IsCustomCode { get; protected set; }
+    public virtual bool IsCustomCode { get; protected set; }
 
-    public string TargetUrl { get; protected set; } = string.Empty;
+    public virtual string TargetUrl { get; protected set; } = string.Empty;
 
-    public string? Title { get; protected set; }
+    public virtual string? Title { get; protected set; }
 
-    public ShortLinkStatus Status { get; protected set; }
+    public virtual ShortLinkStatus Status { get; protected set; }
 
-    public DateTime? ExpiresAt { get; protected set; }
+    public virtual DateTime? ExpiresAt { get; protected set; }
 
-    public long TotalVisitCount { get; protected set; }
+    public virtual long TotalVisitCount { get; protected set; }
 
     protected ShortLink()
     {
@@ -103,7 +103,7 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
         SetExpiration(expiresAt);
     }
 
-    internal void AssignDomain(Guid domainId, string origin)
+    internal virtual void AssignDomain(Guid domainId, string origin)
     {
         if (DomainId.HasValue || !Origin.IsNullOrWhiteSpace())
         {
@@ -116,29 +116,29 @@ public class ShortLink : FullAuditedAggregateRoot<Guid>, IMultiTenant
         Origin = ShortLinkDomainOrigin.Normalize(origin);
     }
 
-    public void Update(string targetUrl, string? title, DateTime? expiresAt)
+    public virtual void Update(string targetUrl, string? title, DateTime? expiresAt)
     {
         SetTarget(targetUrl);
         SetTitle(title);
         SetExpiration(expiresAt);
     }
 
-    public void Activate()
+    public virtual void Activate()
     {
         Status = ShortLinkStatus.Active;
     }
 
-    public void Disable()
+    public virtual void Disable()
     {
         Status = ShortLinkStatus.Disabled;
     }
 
-    public bool IsExpired(DateTime now)
+    public virtual bool IsExpired(DateTime now)
     {
         return ExpiresAt.HasValue && ExpiresAt.Value <= now;
     }
 
-    public void IncreaseVisitCount()
+    public virtual void IncreaseVisitCount()
     {
         checked
         {

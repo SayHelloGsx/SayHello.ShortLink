@@ -240,9 +240,10 @@ public class ShortLinkAppService : ShortLinkApplicationService, IShortLinkAppSer
     }
 
     [Authorize(ShortLinkPublicPermissions.Delete)]
-    public virtual async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(Guid id, DeleteShortLinkDto input)
     {
         var shortLink = await GetOwnedAsync(id);
+        ShortLinkConcurrencyGuard.Apply(shortLink, input.ConcurrencyStamp);
         await _eligibilityChecker.EnsureEligibleAsync(CurrentUser.GetId());
         await _shortLinkRepository.DeleteAsync(
             shortLink,

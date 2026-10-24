@@ -9,5 +9,6 @@ public class SetShortLinkStatusDto : IHasConcurrencyStamp
     public ShortLinkStatus Status { get; set; }
 
     [Required]
+    [StringLength(40)]
     public string ConcurrencyStamp { get; set; } = string.Empty;
 }

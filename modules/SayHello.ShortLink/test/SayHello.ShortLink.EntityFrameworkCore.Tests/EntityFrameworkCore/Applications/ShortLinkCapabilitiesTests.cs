@@ -248,7 +248,9 @@ public class ShortLinkCapabilitiesTests :
         full.RemainingCustomCodes.ShouldBe(0);
         full.CanUseCustomCode.ShouldBeFalse();
 
-        await _appService.DeleteAsync(created.Id);
+        await _appService.DeleteAsync(
+            created.Id,
+            new DeleteShortLinkDto { ConcurrencyStamp = created.ConcurrencyStamp });
         var available = await _appService.GetCapabilitiesAsync();
         available.UsedCustomCodes.ShouldBe(0);
         available.RemainingCustomCodes.ShouldBe(1);
@@ -371,14 +373,16 @@ public class ShortLinkCapabilitiesTests :
     public async Task Usage_Should_Count_Disabled_Expired_Links_And_Release_Deleted_Links_For_Current_Owner_Only()
     {
         var first = await CreateAsync();
-        await _appService.SetStatusAsync(first.Id, new SetShortLinkStatusDto
+        var disabledFirst = await _appService.SetStatusAsync(first.Id, new SetShortLinkStatusDto
         {
             Status = ShortLinkStatus.Disabled,
             ConcurrencyStamp = first.ConcurrencyStamp
         });
         await CreateAsync(DateTime.UtcNow.AddDays(-1));
         var deleted = await CreateAsync();
-        await _appService.DeleteAsync(deleted.Id);
+        await _appService.DeleteAsync(
+            deleted.Id,
+            new DeleteShortLinkDto { ConcurrencyStamp = deleted.ConcurrencyStamp });
         SetQuota(ShortLinkQuota.Limited(5));
 
         var result = await _appService.GetCapabilitiesAsync();
@@ -397,7 +401,9 @@ public class ShortLinkCapabilitiesTests :
             (await _appService.GetCapabilitiesAsync()).UsedLinks.ShouldBe(0);
         }
 
-        await GetRequiredService<IShortLinkAdministrationAppService>().DeleteAsync(first.Id);
+        await GetRequiredService<IShortLinkAdministrationAppService>().DeleteAsync(
+            first.Id,
+            new DeleteShortLinkDto { ConcurrencyStamp = disabledFirst.ConcurrencyStamp });
         (await _appService.GetCapabilitiesAsync()).RemainingLinks.ShouldBe(4);
     }
 
@@ -472,7 +478,9 @@ public class ShortLinkCapabilitiesTests :
         (await redirect.ResolveAsync(extraLink.Origin!, extraLink.Namespace, sharedCode)).Status
             .ShouldBe(ShortLinkResolutionStatus.Found);
 
-        await _appService.DeleteAsync(extraLink.Id);
+        await _appService.DeleteAsync(
+            extraLink.Id,
+            new DeleteShortLinkDto { ConcurrencyStamp = extraLink.ConcurrencyStamp });
         var currentExtra = await WithUnitOfWorkAsync(() =>
             domainRepository.GetAsync(extra.Id));
         var inUse = await Should.ThrowAsync<BusinessException>(() =>

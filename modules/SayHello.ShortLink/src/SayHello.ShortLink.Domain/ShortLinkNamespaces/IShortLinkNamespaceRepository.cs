@@ -15,4 +15,10 @@ public interface IShortLinkNamespaceRepository : IRepository<ShortLinkNamespace,
         Guid ownerUserId, string? origin = null, CancellationToken cancellationToken = default);
     Task<bool> HasLinkReferencesAsync(Guid namespaceId, CancellationToken cancellationToken = default);
     Task<bool> HasDomainReferencesAsync(Guid domainId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Batch form of <see cref="HasDomainReferencesAsync"/>: returns the requested domain IDs that are referenced.
+    /// </summary>
+    Task<List<Guid>> GetReferencedDomainIdsAsync(
+        IReadOnlyCollection<Guid> domainIds, CancellationToken cancellationToken = default);
 }

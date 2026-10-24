@@ -7,17 +7,17 @@ namespace SayHello.ShortLink.ShortLinks;
 
 public class ShortLinkDailyDimensionStatistic : BasicAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; protected set; }
+    public virtual Guid? TenantId { get; protected set; }
 
-    public Guid ShortLinkId { get; protected set; }
+    public virtual Guid ShortLinkId { get; protected set; }
 
-    public DateOnly Date { get; protected set; }
+    public virtual DateOnly Date { get; protected set; }
 
-    public StatisticDimension Dimension { get; protected set; }
+    public virtual StatisticDimension Dimension { get; protected set; }
 
-    public string Value { get; protected set; } = string.Empty;
+    public virtual string Value { get; protected set; } = string.Empty;
 
-    public long VisitCount { get; protected set; }
+    public virtual long VisitCount { get; protected set; }
 
     protected ShortLinkDailyDimensionStatistic()
     {
@@ -49,7 +49,7 @@ public class ShortLinkDailyDimensionStatistic : BasicAggregateRoot<Guid>, IMulti
         VisitCount = visitCount;
     }
 
-    public void SetVisitCount(long visitCount)
+    public virtual void SetVisitCount(long visitCount)
     {
         if (visitCount < 0)
         {

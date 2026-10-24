@@ -11,32 +11,26 @@ using CsvHelper.Configuration;
 using Microsoft.Extensions.Localization;
 using SayHello.ShortLink.BlockedDomains;
 using SayHello.ShortLink.Localization;
-using SayHello.ShortLink.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.Content;
 using Volo.Abp.DependencyInjection;
-using Volo.Abp.Guids;
-using Volo.Abp.MultiTenancy;
 
 namespace SayHello.ShortLink.Admin.BlockedDomains;
 
 public class BlockedDomainCsvImporter : ITransientDependency
 {
     private readonly IBlockedDomainRepository _repository;
-    private readonly IGuidGenerator _guidGenerator;
+    private readonly BlockedDomainManager _blockedDomainManager;
     private readonly IStringLocalizer<ShortLinkResource> _localizer;
-    private readonly ICurrentTenant _currentTenant;
 
     public BlockedDomainCsvImporter(
         IBlockedDomainRepository repository,
-        IGuidGenerator guidGenerator,
-        IStringLocalizer<ShortLinkResource> localizer,
-        ICurrentTenant currentTenant)
+        BlockedDomainManager blockedDomainManager,
+        IStringLocalizer<ShortLinkResource> localizer)
     {
         _repository = repository;
-        _guidGenerator = guidGenerator;
+        _blockedDomainManager = blockedDomainManager;
         _localizer = localizer;
-        _currentTenant = currentTenant;
     }
 
     public virtual async Task<BlockedDomainCsvImportExecutionResult> ImportAsync(
@@ -72,48 +66,42 @@ public class BlockedDomainCsvImporter : ITransientDependency
             }
         }
 
-        var existingDomains = (await _repository.GetExistingDomainsAsync(
-                distinctCandidates.Keys.ToList(),
-                cancellationToken))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var entities = new List<BlockedDomain>();
+        var creation = await _blockedDomainManager.CreateManyAsync(
+            distinctCandidates.Values
+                .Select(x => (x.Domain, x.Reason))
+                .ToList(),
+            cancellationToken);
 
         foreach (var candidate in distinctCandidates.Values)
         {
-            if (existingDomains.Contains(candidate.Domain))
+            if (!creation.ExistingDomains.Contains(candidate.Domain))
             {
-                result.ExistingCount++;
-                result.Issues.Add(
-                    new BlockedDomainImportIssueDto
-                    {
-                        RowNumber = candidate.RowNumber,
-                        Domain = candidate.RawDomain,
-                        Type = BlockedDomainImportIssueType.AlreadyExists,
-                        Message = _localizer["BlockedDomainImport:AlreadyExists"]
-                    });
                 continue;
             }
 
-            entities.Add(
-                new BlockedDomain(
-                    _guidGenerator.Create(),
-                    _currentTenant.Id,
-                    candidate.Domain,
-                    candidate.Reason));
+            result.ExistingCount++;
+            result.Issues.Add(
+                new BlockedDomainImportIssueDto
+                {
+                    RowNumber = candidate.RowNumber,
+                    Domain = candidate.RawDomain,
+                    Type = BlockedDomainImportIssueType.AlreadyExists,
+                    Message = _localizer["BlockedDomainImport:AlreadyExists"]
+                });
         }
 
-        if (entities.Count > 0)
+        if (creation.Created.Count > 0)
         {
             await _repository.InsertManyAsync(
-                entities,
+                creation.Created,
                 autoSave: true,
                 cancellationToken: cancellationToken);
         }
 
-        result.ImportedCount = entities.Count;
+        result.ImportedCount = creation.Created.Count;
         return new BlockedDomainCsvImportExecutionResult(
             result,
-            entities.Select(x => x.Domain).ToList());
+            creation.Created.Select(x => x.Domain).ToList());
     }
 
     private static void ValidateFile(IRemoteStreamContent file)
@@ -271,18 +259,7 @@ public class BlockedDomainCsvImporter : ITransientDependency
             return false;
         }
 
-        string normalizedDomain;
-        try
-        {
-            normalizedDomain = DomainNameNormalizer.Normalize(rawDomain);
-        }
-        catch (ArgumentException)
-        {
-            AddInvalidIssue(row, result, _localizer["BlockedDomainImport:InvalidDomain"]);
-            return false;
-        }
-
-        if (Uri.CheckHostName(normalizedDomain) != UriHostNameType.Dns)
+        if (!BlockedDomainName.TryNormalize(rawDomain, out var normalizedDomain))
         {
             AddInvalidIssue(row, result, _localizer["BlockedDomainImport:InvalidDomain"]);
             return false;

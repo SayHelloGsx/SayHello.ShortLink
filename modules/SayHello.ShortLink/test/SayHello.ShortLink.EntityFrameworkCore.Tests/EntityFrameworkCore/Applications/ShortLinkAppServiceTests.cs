@@ -101,7 +101,9 @@ public class ShortLinkAppServiceTests : ShortLinkEntityFrameworkCoreTestBase, IA
         (await _redirectAppService.ResolveAsync(created.Origin!, created.Namespace, created.Code)).Status
             .ShouldBe(ShortLinkResolutionStatus.Gone);
 
-        await _appService.DeleteAsync(created.Id);
+        await _appService.DeleteAsync(
+            created.Id,
+            new DeleteShortLinkDto { ConcurrencyStamp = disabled.ConcurrencyStamp });
         (await _repository.CodeExistsAsync(created.Origin!, created.Namespace, created.Code)).ShouldBeTrue();
         (await _redirectAppService.ResolveAsync(created.Origin!, created.Namespace, created.Code)).Status
             .ShouldBe(ShortLinkResolutionStatus.Gone);

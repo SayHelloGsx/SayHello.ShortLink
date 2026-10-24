@@ -8,11 +8,11 @@ namespace SayHello.ShortLink.ShortLinkNamespaces;
 
 public class ShortLinkNamespace : AuditedAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; protected set; }
-    public Guid OwnerUserId { get; protected set; }
-    public Guid DomainId { get; protected set; }
-    public string Origin { get; protected set; } = string.Empty;
-    public string Name { get; protected set; } = string.Empty;
+    public virtual Guid? TenantId { get; protected set; }
+    public virtual Guid OwnerUserId { get; protected set; }
+    public virtual Guid DomainId { get; protected set; }
+    public virtual string Origin { get; protected set; } = string.Empty;
+    public virtual string Name { get; protected set; } = string.Empty;
 
     protected ShortLinkNamespace()
     {

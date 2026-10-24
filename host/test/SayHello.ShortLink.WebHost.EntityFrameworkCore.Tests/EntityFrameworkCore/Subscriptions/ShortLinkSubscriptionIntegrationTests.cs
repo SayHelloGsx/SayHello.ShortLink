@@ -325,9 +325,9 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
         (await Should.ThrowAsync<BusinessException>(() => CreateAsync())).Code
             .ShouldBe(ShortLinkErrorCodes.LinkQuotaExceeded);
 
-        await DeleteAsync(expired.Id, admin, commit: false);
+        await DeleteAsync(expired.Id, expired.ConcurrencyStamp, admin, commit: false);
         (await CapabilitiesAsync()).UsedLinks.ShouldBe(2);
-        await DeleteAsync(expired.Id, admin, commit: true);
+        await DeleteAsync(expired.Id, expired.ConcurrencyStamp, admin, commit: true);
         await RunAsync(async services =>
         {
             using var deletedFilter = services.GetRequiredService<IDataFilter<ISoftDelete>>().Disable();
@@ -392,7 +392,7 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
             customCodeLimit: 1,
             customCodesUnlimited: false));
         var first = await CreateAsync();
-        await RunAsync(services =>
+        var disabledFirst = await RunAsync(services =>
             services.GetRequiredService<IShortLinkAppService>().SetStatusAsync(
                 first.Id,
                 new SetShortLinkStatusDto
@@ -411,7 +411,7 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
 
         var generated = await CreateAsync(customCode: false);
         generated.ShouldNotBeNull();
-        await DeleteAsync(first.Id, admin: false, commit: true);
+        await DeleteAsync(first.Id, disabledFirst.ConcurrencyStamp, admin: false, commit: true);
         var released = await CapabilitiesAsync();
         released.UsedCustomCodes.ShouldBe(0);
         released.RemainingCustomCodes.ShouldBe(1);
@@ -419,11 +419,15 @@ public class ShortLinkSubscriptionIntegrationTests : WebHostTestBase<ShortLinkSu
         (await CreateAsync()).ShouldNotBeNull();
     }
 
-    private Task DeleteAsync(Guid id, bool admin, bool commit) => RunAsync(
-        services => admin
-            ? services.GetRequiredService<IShortLinkAdministrationAppService>().DeleteAsync(id)
-            : services.GetRequiredService<IShortLinkAppService>().DeleteAsync(id),
-        userId: admin ? Guid.NewGuid() : _owner, commit: commit);
+    private Task DeleteAsync(Guid id, string concurrencyStamp, bool admin, bool commit)
+    {
+        var input = new DeleteShortLinkDto { ConcurrencyStamp = concurrencyStamp };
+        return RunAsync(
+            services => admin
+                ? services.GetRequiredService<IShortLinkAdministrationAppService>().DeleteAsync(id, input)
+                : services.GetRequiredService<IShortLinkAppService>().DeleteAsync(id, input),
+            userId: admin ? Guid.NewGuid() : _owner, commit: commit);
+    }
 
     private Task<ShortLinkDto> CreateAsync(
         Guid? tenantId = null,

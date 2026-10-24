@@ -12,15 +12,15 @@ public class SubscriptionPlan : AuditedAggregateRoot<Guid>, IMultiTenant
 {
     private readonly List<SubscriptionPlanEntitlement> _entitlements = new();
 
-    public Guid? TenantId { get; private set; }
-    public Guid ProductId { get; private set; }
-    public string ProductCode { get; private set; } = string.Empty;
-    public string Code { get; private set; } = string.Empty;
-    public string Name { get; private set; } = string.Empty;
-    public string? Description { get; private set; }
-    public int DisplayOrder { get; private set; }
-    public SubscriptionCatalogState State { get; private set; }
-    public IReadOnlyCollection<SubscriptionPlanEntitlement> Entitlements => _entitlements.AsReadOnly();
+    public virtual Guid? TenantId { get; private set; }
+    public virtual Guid ProductId { get; private set; }
+    public virtual string ProductCode { get; private set; } = string.Empty;
+    public virtual string Code { get; private set; } = string.Empty;
+    public virtual string Name { get; private set; } = string.Empty;
+    public virtual string? Description { get; private set; }
+    public virtual int DisplayOrder { get; private set; }
+    public virtual SubscriptionCatalogState State { get; private set; }
+    public virtual IReadOnlyCollection<SubscriptionPlanEntitlement> Entitlements => _entitlements.AsReadOnly();
 
     protected SubscriptionPlan()
     {
@@ -43,7 +43,7 @@ public class SubscriptionPlan : AuditedAggregateRoot<Guid>, IMultiTenant
         UpdateDetails(name, description, displayOrder);
     }
 
-    public void UpdateDetails(string name, string? description, int displayOrder)
+    public virtual void UpdateDetails(string name, string? description, int displayOrder)
     {
         EnsureNotArchived();
         var checkedName = SubscriptionGuard.Name(name);
@@ -53,7 +53,7 @@ public class SubscriptionPlan : AuditedAggregateRoot<Guid>, IMultiTenant
         DisplayOrder = displayOrder;
     }
 
-    public void ReplaceEntitlements(ProductDefinition definition, IReadOnlyDictionary<string, EntitlementValue> values)
+    public virtual void ReplaceEntitlements(ProductDefinition definition, IReadOnlyDictionary<string, EntitlementValue> values)
     {
         EnsureNotArchived();
         ArgumentNullException.ThrowIfNull(values);
@@ -87,7 +87,7 @@ public class SubscriptionPlan : AuditedAggregateRoot<Guid>, IMultiTenant
         }
     }
 
-    public void Publish(SubscriptionProduct product, ProductDefinition definition)
+    public virtual void Publish(SubscriptionProduct product, ProductDefinition definition)
     {
         EnsureNotArchived();
         EnsureProduct(product);
@@ -100,7 +100,7 @@ public class SubscriptionPlan : AuditedAggregateRoot<Guid>, IMultiTenant
         State = SubscriptionCatalogState.Published;
     }
 
-    public void EnsureProduct(SubscriptionProduct product)
+    public virtual void EnsureProduct(SubscriptionProduct product)
     {
         ArgumentNullException.ThrowIfNull(product);
         SubscriptionGuard.SameTenant(TenantId, product.TenantId);
@@ -111,13 +111,13 @@ public class SubscriptionPlan : AuditedAggregateRoot<Guid>, IMultiTenant
         }
     }
 
-    public void Withdraw()
+    public virtual void Withdraw()
     {
         EnsureNotArchived();
         State = SubscriptionCatalogState.Withdrawn;
     }
 
-    public void Archive() => State = SubscriptionCatalogState.Archived;
+    public virtual void Archive() => State = SubscriptionCatalogState.Archived;
 
     private void EnsureDefinition(ProductDefinition definition)
     {

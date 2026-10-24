@@ -11,13 +11,13 @@ public class SubscriptionBundle : AuditedAggregateRoot<Guid>, IMultiTenant
 {
     private readonly List<SubscriptionBundleItem> _items = new();
 
-    public Guid? TenantId { get; private set; }
-    public string Code { get; private set; } = string.Empty;
-    public string Name { get; private set; } = string.Empty;
-    public string? Description { get; private set; }
-    public int DisplayOrder { get; private set; }
-    public SubscriptionCatalogState State { get; private set; }
-    public IReadOnlyCollection<SubscriptionBundleItem> Items => _items.AsReadOnly();
+    public virtual Guid? TenantId { get; private set; }
+    public virtual string Code { get; private set; } = string.Empty;
+    public virtual string Name { get; private set; } = string.Empty;
+    public virtual string? Description { get; private set; }
+    public virtual int DisplayOrder { get; private set; }
+    public virtual SubscriptionCatalogState State { get; private set; }
+    public virtual IReadOnlyCollection<SubscriptionBundleItem> Items => _items.AsReadOnly();
 
     protected SubscriptionBundle()
     {
@@ -33,7 +33,7 @@ public class SubscriptionBundle : AuditedAggregateRoot<Guid>, IMultiTenant
         ReplaceItems(plans);
     }
 
-    public void UpdateDetails(string name, string? description, int displayOrder)
+    public virtual void UpdateDetails(string name, string? description, int displayOrder)
     {
         EnsureNotArchived();
         var checkedName = SubscriptionGuard.Name(name);
@@ -43,7 +43,7 @@ public class SubscriptionBundle : AuditedAggregateRoot<Guid>, IMultiTenant
         DisplayOrder = displayOrder;
     }
 
-    public void ReplaceItems(IReadOnlyCollection<SubscriptionPlan> plans)
+    public virtual void ReplaceItems(IReadOnlyCollection<SubscriptionPlan> plans)
     {
         EnsureNotArchived();
         ArgumentNullException.ThrowIfNull(plans);
@@ -88,14 +88,14 @@ public class SubscriptionBundle : AuditedAggregateRoot<Guid>, IMultiTenant
         }
     }
 
-    public void Publish(IReadOnlyCollection<SubscriptionPlan> plans, IReadOnlyCollection<SubscriptionProduct> products)
+    public virtual void Publish(IReadOnlyCollection<SubscriptionPlan> plans, IReadOnlyCollection<SubscriptionProduct> products)
     {
         EnsureNotArchived();
         EnsureAvailableComponents(plans, products);
         State = SubscriptionCatalogState.Published;
     }
 
-    public void EnsureAvailableComponents(IReadOnlyCollection<SubscriptionPlan> plans,
+    public virtual void EnsureAvailableComponents(IReadOnlyCollection<SubscriptionPlan> plans,
         IReadOnlyCollection<SubscriptionProduct> products)
     {
         ArgumentNullException.ThrowIfNull(plans);
@@ -122,13 +122,13 @@ public class SubscriptionBundle : AuditedAggregateRoot<Guid>, IMultiTenant
         }
     }
 
-    public void Withdraw()
+    public virtual void Withdraw()
     {
         EnsureNotArchived();
         State = SubscriptionCatalogState.Withdrawn;
     }
 
-    public void Archive() => State = SubscriptionCatalogState.Archived;
+    public virtual void Archive() => State = SubscriptionCatalogState.Archived;
 
     private void EnsureNotArchived()
     {

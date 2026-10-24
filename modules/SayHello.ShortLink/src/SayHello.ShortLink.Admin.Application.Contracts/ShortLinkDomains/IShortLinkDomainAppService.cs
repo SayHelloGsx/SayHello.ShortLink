@@ -19,5 +19,5 @@ public interface IShortLinkDomainAppService : IApplicationService
         Guid id,
         ShortLinkDomainVersionDto input);
 
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, DeleteShortLinkDomainDto input);
 }

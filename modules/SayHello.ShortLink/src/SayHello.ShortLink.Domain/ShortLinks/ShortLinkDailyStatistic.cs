@@ -6,15 +6,15 @@ namespace SayHello.ShortLink.ShortLinks;
 
 public class ShortLinkDailyStatistic : BasicAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; protected set; }
+    public virtual Guid? TenantId { get; protected set; }
 
-    public Guid ShortLinkId { get; protected set; }
+    public virtual Guid ShortLinkId { get; protected set; }
 
-    public DateOnly Date { get; protected set; }
+    public virtual DateOnly Date { get; protected set; }
 
-    public long VisitCount { get; protected set; }
+    public virtual long VisitCount { get; protected set; }
 
-    public long UniqueVisitorCount { get; protected set; }
+    public virtual long UniqueVisitorCount { get; protected set; }
 
     protected ShortLinkDailyStatistic()
     {
@@ -35,7 +35,7 @@ public class ShortLinkDailyStatistic : BasicAggregateRoot<Guid>, IMultiTenant
         SetCounts(visitCount, uniqueVisitorCount);
     }
 
-    public void SetCounts(long visitCount, long uniqueVisitorCount)
+    public virtual void SetCounts(long visitCount, long uniqueVisitorCount)
     {
         if (visitCount < 0)
         {

@@ -102,4 +102,24 @@ public class EfCoreShortLinkNamespaceRepository :
                 GetCancellationToken(cancellationToken));
         }
     }
+
+    public virtual async Task<List<Guid>> GetReferencedDomainIdsAsync(
+        IReadOnlyCollection<Guid> domainIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (domainIds.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = domainIds.Distinct().ToList();
+        using (_multiTenantFilter.Disable())
+        {
+            return await (await GetDbSetAsync())
+                .Where(x => ids.Contains(x.DomainId))
+                .Select(x => x.DomainId)
+                .Distinct()
+                .ToListAsync(GetCancellationToken(cancellationToken));
+        }
+    }
 }

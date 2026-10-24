@@ -6,14 +6,13 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SayHello.Subscription.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore;
-using Volo.Abp.MultiTenancy;
 
 namespace SayHello.Subscription.Subscriptions;
 
 public class EfCoreUserSubscriptionRepository : SubscriptionEfRepository<UserSubscription>, IUserSubscriptionRepository
 {
-    public EfCoreUserSubscriptionRepository(IDbContextProvider<ISubscriptionDbContext> provider, ICurrentTenant tenant)
-        : base(provider, tenant) { }
+    public EfCoreUserSubscriptionRepository(IDbContextProvider<ISubscriptionDbContext> provider)
+        : base(provider) { }
 
     public override async Task<IQueryable<UserSubscription>> WithDetailsAsync() =>
         (await GetQueryableAsync()).Include(x => x.Entitlements);
@@ -33,7 +32,7 @@ public class EfCoreUserSubscriptionRepository : SubscriptionEfRepository<UserSub
     {
         var data = (await WithDetailsAsync()).Where(x => x.UserId == userId && x.IsCurrent);
         if (productIds != null) data = data.Where(x => productIds.Contains(x.ProductId));
-        return await data.OrderBy(x => x.ProductCode).ToListAsync(cancellationToken);
+        return await data.OrderBy(x => x.ProductCode).ThenBy(x => x.Id).ToListAsync(cancellationToken);
     }
 
     public virtual async Task<UserSubscription?> FindEffectiveAsync(Guid userId, string productCode, DateTime now,

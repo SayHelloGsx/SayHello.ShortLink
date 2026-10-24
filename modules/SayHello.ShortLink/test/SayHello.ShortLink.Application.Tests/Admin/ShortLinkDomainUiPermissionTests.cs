@@ -98,8 +98,11 @@ public class ShortLinkDomainUiPermissionTests
             Arg.Is<ShortLinkDomainVersionDto>(
                 x => x.ConcurrencyStamp == "stamp"));
 
-        await model.OnPostDeleteAsync(id);
-        await appService.Received(1).DeleteAsync(id);
+        await model.OnPostDeleteAsync(id, "stamp");
+        await appService.Received(1).DeleteAsync(
+            id,
+            Arg.Is<DeleteShortLinkDomainDto>(
+                x => x.ConcurrencyStamp == "stamp"));
     }
 
     private static void AssertPolicy(string methodName, string policy)

@@ -531,6 +531,34 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
     }
 
     [Fact]
+    public async Task Link_Delete_Should_Require_A_Valid_Body_And_Reject_A_Stale_Stamp()
+    {
+        var owner = Guid.NewGuid();
+        await AssignNamespacePlanAsync(owner, 0, 0);
+        using var client = Client(owner);
+        var link = await CreateLinkAsync(client, ShortLinkSubscriptionTestData.NewLink());
+        using var missingBody = await client.DeleteAsync($"{Links}/{link.Id}");
+        missingBody.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+        using var missingStampRequest = new HttpRequestMessage(HttpMethod.Delete, $"{Links}/{link.Id}")
+        {
+            Content = JsonContent.Create(new { })
+        };
+        using var missingStamp = await client.SendAsync(missingStampRequest);
+        missingStamp.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        using var stale = await DeleteLinkAsync(client, link.Id, Guid.NewGuid().ToString("N"));
+        stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        using var visitor = Client(null);
+        using var active = await visitor.GetAsync(link.ShortUrl);
+        active.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        using var deleted = await DeleteLinkAsync(client, link.Id, link.ConcurrencyStamp);
+        deleted.IsSuccessStatusCode.ShouldBeTrue();
+        using var missing = await client.GetAsync($"{Links}/{link.Id}");
+        missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        using var gone = await visitor.GetAsync(link.ShortUrl);
+        gone.StatusCode.ShouldBe(HttpStatusCode.Gone);
+    }
+
+    [Fact]
     public async Task Second_Segment_Reserved_Code_Should_Work_And_Conflicting_Selection_Should_Fail_Validation()
     {
         var owner = Guid.NewGuid();
@@ -615,6 +643,16 @@ public class ShortLinkSubscriptionWebTests : IClassFixture<ShortLinkSubscription
         using var request = new HttpRequestMessage(HttpMethod.Delete, $"{Namespaces}/{id}")
         {
             Content = JsonContent.Create(new DeleteShortLinkNamespaceDto { ConcurrencyStamp = concurrencyStamp })
+        };
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<HttpResponseMessage> DeleteLinkAsync(
+        HttpClient client, Guid id, string concurrencyStamp)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"{Links}/{id}")
+        {
+            Content = JsonContent.Create(new DeleteShortLinkDto { ConcurrencyStamp = concurrencyStamp })
         };
         return await client.SendAsync(request);
     }

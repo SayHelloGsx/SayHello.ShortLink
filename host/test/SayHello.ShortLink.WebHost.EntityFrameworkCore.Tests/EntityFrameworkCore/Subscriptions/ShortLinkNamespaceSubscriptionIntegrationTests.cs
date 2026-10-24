@@ -251,7 +251,8 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
             populated.CanDelete.ShouldBeFalse();
         });
         (await Should.ThrowAsync<BusinessException>(() => RunAsync(services =>
-                services.GetRequiredService<IShortLinkDomainAppService>().DeleteAsync(domain.Id))))
+                services.GetRequiredService<IShortLinkDomainAppService>().DeleteAsync(
+                    domain.Id, new DeleteShortLinkDomainDto { ConcurrencyStamp = domain.ConcurrencyStamp }))))
             .Code.ShouldBe(ShortLinkErrorCodes.DomainInUse);
         await RunAsync(services => services.GetRequiredService<IShortLinkNamespaceAppService>().DeleteAsync(
             item.Id, new DeleteShortLinkNamespaceDto { ConcurrencyStamp = item.ConcurrencyStamp }));
@@ -261,7 +262,7 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
             var empty = (await app.GetListAsync()).Items.Single(value => value.Id == domain.Id);
             empty.HasNamespaceReferences.ShouldBeFalse();
             empty.CanDelete.ShouldBeTrue();
-            await app.DeleteAsync(domain.Id);
+            await app.DeleteAsync(domain.Id, new DeleteShortLinkDomainDto { ConcurrencyStamp = empty.ConcurrencyStamp });
         });
     }
 
@@ -279,12 +280,14 @@ public class ShortLinkNamespaceSubscriptionIntegrationTests :
         (await Should.ThrowAsync<BusinessException>(() => CreateLinkAsync(root: true, custom: false)))
             .Code.ShouldBe(ShortLinkErrorCodes.LinkQuotaExceeded);
 
-        await RunAsync(services => services.GetRequiredService<IShortLinkAppService>().DeleteAsync(root.Id), commit: false);
+        var deleteRoot = new DeleteShortLinkDto { ConcurrencyStamp = root.ConcurrencyStamp };
+        await RunAsync(services => services.GetRequiredService<IShortLinkAppService>().DeleteAsync(root.Id, deleteRoot),
+            commit: false);
         var rolledBack = await CapabilitiesAsync();
         rolledBack.UsedLinks.ShouldBe(2);
         rolledBack.UsedRootLinks.ShouldBe(1);
         rolledBack.UsedCustomCodes.ShouldBe(1);
-        await RunAsync(services => services.GetRequiredService<IShortLinkAppService>().DeleteAsync(root.Id));
+        await RunAsync(services => services.GetRequiredService<IShortLinkAppService>().DeleteAsync(root.Id, deleteRoot));
         var released = await CapabilitiesAsync();
         released.UsedLinks.ShouldBe(1);
         released.UsedRootLinks.ShouldBe(0);

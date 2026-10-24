@@ -49,8 +49,8 @@ public class ShortLinkDomainController :
     }
 
     [HttpDelete("{id:guid}")]
-    public virtual Task DeleteAsync(Guid id)
+    public virtual Task DeleteAsync(Guid id, [FromBody] DeleteShortLinkDomainDto input)
     {
-        return _appService.DeleteAsync(id);
+        return _appService.DeleteAsync(id, input);
     }
 }

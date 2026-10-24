@@ -47,9 +47,16 @@ public class IndexModel : ShortLinkAdminPageModel
         return RedirectToPage();
     }
 
-    public virtual async Task<IActionResult> OnPostDeleteAsync(Guid id)
+    public virtual async Task<IActionResult> OnPostDeleteAsync(
+        Guid id,
+        string concurrencyStamp)
     {
-        await _appService.DeleteAsync(id);
+        await _appService.DeleteAsync(
+            id,
+            new DeleteShortLinkDto
+            {
+                ConcurrencyStamp = concurrencyStamp
+            });
         return RedirectToPage();
     }
 }

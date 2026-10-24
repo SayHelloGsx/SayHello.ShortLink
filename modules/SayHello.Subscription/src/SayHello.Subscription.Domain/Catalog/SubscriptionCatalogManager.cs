@@ -7,6 +7,7 @@ using SayHello.Subscription.Definitions;
 using SayHello.Subscription.Subscriptions;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities;
+using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Domain.Services;
 
 namespace SayHello.Subscription.Catalog;
@@ -64,7 +65,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             await LockCatalogAsync(unit, cancellationToken);
             var product = await GetProductAsync(productId, concurrencyStamp, cancellationToken);
             var plan = planId.HasValue
-                ? await _plans.GetAsync(SubscriptionGuard.Id(planId.Value, nameof(planId)), cancellationToken: cancellationToken)
+                ? await GetReferencedPlanAsync(SubscriptionGuard.Id(planId.Value, nameof(planId)), cancellationToken)
                 : null;
             product.SetDefaultPlan(plan);
             if (plan != null)
@@ -107,7 +108,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
         _transactions.RunAsync(async unit =>
         {
             await LockCatalogAsync(unit, cancellationToken);
-            var product = await _products.GetAsync(productId, cancellationToken: cancellationToken);
+            var product = await GetReferencedProductAsync(productId, cancellationToken);
             code = SubscriptionCode.Normalize(code);
             if (await _plans.FindByCodeAsync(productId, code, cancellationToken) != null)
                 throw new BusinessException(SubscriptionErrorCodes.DuplicateCode);
@@ -146,7 +147,7 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
             {
                 case SubscriptionCatalogState.Published:
                     await ValidateStoredEntitlementsAsync(plan, cancellationToken);
-                    plan.Publish(await _products.GetAsync(plan.ProductId, cancellationToken: cancellationToken),
+                    plan.Publish(await GetReferencedProductAsync(plan.ProductId, cancellationToken),
                         _definitions.GetProduct(plan.ProductCode)); break;
                 case SubscriptionCatalogState.Withdrawn: plan.Withdraw(); break;
                 case SubscriptionCatalogState.Archived: plan.Archive(); break;
@@ -237,9 +238,28 @@ public class SubscriptionCatalogManager : DomainService, ISubscriptionCatalogMan
 
     private async Task EnsureNotDefaultAsync(SubscriptionPlan plan, CancellationToken token)
     {
-        var product = await _products.GetAsync(plan.ProductId, cancellationToken: token);
+        var product = await GetReferencedProductAsync(plan.ProductId, token);
         if (product.DefaultPlanId == plan.Id)
             throw new BusinessException(SubscriptionErrorCodes.DefaultPlanInUse);
+    }
+
+    // Aggregates that are only read while another aggregate changes are loaded untracked. Otherwise ABP's
+    // foreign-key navigation tracking refreshes their ConcurrencyStamp and LastModificationTime, which
+    // makes clients holding a valid stamp fail with a spurious concurrency conflict.
+    private async Task<SubscriptionProduct> GetReferencedProductAsync(Guid id, CancellationToken token)
+    {
+        using (_products.DisableTracking())
+        {
+            return await _products.GetAsync(id, cancellationToken: token);
+        }
+    }
+
+    private async Task<SubscriptionPlan> GetReferencedPlanAsync(Guid id, CancellationToken token)
+    {
+        using (_plans.DisableTracking())
+        {
+            return await _plans.GetAsync(id, cancellationToken: token);
+        }
     }
 
     private async Task<SubscriptionPlan> GetPlanAsync(Guid id, string stamp, CancellationToken token)

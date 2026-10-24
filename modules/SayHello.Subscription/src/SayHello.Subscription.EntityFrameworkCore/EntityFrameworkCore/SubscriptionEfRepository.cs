@@ -15,15 +15,12 @@ namespace SayHello.Subscription.EntityFrameworkCore;
 public abstract class SubscriptionEfRepository<TEntity> : EfCoreRepository<ISubscriptionDbContext, TEntity, Guid>
     where TEntity : AggregateRoot<Guid>, IMultiTenant
 {
-    private readonly ICurrentTenant _tenant;
-
-    protected SubscriptionEfRepository(IDbContextProvider<ISubscriptionDbContext> provider, ICurrentTenant tenant)
+    protected SubscriptionEfRepository(IDbContextProvider<ISubscriptionDbContext> provider)
         : base(provider)
     {
-        _tenant = tenant;
     }
 
-    protected void EnsureTenant(Guid? tenantId) => SubscriptionGuard.SameTenant(_tenant.Id, tenantId);
+    protected void EnsureTenant(Guid? tenantId) => SubscriptionGuard.SameTenant(CurrentTenant.Id, tenantId);
 
     public override async Task<TEntity?> FindAsync(Guid id, bool includeDetails = true,
         CancellationToken cancellationToken = default)

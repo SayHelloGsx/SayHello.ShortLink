@@ -40,9 +40,9 @@ public class BlockedDomainController :
     }
 
     [HttpDelete("{id:guid}")]
-    public virtual Task DeleteAsync(Guid id)
+    public virtual Task DeleteAsync(Guid id, [FromBody] DeleteBlockedDomainDto input)
     {
-        return _appService.DeleteAsync(id);
+        return _appService.DeleteAsync(id, input);
     }
 
     [HttpPost("import")]

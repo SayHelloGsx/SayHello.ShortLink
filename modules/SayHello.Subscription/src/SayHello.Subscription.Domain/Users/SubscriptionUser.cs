@@ -6,15 +6,15 @@ namespace SayHello.Subscription.Users;
 
 public class SubscriptionUser : AggregateRoot<Guid>, IUser
 {
-    public Guid? TenantId { get; private set; }
-    public string UserName { get; private set; } = string.Empty;
-    public string? Email { get; private set; }
-    public string? Name { get; private set; }
-    public string? Surname { get; private set; }
-    public bool IsActive { get; private set; }
-    public bool EmailConfirmed { get; private set; }
-    public string? PhoneNumber { get; private set; }
-    public bool PhoneNumberConfirmed { get; private set; }
+    public virtual Guid? TenantId { get; private set; }
+    public virtual string UserName { get; private set; } = string.Empty;
+    public virtual string? Email { get; private set; }
+    public virtual string? Name { get; private set; }
+    public virtual string? Surname { get; private set; }
+    public virtual bool IsActive { get; private set; }
+    public virtual bool EmailConfirmed { get; private set; }
+    public virtual string? PhoneNumber { get; private set; }
+    public virtual bool PhoneNumberConfirmed { get; private set; }
 
     protected SubscriptionUser()
     {

@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SayHello.ShortLink.Permissions;
 using SayHello.ShortLink.Public.ShortLinkNamespaces;
 using SayHello.ShortLink.Public.ShortLinks;
 using Volo.Abp;
 using Volo.Abp.AspNetCore.ExceptionHandling;
 using Volo.Abp.Data;
+using Volo.Abp.ExceptionHandling;
 using Volo.Abp.Http;
 using Volo.Abp.Uow;
 using Volo.Abp.Validation;
@@ -111,21 +114,47 @@ public class NamespacesModel : ShortLinkPublicPageModel
             {
                 await unitOfWorkManager.Current.RollbackAsync();
             }
-            var converter = LazyServiceProvider.LazyGetRequiredService<IExceptionToErrorInfoConverter>();
-            var error = converter.Convert(exception);
             var statusCode = exception is AbpDbConcurrencyException ? 409 : 400;
             if (IsAjaxRequest())
             {
-                return new JsonResult(new RemoteServiceErrorResponse(error)) { StatusCode = statusCode };
+                return await CreateAjaxErrorResultAsync(exception, statusCode);
             }
 
-            ModelState.AddModelError(string.Empty, error.Message ?? exception.Message);
+            var converter = LazyServiceProvider.LazyGetRequiredService<IExceptionToErrorInfoConverter>();
+            ModelState.AddModelError(string.Empty, converter.Convert(exception).Message ?? exception.Message);
             Response.StatusCode = statusCode;
             using var readUnitOfWork = unitOfWorkManager.Begin(requiresNew: true, isTransactional: false);
             await LoadAsync();
             await readUnitOfWork.CompleteAsync();
             return Page();
         }
+    }
+
+    /// <summary>
+    /// Returns the same localized error envelope, <see cref="AbpHttpConsts.AbpErrorFormat"/> header, logging and
+    /// exception notification as ABP's exception filters, so <c>abp.ajax</c> shows the server message. Unlike
+    /// ABP's defaults, handled delete failures keep their 400/409 status.
+    /// </summary>
+    protected virtual async Task<IActionResult> CreateAjaxErrorResultAsync(Exception exception, int statusCode)
+    {
+        var options = LazyServiceProvider.LazyGetRequiredService<IOptions<AbpExceptionHandlingOptions>>().Value;
+        var error = LazyServiceProvider.LazyGetRequiredService<IExceptionToErrorInfoConverter>().Convert(exception, x =>
+        {
+            x.SendExceptionsDetailsToClients = options.SendExceptionsDetailsToClients;
+            x.SendStackTraceToClients = options.SendStackTraceToClients;
+            x.SendExceptionDataToClientTypes = options.SendExceptionDataToClientTypes;
+        });
+
+        if (options.ShouldLogException(exception))
+        {
+            Logger.LogException(exception);
+        }
+
+        await LazyServiceProvider.LazyGetRequiredService<IExceptionNotifier>()
+            .NotifyAsync(new ExceptionNotificationContext(exception));
+
+        Response.Headers[AbpHttpConsts.AbpErrorFormat] = "true";
+        return new JsonResult(new RemoteServiceErrorResponse(error)) { StatusCode = statusCode };
     }
 
     private bool IsAjaxRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";

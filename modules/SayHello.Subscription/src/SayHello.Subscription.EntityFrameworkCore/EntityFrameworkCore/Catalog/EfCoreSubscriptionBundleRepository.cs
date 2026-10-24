@@ -6,14 +6,13 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SayHello.Subscription.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore;
-using Volo.Abp.MultiTenancy;
 
 namespace SayHello.Subscription.Catalog;
 
 public class EfCoreSubscriptionBundleRepository : SubscriptionEfRepository<SubscriptionBundle>, ISubscriptionBundleRepository
 {
-    public EfCoreSubscriptionBundleRepository(IDbContextProvider<ISubscriptionDbContext> provider, ICurrentTenant tenant)
-        : base(provider, tenant) { }
+    public EfCoreSubscriptionBundleRepository(IDbContextProvider<ISubscriptionDbContext> provider)
+        : base(provider) { }
 
     public override async Task<IQueryable<SubscriptionBundle>> WithDetailsAsync() =>
         (await GetQueryableAsync()).Include(x => x.Items);

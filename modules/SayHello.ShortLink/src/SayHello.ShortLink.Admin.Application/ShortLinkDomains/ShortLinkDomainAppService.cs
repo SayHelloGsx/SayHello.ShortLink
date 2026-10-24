@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using SayHello.ShortLink.Common.ShortLinks;
@@ -37,14 +38,24 @@ public class ShortLinkDomainAppService :
 
     public virtual async Task<ListResultDto<ShortLinkDomainDto>> GetListAsync()
     {
-        var entities = await _repository.GetListAsync(CancellationTokenProvider.Token);
-        var items = new List<ShortLinkDomainDto>(entities.Count);
-        foreach (var entity in entities)
-        {
-            items.Add(await ToDtoAsync(entity));
-        }
+        var cancellationToken = CancellationTokenProvider.Token;
+        var entities = await _repository.GetListAsync(cancellationToken);
+        var ids = entities.Select(x => x.Id).ToList();
+        var shortLinkReferenceCounts = await _repository.GetShortLinkReferenceCountsAsync(
+            ids,
+            cancellationToken);
+        var namespaceReferencedIds = new HashSet<Guid>(
+            await _namespaceRepository.GetReferencedDomainIdsAsync(
+                ids,
+                cancellationToken));
 
-        return new ListResultDto<ShortLinkDomainDto>(items);
+        return new ListResultDto<ShortLinkDomainDto>(
+            entities
+                .Select(entity => ToDto(
+                    entity,
+                    shortLinkReferenceCounts.GetValueOrDefault(entity.Id),
+                    namespaceReferencedIds.Contains(entity.Id)))
+                .ToList());
     }
 
     [Authorize(ShortLinkAdminPermissions.Domains.Create)]
@@ -128,13 +139,14 @@ public class ShortLinkDomainAppService :
 
     [Authorize(ShortLinkAdminPermissions.Domains.Delete)]
     [UnitOfWork(isTransactional: true)]
-    public virtual async Task DeleteAsync(Guid id)
+    public virtual async Task DeleteAsync(Guid id, DeleteShortLinkDomainDto input)
     {
         var cancellationToken = CancellationTokenProvider.Token;
         await _configurationLock.AcquireAsync(cancellationToken);
         var entity = await _repository.GetAsync(
             id,
             cancellationToken: cancellationToken);
+        ShortLinkConcurrencyGuard.Apply(entity, input.ConcurrencyStamp);
         await _manager.EnsureCanDeleteAsync(entity, cancellationToken);
         await _repository.DeleteAsync(
             entity,
@@ -144,19 +156,30 @@ public class ShortLinkDomainAppService :
 
     private async Task<ShortLinkDomainDto> ToDtoAsync(ShortLinkDomain entity)
     {
+        var cancellationToken = CancellationTokenProvider.Token;
+        return ToDto(
+            entity,
+            await _repository.GetShortLinkReferenceCountAsync(
+                entity.Id,
+                cancellationToken),
+            await _namespaceRepository.HasDomainReferencesAsync(
+                entity.Id,
+                cancellationToken));
+    }
+
+    private static ShortLinkDomainDto ToDto(
+        ShortLinkDomain entity,
+        long shortLinkReferenceCount,
+        bool hasNamespaceReferences)
+    {
         return new ShortLinkDomainDto
         {
             Id = entity.Id,
             Origin = entity.Origin,
             IsEnabled = entity.IsEnabled,
             IsDefault = entity.IsDefault,
-            ShortLinkReferenceCount =
-                await _repository.GetShortLinkReferenceCountAsync(
-                    entity.Id,
-                    CancellationTokenProvider.Token),
-            HasNamespaceReferences = await _namespaceRepository.HasDomainReferencesAsync(
-                entity.Id,
-                CancellationTokenProvider.Token),
+            ShortLinkReferenceCount = shortLinkReferenceCount,
+            HasNamespaceReferences = hasNamespaceReferences,
             ConcurrencyStamp = entity.ConcurrencyStamp,
             CreationTime = entity.CreationTime,
             CreatorId = entity.CreatorId,

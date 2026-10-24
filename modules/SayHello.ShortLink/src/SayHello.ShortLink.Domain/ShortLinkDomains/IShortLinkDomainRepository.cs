@@ -31,4 +31,11 @@ public interface IShortLinkDomainRepository : IRepository<ShortLinkDomain, Guid>
     Task<long> GetShortLinkReferenceCountAsync(
         Guid domainId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Batch form of <see cref="GetShortLinkReferenceCountAsync"/>; domains without references are omitted.
+    /// </summary>
+    Task<Dictionary<Guid, long>> GetShortLinkReferenceCountsAsync(
+        IReadOnlyCollection<Guid> domainIds,
+        CancellationToken cancellationToken = default);
 }

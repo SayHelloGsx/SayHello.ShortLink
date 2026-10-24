@@ -7,17 +7,17 @@ namespace SayHello.ShortLink.ShortLinkDomains;
 
 public class ShortLinkDomain : AuditedAggregateRoot<Guid>, IMultiTenant
 {
-    public Guid? TenantId { get; protected set; }
+    public virtual Guid? TenantId { get; protected set; }
 
-    public string Origin { get; protected set; } = string.Empty;
+    public virtual string Origin { get; protected set; } = string.Empty;
 
-    public bool IsEnabled { get; protected set; }
+    public virtual bool IsEnabled { get; protected set; }
 
-    public bool IsDefault { get; protected set; }
+    public virtual bool IsDefault { get; protected set; }
 
-    public string TenantScopeKey { get; protected set; } = string.Empty;
+    public virtual string TenantScopeKey { get; protected set; } = string.Empty;
 
-    public string DefaultUniquenessKey { get; protected set; } = string.Empty;
+    public virtual string DefaultUniquenessKey { get; protected set; } = string.Empty;
 
     protected ShortLinkDomain()
     {
@@ -38,12 +38,12 @@ public class ShortLinkDomain : AuditedAggregateRoot<Guid>, IMultiTenant
         RefreshDefaultUniquenessKey();
     }
 
-    public void Enable()
+    public virtual void Enable()
     {
         IsEnabled = true;
     }
 
-    public void Disable()
+    public virtual void Disable()
     {
         if (IsDefault)
         {
@@ -53,7 +53,7 @@ public class ShortLinkDomain : AuditedAggregateRoot<Guid>, IMultiTenant
         IsEnabled = false;
     }
 
-    public void EnsureCanDelete()
+    public virtual void EnsureCanDelete()
     {
         if (IsDefault)
         {
@@ -61,14 +61,14 @@ public class ShortLinkDomain : AuditedAggregateRoot<Guid>, IMultiTenant
         }
     }
 
-    internal void SetAsDefault()
+    internal virtual void SetAsDefault()
     {
         IsEnabled = true;
         IsDefault = true;
         RefreshDefaultUniquenessKey();
     }
 
-    internal void ClearDefault()
+    internal virtual void ClearDefault()
     {
         IsDefault = false;
         RefreshDefaultUniquenessKey();
