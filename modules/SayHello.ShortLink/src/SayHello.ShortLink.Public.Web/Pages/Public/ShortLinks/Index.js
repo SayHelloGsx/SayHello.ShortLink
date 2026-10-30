@@ -34,16 +34,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let generation = 0;
     let loading = false;
 
-    function updatePathState() {
+    // Keep helpers as expressions so bundle minification preserves their lexical scope.
+    const updatePathState = () => {
         const hasNamespace = namespace.value !== '';
         namespace.disabled = !hasNamespace && (rootPath.checked || !canUseNamespaces || loading);
         rootPath.disabled = !canCreateRoot && !rootPath.checked;
         createButton.disabled = !canCreate ||
             (rootPath.checked && (!canCreateRoot || hasNamespace)) ||
             (hasNamespace && (!canUseNamespaces || namespace.selectedOptions[0].dataset.unavailable === 'true'));
-    }
+    };
 
-    function refreshNamespaces() {
+    const refreshNamespaces = () => {
         const current = ++generation;
         const selectedOrigin = origin.value;
         namespace.replaceChildren(defaultOption.cloneNode(true));
@@ -87,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
             retry.hidden = false;
             updatePathState();
         });
-    }
+    };
 
     origin.addEventListener('change', refreshNamespaces);
     retry.addEventListener('click', refreshNamespaces);

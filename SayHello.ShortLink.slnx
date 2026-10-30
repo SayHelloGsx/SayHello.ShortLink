@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/modules/" />
+  <Folder Name="/modules/SayHello.LiquidGlassTheme/">
+    <Project Path="modules/SayHello.LiquidGlassTheme/src/SayHello.LiquidGlassTheme.Web/SayHello.LiquidGlassTheme.Web.csproj" />
+  </Folder>
   <Project Path="host/src/SayHello.ShortLink.WebHost.Application.Contracts/SayHello.ShortLink.WebHost.Application.Contracts.csproj" />
   <Project Path="host/src/SayHello.ShortLink.WebHost.Application/SayHello.ShortLink.WebHost.Application.csproj" />
   <Project Path="host/src/SayHello.ShortLink.WebHost.DbMigrator/SayHello.ShortLink.WebHost.DbMigrator.csproj" />

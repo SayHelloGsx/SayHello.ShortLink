@@ -1,0 +1,38 @@
+@using Volo.Abp.MultiTenancy
+@inject ICurrentTenant CurrentTenant
+@inject IOptions<AbpMultiTenancyOptions> MultiTenancyOptions
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@{
+    Layout = "~/Themes/LiquidGlass/Layouts/_Document.cshtml";
+    ViewData["LiquidGlass.LayoutName"] = StandardLayouts.Account;
+}
+@await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Scene.cshtml")
+<div class="lgt-shell lgt-account-shell">
+    <header class="lgt-header lgt-glass" data-lgt-glass="header">
+        @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Brand.cshtml")
+        @await Component.InvokeAsync(typeof(LiquidGlassToolbarViewComponent))
+    </header>
+    <main id="lgt-main" class="lgt-main lgt-account-grid" tabindex="-1">
+        <section class="lgt-account-welcome">
+            <p class="lgt-eyebrow">@L["AccountEyebrow"]</p>
+            <h1>@L["AccountTitle"]</h1>
+            <p class="lgt-account-description">@L["AccountDescription"]</p>
+            <img class="lgt-account-sculpture" src="@Url.Content("~/Themes/LiquidGlass/assets/link-sculpture.svg")" alt="" />
+        </section>
+        <section class="lgt-account-panel lgt-glass" data-lgt-glass="account">
+            @if (MultiTenancyOptions.Value.IsEnabled)
+            {
+                <div class="lgt-tenant-switch">
+                    <span>@L["Tenant"]: <strong>@(CurrentTenant.Name ?? L["Host"].Value)</strong></span>
+                    <button id="AbpTenantSwitchLink" type="button" class="btn btn-sm btn-outline-primary" data-lgt-tenant-switch>@L["SwitchTenant"]</button>
+                </div>
+            }
+            @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Alerts.cshtml")
+            @await RenderSectionAsync("content_toolbar", required: false)
+            @RenderBody()
+        </section>
+    </main>
+    @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Footer.cshtml")
+</div>
+@section styles { @await RenderSectionAsync("styles", required: false) }
+@section scripts { @await RenderSectionAsync("scripts", required: false) }

@@ -1,0 +1,33 @@
+{
+  "culture": "zh-Hans",
+  "texts": {
+    "Navigation": "主要导航",
+    "SkipToContent": "跳到主要内容",
+    "ToggleNavigation": "打开导航",
+    "CloseNavigation": "关闭导航",
+    "Appearance": "外观模式",
+    "SystemMode": "跟随系统",
+    "LightMode": "白天模式",
+    "DarkMode": "黑夜模式",
+    "Language": "语言",
+    "UserMenu": "用户菜单",
+    "Login": "登录",
+    "Logout": "退出登录",
+    "Close": "关闭",
+    "Home": "首页",
+    "BackHome": "返回首页",
+    "FooterTagline": "少一点繁杂，多一点连接。",
+    "Tenant": "租户",
+    "Host": "宿主",
+    "SwitchTenant": "切换租户",
+    "Breadcrumb": "页面路径",
+    "AccountEyebrow": "美好连接，从这里开始",
+    "AccountTitle": "让工作轻一点，让连接近一点。",
+    "AccountDescription": "欢迎来到清透、从容的工作空间。下一次美好连接，从这里开始。",
+    "ErrorTitle:401": "请登录后继续",
+    "ErrorTitle:403": "暂时无法访问这个空间",
+    "ErrorTitle:404": "没有找到这个页面",
+    "ErrorTitle:500": "发生了一点小意外",
+    "ErrorDescription": "请稍后重试，或返回你的工作空间。"
+  }
+}

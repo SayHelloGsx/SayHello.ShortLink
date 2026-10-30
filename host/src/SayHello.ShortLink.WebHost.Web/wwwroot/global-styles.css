@@ -1,19 +1,14 @@
-/* Your Global Styles */
-
-:root .lpx-brand-logo {
-    --lpx-logo: url('/images/logo/leptonx/logo-light.png');
-    --lpx-logo-icon: url('/images/logo/leptonx/logo-light-thumbnail.png');
+.shortlink-hero {
+    position: relative;
 }
 
-.shortlink-hero {
-    background:
-        radial-gradient(circle at top right, rgba(13, 110, 253, 0.2), transparent 42%),
-        linear-gradient(135deg, rgba(13, 110, 253, 0.08), rgba(111, 66, 193, 0.08));
+.shortlink-hero h1 {
+    letter-spacing: -.055em;
 }
 
 .shortlink-preview {
-    border: 1px solid rgba(13, 110, 253, 0.2);
-    border-radius: 1rem;
-    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 20px;
+    background: var(--lgt-hover);
     padding: 2rem;
 }

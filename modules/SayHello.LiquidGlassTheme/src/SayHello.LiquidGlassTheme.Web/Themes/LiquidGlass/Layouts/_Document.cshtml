@@ -1,0 +1,48 @@
+@inject IOptions<LiquidGlassThemeOptions> ThemeOptions
+@inject IAbpAntiForgeryManager AntiForgeryManager
+@inject IBrandingProvider BrandingProvider
+@inject IPageLayout PageLayout
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@{
+    Layout = null;
+    AntiForgeryManager.SetCookie();
+    var layoutName = ViewData["LiquidGlass.LayoutName"] as string ?? StandardLayouts.Application;
+    var mode = ThemeOptions.Value.DefaultColorMode.ToString().ToLowerInvariant();
+    var initialTheme = ThemeOptions.Value.DefaultColorMode == LiquidGlassColorMode.Dark ? "dark" : "light";
+    var title = ViewData["Title"]?.ToString() ?? PageLayout.Content.Title;
+    var documentTitle = string.IsNullOrWhiteSpace(title) ? BrandingProvider.AppName : title + " · " + BrandingProvider.AppName;
+}
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.Name"
+      dir="@(CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr")"
+      data-lgt-theme="@initialTheme" data-bs-theme="@initialTheme"
+      data-lgt-default-mode="@mode"
+      data-lgt-webgl="@(ThemeOptions.Value.EnableWebGl ? "true" : "false")"
+      data-lgt-max-surfaces="@ThemeOptions.Value.MaxGlassSurfaces"
+      data-lgt-module-url="@Url.Content("~/Themes/LiquidGlass/liquid-glass.mjs")">
+<head>
+    @await Component.InvokeLayoutHookAsync(LayoutHooks.Head.First, layoutName)
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>@documentTitle</title>
+    <link rel="icon" type="image/svg+xml" href="@Url.Content("~/Themes/LiquidGlass/assets/favicon.svg")" />
+    <script src="@Url.Content("~/Themes/LiquidGlass/liquid-glass-init.js")"></script>
+    <abp-style-bundle name="@LiquidGlassThemeBundles.Styles.Global" />
+    @await Component.InvokeAsync(typeof(WidgetStylesViewComponent))
+    @await RenderSectionAsync("styles", required: false)
+    @await Component.InvokeLayoutHookAsync(LayoutHooks.Head.Last, layoutName)
+</head>
+<body class="lgt-body">
+    @await Component.InvokeLayoutHookAsync(LayoutHooks.Body.First, layoutName)
+    <a class="lgt-skip-link" href="#lgt-main">@L["SkipToContent"]</a>
+    @RenderBody()
+    <abp-script-bundle name="@LiquidGlassThemeBundles.Scripts.Global" />
+    <script src="@(Url.Content("~/Abp/ApplicationLocalizationScript") + "?cultureName=" + Uri.EscapeDataString(CultureInfo.CurrentUICulture.Name))"></script>
+    <script src="@Url.Content("~/Abp/ApplicationConfigurationScript")"></script>
+    <script src="@Url.Content("~/Abp/ServiceProxyScript")"></script>
+    @await Component.InvokeAsync(typeof(WidgetScriptsViewComponent))
+    @await RenderSectionAsync("scripts", required: false)
+    @await Component.InvokeLayoutHookAsync(LayoutHooks.Body.Last, layoutName)
+</body>
+</html>

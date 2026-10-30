@@ -35,8 +35,10 @@ using Volo.Abp.AspNetCore.Mvc.UI;
 using Volo.Abp.AspNetCore.Mvc.UI.Bootstrap;
 using Volo.Abp.AspNetCore.Mvc.UI.Bundling;
 using Volo.Abp.AspNetCore.Mvc.UI.MultiTenancy;
-using Volo.Abp.AspNetCore.Mvc.UI.Theme.LeptonXLite;
-using Volo.Abp.AspNetCore.Mvc.UI.Theme.LeptonXLite.Bundling;
+using SayHello.LiquidGlassTheme;
+using SayHello.LiquidGlassTheme.Bundling;
+using LiquidGlassThemeDefinition = SayHello.LiquidGlassTheme.LiquidGlassTheme;
+using Volo.Abp.AspNetCore.Mvc.UI.Theming;
 using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.AspNetCore.Serilog;
 using Volo.Abp.Autofac;
@@ -71,7 +73,7 @@ namespace SayHello.ShortLink.WebHost.Web;
     typeof(AbpIdentityWebModule),
     typeof(AbpSettingManagementWebModule),
     typeof(AbpAccountWebOpenIddictModule),
-    typeof(AbpAspNetCoreMvcUiLeptonXLiteThemeModule),
+    typeof(LiquidGlassThemeWebModule),
     typeof(AbpTenantManagementWebModule),
     typeof(AbpAspNetCoreSerilogModule),
     typeof(AbpSwashbuckleModule)
@@ -154,6 +156,8 @@ public class WebHostWebModule : AbpModule
         ConfigureTransportSecurity(context.Services, configuration, hostingEnvironment);
         ConfigureHealthChecks(context.Services);
         ConfigureUrls(configuration);
+        Configure<AbpThemingOptions>(options =>
+            options.DefaultThemeName = LiquidGlassThemeDefinition.Name);
         ConfigureBundles();
         ConfigureVirtualFileSystem(hostingEnvironment);
         ConfigureNavigationServices();
@@ -315,7 +319,7 @@ public class WebHostWebModule : AbpModule
         Configure<AbpBundlingOptions>(options =>
         {
             options.StyleBundles.Configure(
-                LeptonXLiteThemeBundles.Styles.Global,
+                LiquidGlassThemeBundles.Styles.Global,
                 bundle =>
                 {
                     bundle.AddFiles("/global-styles.css");

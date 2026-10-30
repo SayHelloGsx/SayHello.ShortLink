@@ -1,0 +1,15 @@
+@model AbpErrorViewModel
+@inject IThemeManager ThemeManager
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@{
+    Layout = ThemeManager.CurrentTheme.GetApplicationLayout();
+    ViewData["Title"] = L["ErrorTitle:" + Model.HttpStatusCode];
+}
+<section class="lgt-error card" data-lgt-glass="error">
+    <div class="card-body">
+        <p class="lgt-error-code">@Model.HttpStatusCode</p>
+        <h1>@L["ErrorTitle:" + Model.HttpStatusCode]</h1>
+        <p class="text-muted">@(string.IsNullOrEmpty(Model.ErrorInfo?.Message) ? L["ErrorDescription"].Value : Model.ErrorInfo.Message)</p>
+        <a class="btn btn-primary" href="@Url.Content("~/")">@L["BackHome"]</a>
+    </div>
+</section>

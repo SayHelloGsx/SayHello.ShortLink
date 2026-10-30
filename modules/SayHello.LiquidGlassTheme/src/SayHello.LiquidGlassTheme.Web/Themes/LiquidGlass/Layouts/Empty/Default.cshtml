@@ -1,0 +1,12 @@
+@{
+    Layout = "~/Themes/LiquidGlass/Layouts/_Document.cshtml";
+    ViewData["LiquidGlass.LayoutName"] = StandardLayouts.Empty;
+    IgnoreSection("content_toolbar");
+}
+@await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Scene.cshtml")
+<main id="lgt-main" class="lgt-empty-main" tabindex="-1">
+    @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Alerts.cshtml")
+    @RenderBody()
+</main>
+@section styles { @await RenderSectionAsync("styles", required: false) }
+@section scripts { @await RenderSectionAsync("scripts", required: false) }

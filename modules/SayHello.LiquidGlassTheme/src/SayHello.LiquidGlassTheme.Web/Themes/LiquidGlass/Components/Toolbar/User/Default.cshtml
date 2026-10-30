@@ -1,0 +1,33 @@
+@model ApplicationMenu
+@inject ICurrentUser CurrentUser
+@inject IOptions<AbpMvcUiOptions> MvcUiOptions
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@if (!CurrentUser.IsAuthenticated)
+{
+    var returnUrl = $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}";
+    <a class="lgt-login-link btn btn-primary" href="@QueryHelpers.AddQueryString(Url.Content(MvcUiOptions.Value.LoginUrl)!, "returnUrl", returnUrl)">
+        <i class="fa fa-user" aria-hidden="true"></i><span>@L["Login"]</span>
+    </a>
+}
+else
+{
+    <details class="lgt-toolbar-menu lgt-user-menu">
+        <summary class="lgt-user-button" aria-label="@L["UserMenu"]">
+            <span class="lgt-user-avatar" aria-hidden="true">@((CurrentUser.Name ?? CurrentUser.UserName ?? "U").FirstOrDefault().ToString().ToUpperInvariant())</span>
+            <span class="lgt-user-name">@(CurrentUser.Name ?? CurrentUser.UserName)</span>
+            <i class="fa fa-angle-down" aria-hidden="true"></i>
+        </summary>
+        <ul class="lgt-menu-popup">
+            @foreach (var item in Model.Items.OrderBy(item => item.Order))
+            {
+                var menuItem = LiquidGlassMenuItemViewModel.Create(item, null,
+                    $"{Context.Request.PathBase}{Context.Request.Path}", url => Url.Content(url), false);
+                @await Html.PartialAsync("~/Themes/LiquidGlass/Components/MainMenu/_MenuItem.cshtml", menuItem)
+            }
+            @if (Model.Items.Count == 0)
+            {
+                <li><a class="lgt-menu-link" href="@Url.Content(MvcUiOptions.Value.LogoutUrl)">@L["Logout"]</a></li>
+            }
+        </ul>
+    </details>
+}

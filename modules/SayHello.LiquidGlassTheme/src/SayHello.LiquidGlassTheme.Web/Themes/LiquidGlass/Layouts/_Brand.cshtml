@@ -1,0 +1,12 @@
+@inject IBrandingProvider BrandingProvider
+<a class="lgt-brand" href="@Url.Content("~/")" aria-label="@BrandingProvider.AppName">
+    @if (!string.IsNullOrEmpty(BrandingProvider.LogoUrl))
+    {
+        <img class="lgt-brand-logo" src="@Url.Content(BrandingProvider.LogoUrl)" alt="" />
+    }
+    else
+    {
+        <img class="lgt-brand-mark" src="@Url.Content("~/Themes/LiquidGlass/assets/favicon.svg")" alt="" />
+    }
+    <span class="lgt-brand-name">@BrandingProvider.AppName</span>
+</a>

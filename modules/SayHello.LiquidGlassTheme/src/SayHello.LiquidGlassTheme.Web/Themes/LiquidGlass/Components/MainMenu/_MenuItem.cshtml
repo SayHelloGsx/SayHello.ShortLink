@@ -1,0 +1,56 @@
+@model LiquidGlassMenuItemViewModel
+@{
+    var item = Model.Item;
+    var componentType = item.GetComponentTypeOrDefault();
+    var navAttribute = Model.IsTopLevel ? "true" : null;
+    var itemClass = "lgt-menu-item " + (Model.IsActive ? "is-active " : "") + item.CssClass;
+}
+<li class="@itemClass" data-lgt-menu-item="@item.Name">
+    @if (item.IsDisabled)
+    {
+        <span id="@item.ElementId" class="lgt-menu-link is-disabled" aria-disabled="true">
+            @if (!string.IsNullOrEmpty(item.Icon)) { <i class="@item.Icon" aria-hidden="true"></i> }
+            @item.DisplayName
+        </span>
+    }
+    else if (componentType is not null)
+    {
+        @await Component.InvokeAsync(componentType, new { menuItem = item })
+    }
+    else if (Model.Children.Count > 0)
+    {
+        <details class="lgt-menu-group">
+            <summary id="@item.ElementId" class="lgt-menu-link" data-lgt-nav-target="@navAttribute"
+                     data-lgt-active="@(Model.IsActive ? "true" : null)">
+                @if (!string.IsNullOrEmpty(item.Icon)) { <i class="@item.Icon" aria-hidden="true"></i> }
+                <span>@item.DisplayName</span>
+                <i class="fa fa-angle-down lgt-menu-chevron" aria-hidden="true"></i>
+            </summary>
+            <ul class="lgt-menu-popup">
+                @if (!string.IsNullOrEmpty(Model.Url))
+                {
+                    <li><a class="lgt-menu-link" href="@Model.Url" target="@item.Target"
+                           rel="@(item.Target == "_blank" ? "noopener noreferrer" : null)">@item.DisplayName</a></li>
+                }
+                @foreach (var child in Model.Children)
+                {
+                    @await Html.PartialAsync("~/Themes/LiquidGlass/Components/MainMenu/_MenuItem.cshtml", child)
+                }
+            </ul>
+        </details>
+    }
+    else if (!string.IsNullOrEmpty(Model.Url))
+    {
+        <a id="@item.ElementId" class="lgt-menu-link" href="@Model.Url" target="@item.Target"
+           rel="@(item.Target == "_blank" ? "noopener noreferrer" : null)"
+           data-lgt-nav-target="@navAttribute" data-lgt-active="@(Model.IsActive ? "true" : null)"
+           aria-current="@(Model.IsActive ? "page" : null)">
+            @if (!string.IsNullOrEmpty(item.Icon)) { <i class="@item.Icon" aria-hidden="true"></i> }
+            <span>@item.DisplayName</span>
+        </a>
+    }
+    else
+    {
+        <span id="@item.ElementId" class="lgt-menu-link">@item.DisplayName</span>
+    }
+</li>

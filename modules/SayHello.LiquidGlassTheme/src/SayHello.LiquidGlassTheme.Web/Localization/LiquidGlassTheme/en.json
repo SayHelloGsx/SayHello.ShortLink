@@ -1,0 +1,33 @@
+{
+  "culture": "en",
+  "texts": {
+    "Navigation": "Main navigation",
+    "SkipToContent": "Skip to main content",
+    "ToggleNavigation": "Open navigation",
+    "CloseNavigation": "Close navigation",
+    "Appearance": "Appearance",
+    "SystemMode": "Follow system",
+    "LightMode": "Day mode",
+    "DarkMode": "Night mode",
+    "Language": "Language",
+    "UserMenu": "User menu",
+    "Login": "Sign in",
+    "Logout": "Sign out",
+    "Close": "Close",
+    "Home": "Home",
+    "BackHome": "Back to home",
+    "FooterTagline": "Less noise. More connection.",
+    "Tenant": "Tenant",
+    "Host": "Host",
+    "SwitchTenant": "Switch tenant",
+    "Breadcrumb": "Breadcrumb",
+    "AccountEyebrow": "YOUR SPACE, BEAUTIFULLY CONNECTED",
+    "AccountTitle": "A little lighter. A little closer.",
+    "AccountDescription": "Welcome to a clearer, calmer workspace. Your next connection starts here.",
+    "ErrorTitle:401": "Sign in to continue",
+    "ErrorTitle:403": "This space is not available",
+    "ErrorTitle:404": "We could not find this page",
+    "ErrorTitle:500": "Something went wrong",
+    "ErrorDescription": "Try again, or return to your workspace."
+  }
+}

@@ -1,0 +1,14 @@
+@inject IAlertManager AlertManager
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@foreach (var alert in AlertManager.Alerts)
+{
+    var type = alert.Type == AlertType.Default ? "info" : alert.Type.ToString().ToLowerInvariant();
+    <div class="alert alert-@type @(alert.Dismissible ? "alert-dismissible fade show" : "")" role="alert">
+        @if (!string.IsNullOrEmpty(alert.Title)) { <strong>@alert.Title</strong> }
+        @alert.Text
+        @if (alert.Dismissible)
+        {
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@L["Close"]"></button>
+        }
+    </div>
+}

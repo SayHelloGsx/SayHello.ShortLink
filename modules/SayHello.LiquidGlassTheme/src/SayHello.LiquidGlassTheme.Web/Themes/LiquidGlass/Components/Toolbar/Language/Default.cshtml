@@ -1,0 +1,23 @@
+@model LiquidGlassLanguageViewModel
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@{
+    var returnUrl = $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}";
+}
+<details class="lgt-toolbar-menu lgt-language-menu">
+    <summary class="lgt-icon-button" aria-label="@L["Language"]" title="@Model.CurrentLanguage.DisplayName">
+        <i class="fa fa-globe" aria-hidden="true"></i>
+        <span class="lgt-language-name">@Model.CurrentLanguage.CultureName.ToUpperInvariant()</span>
+    </summary>
+    <ul class="lgt-menu-popup">
+        @foreach (var language in Model.Languages)
+        {
+            <li>
+                <a class="lgt-menu-link" lang="@language.UiCultureName"
+                   aria-current="@(language == Model.CurrentLanguage ? "true" : null)"
+                   href="@Url.Action("Switch", "AbpLanguages", new { culture = language.CultureName, uiCulture = language.UiCultureName, returnUrl })">
+                    @language.DisplayName
+                </a>
+            </li>
+        }
+    </ul>
+</details>

@@ -47,7 +47,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Volo.Abp.AspNetCore.Mvc.UI.Theme.LeptonXLite" Version="5.4.0-preview*" />
+    <ProjectReference Include="..\..\..\modules\SayHello.LiquidGlassTheme\src\SayHello.LiquidGlassTheme.Web\SayHello.LiquidGlassTheme.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

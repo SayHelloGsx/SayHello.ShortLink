@@ -1,0 +1,10 @@
+@model IReadOnlyList<LiquidGlassMenuItemViewModel>
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+<nav id="lgt-navigation" class="lgt-navigation" data-lgt-navigation aria-label="@L["Navigation"]">
+    <ul class="lgt-menu">
+        @foreach (var item in Model)
+        {
+            @await Html.PartialAsync("~/Themes/LiquidGlass/Components/MainMenu/_MenuItem.cshtml", item)
+        }
+    </ul>
+</nav>

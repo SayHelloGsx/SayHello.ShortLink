@@ -1,0 +1,10 @@
+@inject IOptions<LiquidGlassThemeOptions> ThemeOptions
+@inject IBrandingProvider BrandingProvider
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@if (ThemeOptions.Value.ShowFooter)
+{
+    <footer class="lgt-footer">
+        <span>@BrandingProvider.AppName</span>
+        <span>@L["FooterTagline"]</span>
+    </footer>
+}

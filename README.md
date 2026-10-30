@@ -19,6 +19,7 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
 - Redirect-time blocked-domain enforcement with cached parent-domain matching and HTTP 451 pages.
 - Admin CSV import for up to 10,000 blocked domains per 1 MB file.
 - English and Simplified Chinese module UI.
+- Reusable Razor Pages liquid-glass theme with light/dark/system modes and accessible CSS fallbacks.
 - Docker Compose deployment with Caddy HTTPS, PostgreSQL, Redis, and a one-shot migrator.
 
 ## Repository layout
@@ -37,6 +38,8 @@ Identity, permissions, settings, OpenIddict, PostgreSQL, and Redis.
   `Domain.Shared` project owns the subscription definition and its `Application` project
   adapts the Subscription public application contract to ShortLink's domain capability port.
   Neither business module references the bridge or the other module.
+- `modules/SayHello.LiquidGlassTheme`: independent ABP Razor Pages theme; the host's
+  default presentation layer, with no business-module or commercial-theme dependency.
 - `host`: layered MVC host and unified database migrations.
 - `deploy`: production Compose, Caddy, certificate, backup, restore, and update assets.
 - `.github/workflows`: CI and container publishing.
@@ -328,6 +331,22 @@ new concurrency stamp, so reload open administration pages and assignment previe
 Downgrading restores `namespaces=true` wherever a positive or unlimited quota
 remains; quotas set to `0` by the upgrade are not restored.
 
+## Liquid-glass Razor Pages theme
+
+The WebHost selects `SayHello.LiquidGlass` from the reusable
+[`SayHello.LiquidGlassTheme` module](modules/SayHello.LiquidGlassTheme/README.md).
+Application, Account, Empty, existing module pages, and ABP widgets retain their
+normal forms, permissions, antiforgery, menus, and scripts. Light/dark/system modes,
+local SVG scenes, navigation capsules, and hover transitions adapt the earlier
+liquid-glass demo to real Razor Pages rather than replacing business content.
+
+The optional renderer uses decorative proxy surfaces only. Unavailable/disabled
+WebGL, reduced motion, and forced colors fall back to CSS; no CDN or CSP relaxation
+is required. Host client libraries come from ABP Theme.Shared `~10.6.0`, not Lepton.
+Configure `LiquidGlassThemeOptions` or the `LiquidGlassTheme` configuration section;
+see the module README for integration, layout overrides, page attributes, tests,
+and third-party notices. The module is Razor Pages / MVC only, not Angular or Blazor.
+
 ## Development prerequisites
 
 - .NET SDK 10.0.400 or a compatible patch selected by `global.json`.
@@ -346,6 +365,21 @@ abp install-libs --working-directory .\host\src\SayHello.ShortLink.WebHost.Web
 dotnet build .\SayHello.ShortLink.slnx --configuration Release --no-restore
 dotnet test .\SayHello.ShortLink.slnx --configuration Release --no-build
 ```
+
+### Focused theme and creation-form regression
+
+The frontend checks use Node.js 20+ and its built-in test runner without additional
+packages. The host-owned creation-form tests cover namespace/root selection, quotas,
+loading, stale responses, and retry behavior. The script keeps its helpers as function
+expressions so ABP bundle minification preserves their lexical scope.
+
+```powershell
+node --test .\modules\SayHello.LiquidGlassTheme\tests\liquid-glass.test.mjs .\host\test\SayHello.ShortLink.WebHost.Web.Tests\Frontend\short-link-index.test.mjs
+dotnet test .\host\test\SayHello.ShortLink.WebHost.Web.Tests\SayHello.ShortLink.WebHost.Web.Tests.csproj --filter "FullyQualifiedName~LiquidGlass|FullyQualifiedName~Index_Tests|FullyQualifiedName~SubscriptionRouteTests"
+```
+
+To run the creation-form checks against a saved, actual ABP-minified page bundle,
+set `SHORT_LINK_BUNDLE_PATH` to that JavaScript file for the Node test command.
 
 ### PostgreSQL subscription integration tests
 

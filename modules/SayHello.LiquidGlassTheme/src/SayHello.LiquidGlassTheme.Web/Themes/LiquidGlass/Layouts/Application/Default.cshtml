@@ -1,0 +1,40 @@
+@inject IPageLayout PageLayout
+@inject IStringLocalizer<LiquidGlassThemeResource> L
+@{
+    Layout = "~/Themes/LiquidGlass/Layouts/_Document.cshtml";
+}
+@await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Scene.cshtml")
+<div class="lgt-shell">
+    <header class="lgt-header lgt-glass" data-lgt-glass="header" data-lgt-header>
+        @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Brand.cshtml")
+        @await Component.InvokeAsync(typeof(LiquidGlassMainMenuViewComponent))
+        <div class="lgt-header-actions">
+            @await Component.InvokeAsync(typeof(LiquidGlassToolbarViewComponent))
+            <button type="button" class="lgt-icon-button lgt-menu-toggle" data-lgt-menu-toggle
+                    aria-controls="lgt-navigation" aria-expanded="false" aria-label="@L["ToggleNavigation"]">
+                <i class="fa fa-bars" aria-hidden="true"></i>
+            </button>
+        </div>
+    </header>
+    <main id="lgt-main" class="lgt-main" tabindex="-1">
+        @if (PageLayout.Content.ShouldShowBreadCrumb() || !string.IsNullOrWhiteSpace(PageLayout.Content.Title) || IsSectionDefined("content_toolbar"))
+        {
+            <div class="lgt-page-heading">
+                @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_ContentHeader.cshtml")
+                @if (PageLayout.Content.ShowToolbar)
+                {
+                    <div class="lgt-content-toolbar">@await RenderSectionAsync("content_toolbar", required: false)</div>
+                }
+                else
+                {
+                    IgnoreSection("content_toolbar");
+                }
+            </div>
+        }
+        @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Alerts.cshtml")
+        @RenderBody()
+    </main>
+    @await Html.PartialAsync("~/Themes/LiquidGlass/Layouts/_Footer.cshtml")
+</div>
+@section styles { @await RenderSectionAsync("styles", required: false) }
+@section scripts { @await RenderSectionAsync("scripts", required: false) }

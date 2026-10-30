@@ -1,0 +1,7 @@
+@model Toolbar
+<div class="lgt-toolbar">
+    @foreach (var item in Model.Items.OrderBy(item => item.Order))
+    {
+        @await Component.InvokeAsync(item.ComponentType)
+    }
+</div>
