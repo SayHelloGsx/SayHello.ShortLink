@@ -368,6 +368,11 @@ prefixes in the image's copy of the lockfile. GitHub container publishing explic
 `NPM_REGISTRY=https://registry.npmjs.org/`; local Docker builds can also select a registry
 with `--build-arg NPM_REGISTRY=<registry-url>` without modifying the checked-in lockfile.
 
+The Dockerfile pins the .NET SDK and both runtime targets to patched Ubuntu Noble
+image digests. Refresh the tags and digests together when servicing .NET or OS
+vulnerabilities; a floating tag does not update a digest-pinned image. Container
+publishing rejects fixable HIGH and CRITICAL Trivy findings and uploads its SARIF report.
+
 ```powershell
 dotnet restore .\SayHello.ShortLink.slnx
 abp install-libs --working-directory .\host\src\SayHello.ShortLink.WebHost.Web
