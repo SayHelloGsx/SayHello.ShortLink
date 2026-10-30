@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SayHello.ShortLink.ShortLinks;
+using SayHello.ShortLink.Subscription;
 using Shouldly;
 using Volo.Abp;
 using Volo.Abp.Data;
@@ -39,6 +40,9 @@ public class ShortLinkSubscriptionPostgreSqlTests : IAsyncLifetime
         });
         await _application.InitializeAsync();
         _initialized = true;
+        using var scope = _application.ServiceProvider.CreateScope();
+        scope.ServiceProvider.GetRequiredService<IShortLinkCapabilityProvider>()
+            .ShouldBeOfType<SubscriptionShortLinkCapabilityProvider>();
     }
 
     [PostgreSqlTheory]
@@ -49,7 +53,8 @@ public class ShortLinkSubscriptionPostgreSqlTests : IAsyncLifetime
         var tenantId = hasTenant ? Guid.NewGuid() : (Guid?)null;
         var owner = Guid.NewGuid();
         await RunAsync(tenantId, owner, services =>
-            ShortLinkSubscriptionTestData.CreatePlanAsync(services, 1, true));
+            ShortLinkSubscriptionTestData.CreatePlanAsync(
+                services, 1, true, domains: [ShortLinkSubscriptionTestData.DefaultOrigin]));
 
         var attempts = await Task.WhenAll(Enumerable.Range(0, 6).Select(async _ =>
         {
@@ -73,7 +78,9 @@ public class ShortLinkSubscriptionPostgreSqlTests : IAsyncLifetime
     public async Task Rolled_Back_Create_Should_Release_The_Lock_And_Not_Occupy_Actual_Subscription_Quota()
     {
         var owner = Guid.NewGuid();
-        await RunAsync(null, owner, services => ShortLinkSubscriptionTestData.CreatePlanAsync(services, 1, true));
+        await RunAsync(null, owner, services =>
+            ShortLinkSubscriptionTestData.CreatePlanAsync(
+                services, 1, true, domains: [ShortLinkSubscriptionTestData.DefaultOrigin]));
         await CreateAsync(null, owner, commit: false);
         (await RunAsync(null, owner, services =>
             services.GetRequiredService<IShortLinkRepository>().GetCountByOwnerAsync(owner))).ShouldBe(0);

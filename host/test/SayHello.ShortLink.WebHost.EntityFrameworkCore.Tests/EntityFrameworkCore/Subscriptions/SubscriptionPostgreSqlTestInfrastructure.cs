@@ -4,8 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
+using SayHello.ShortLink.Subscription;
 using SayHello.Subscription;
 using SayHello.Subscription.Definitions;
+using SayHello.Subscription.Public;
 using Volo.Abp.Autofac;
 using Volo.Abp.BackgroundJobs;
 using Volo.Abp.DistributedLocking;
@@ -104,7 +106,11 @@ internal sealed class SubscriptionPostgreSqlDatabase : IAsyncDisposable
     }
 }
 
-[DependsOn(typeof(WebHostEntityFrameworkCoreModule), typeof(AbpAutofacModule))]
+[DependsOn(
+    typeof(WebHostEntityFrameworkCoreModule),
+    typeof(ShortLinkSubscriptionApplicationModule),
+    typeof(SubscriptionPublicApplicationModule),
+    typeof(AbpAutofacModule))]
 public class SubscriptionPostgreSqlTestModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)

@@ -12,6 +12,8 @@
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
     <ProjectReference Include="..\..\src\SayHello.ShortLink.WebHost.EntityFrameworkCore\SayHello.ShortLink.WebHost.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\SayHello.ShortLink.WebHost.Application.Tests\SayHello.ShortLink.WebHost.Application.Tests.csproj" />
+    <ProjectReference Include="..\..\..\modules\SayHello.ShortLink.Subscription\src\SayHello.ShortLink.Subscription.Application\SayHello.ShortLink.Subscription.Application.csproj" />
+    <ProjectReference Include="..\..\..\modules\SayHello.Subscription\src\SayHello.Subscription.Public.Application\SayHello.Subscription.Public.Application.csproj" />
     <PackageReference Include="Volo.Abp.EntityFrameworkCore.Sqlite" Version="10.6.0" />
   </ItemGroup>
 

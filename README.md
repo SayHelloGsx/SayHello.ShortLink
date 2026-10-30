@@ -393,6 +393,10 @@ nullable defaults, Boolean-to-Enum statistics conversion, typed entitlement cons
 Origin/domain indexes and restrictive references, same-product subscription references,
 catalog lock leases, short-link namespace upgrades and guarded downgrades, and retiring
 the `namespaces` entitlement, including its downgrade.
+The fixtures load the real short-link subscription bridge and public entitlement
+application modules, including business-owned entitlement options. Concurrent creation
+uses independent scopes, a finite quota, and an explicitly granted Origin; exactly one
+link may commit, and rolled-back creation must release its lock without consuming quota.
 
 ```powershell
 $env:SUBSCRIPTION_TEST_POSTGRES_CONNECTION_STRING = '<isolated PostgreSQL test connection string>'

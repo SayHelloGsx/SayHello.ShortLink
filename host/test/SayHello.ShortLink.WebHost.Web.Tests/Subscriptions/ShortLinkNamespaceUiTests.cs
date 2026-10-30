@@ -316,7 +316,7 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
                 Origin = origin ?? ShortLinkSubscriptionTestData.DefaultOrigin,
                 Name = "ui-" + Guid.NewGuid().ToString("N")
             });
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
         return (await response.Content.ReadFromJsonAsync<ShortLinkNamespaceDto>())!;
     }
 
@@ -337,7 +337,13 @@ public class ShortLinkNamespaceUiTests : IClassFixture<ShortLinkSubscriptionWebF
         using var response = await client.GetAsync(url);
         var html = await response.Content.ReadAsStringAsync();
         response.StatusCode.ShouldBe(HttpStatusCode.OK, html);
-        return Parse(html);
+        var document = Parse(html);
+        var token = Node(document, "//input[@name='__RequestVerificationToken']")
+            .GetAttributeValue("value", "");
+        token.ShouldNotBeNullOrWhiteSpace();
+        client.DefaultRequestHeaders.Remove("RequestVerificationToken");
+        client.DefaultRequestHeaders.Add("RequestVerificationToken", token);
+        return document;
     }
 
     private static HtmlDocument Parse(string html)
