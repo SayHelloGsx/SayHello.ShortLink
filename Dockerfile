@@ -17,7 +17,10 @@ RUN npm config set registry "${NPM_REGISTRY}" \
 
 COPY . .
 
-RUN dotnet tool install \
+# Yarn's registry setting does not override absolute download URLs in yarn.lock.
+RUN sed -i "s|https://registry\.npmjs\.org/|${NPM_REGISTRY%/}/|g" \
+        host/src/SayHello.ShortLink.WebHost.Web/yarn.lock \
+    && dotnet tool install \
         --tool-path /tools \
         Volo.Abp.Cli \
         --version 10.6.0 \

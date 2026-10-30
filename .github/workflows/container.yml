@@ -96,6 +96,8 @@ jobs:
         with:
           context: .
           target: web
+          build-args: |
+            NPM_REGISTRY=https://registry.npmjs.org/
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

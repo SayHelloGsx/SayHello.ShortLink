@@ -359,6 +359,15 @@ and third-party notices. The module is Razor Pages / MVC only, not Angular or Bl
 The checked-in NuGet configuration uses Microsoft's public package proxy because the current
 development network cannot complete a TLS handshake with NuGet.org directly.
 
+The MVC `yarn.lock` uses canonical `https://registry.npmjs.org/` download URLs so GitHub CI
+is not tied to a mirror's physical feed endpoints. Keep the locked versions and integrity
+values unchanged when switching registries; Yarn 1 does not override absolute lockfile URLs
+with its registry setting alone. For restricted-network local builds, the Dockerfile keeps
+Microsoft's public npm proxy as its default `NPM_REGISTRY` and rewrites only the download
+prefixes in the image's copy of the lockfile. GitHub container publishing explicitly selects
+`NPM_REGISTRY=https://registry.npmjs.org/`; local Docker builds can also select a registry
+with `--build-arg NPM_REGISTRY=<registry-url>` without modifying the checked-in lockfile.
+
 ```powershell
 dotnet restore .\SayHello.ShortLink.slnx
 abp install-libs --working-directory .\host\src\SayHello.ShortLink.WebHost.Web
